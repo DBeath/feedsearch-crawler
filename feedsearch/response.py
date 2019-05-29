@@ -9,7 +9,7 @@ class Response:
                  encoding: str = "",
                  data: str = "",
                  history: List[URL] = None,
-                 headers: dict = None,
+                 headers = None,
                  status_code: int = -1):
         self.url = url
         self.encoding = encoding

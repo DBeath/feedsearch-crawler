@@ -1,7 +1,8 @@
 import asyncio
 import time
 import traceback
-from typing import Any, AsyncGenerator
+from types import AsyncGeneratorType
+from typing import Any, AsyncGenerator, Union
 from typing import List
 
 import aiohttp
@@ -9,11 +10,14 @@ from bs4 import BeautifulSoup
 from yarl import URL
 from .lib import coerce_url
 import logging
+from .response import Response
+from .request import Request
+from .item import Item
 
 
 
 class Crawler:
-    def __init__(self, start_urls: List = None, max_tasks: int = 10):
+    def __init__(self, start_urls: List = None, max_tasks: int = 10, timeout: int=10):
         self.max_tasks = max_tasks
         self.session = None
         self.seen_urls = set()
@@ -25,38 +29,76 @@ class Crawler:
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36"
         self.headers = {"User-Agent": self.user_agent}
         self.logger = logging.getLogger("feedsearch")
-        self.timeout = 10
+        self.timeout = timeout
 
-    async def fetch(self, url):
+    async def handle_request(self, request: Request):
         try:
             start = time.perf_counter()
 
-            response = await self.session.get(url, headers=self.headers)
+            results, response = await request.fetch()
 
             dur = int((time.perf_counter() - start) * 1000)
-            print(f"Fetched: {response.url} in {dur}ms")
+            print(f"Fetched: {response.url} in {dur}ms. Status: {response.status_code}")
+
             self.requests += 1
 
-            links: AsyncGenerator[str, Any] = self.parse(response)
-
-            async for link in links:
-                async with self.seen_lock:
-                    if link not in self.seen_urls:
-                        self.q.put_nowait(link)
-                        self.seen_urls.update(link)
+            await self.process_parsed_response(results)
 
         except asyncio.CancelledError:
-            print(f"Cancelled URL: {url}")
+            print(f"Cancelled URL: {request.url}")
         except Exception as e:
             tb = traceback.format_exc()
-            print(f"Exception at URL: {url}, {e}")
+            print(f"Exception at URL: {request.url}, {e}")
             print(tb)
         finally:
             return
 
-    async def parse(self, response):
+    async def process_parsed_response(self, results: AsyncGeneratorType):
+        try:
+            async for result in results:
+                if isinstance(result, Request):
+                    await self.process_request(result)
+                elif isinstance(result, Item):
+                    await self.process_item(result)
+
+        except Exception as e:
+            self.logger.error(e)
+
+
+    async def process_item(self, item: Item) -> None:
+        print(item)
+        self.items.add(item)
+
+
+    async def process_request(self, request: Request) -> None:
+        async with self.seen_lock:
+            request_url = str(request.url)
+            if request_url not in self.seen_urls:
+                print(request_url)
+                self.q.put_nowait(request)
+                self.seen_urls.update(request_url)
+
+    def follow(self, url: Union[str, URL], callback=None, response: Response=None, **kwargs) -> Request:
+        if isinstance(url, str):
+            url = URL(url)
+
+        history = []
+        if response:
+            url = response.url.join(url)
+            history = response.history
+
+        request = Request(
+            url=url,
+            request_session=self.session,
+            history=history,
+            callback=callback,
+            **kwargs
+        )
+        return request
+
+    async def parse(self, request: Request, response: Response):
         url = response.url
-        text = await response.text()
+        text = response.data
         if not text:
             print(f"No text at {url}")
             return
@@ -71,14 +113,18 @@ class Crawler:
 
         if content_type:
             if "json" in content_type and data.count("jsonfeed.org"):
-                self.items.add(str(response.url))
-                return
+                item = Item()
+                item.url = str(response.url)
+                item.content_type = content_type
+                yield item
         else:
             print(f"No content type at URL: {url}")
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
-            self.items.add(str(response.url))
-            return
+            item = Item()
+            item.url = str(response.url)
+            item.content_type = "application/rss+xml"
+            yield item
 
         # links = set()
         link_tags = soup.find_all("link")
@@ -94,20 +140,20 @@ class Crawler:
                 "application/json",
             ]:
                 href = link.get("href", "")
-                url = url.join(URL(href))
+                #url = url.join(URL(href))
                 # links.add(str(url))
-                yield str(url)
+                yield self.follow(href, self.parse, response)
         # return links
 
     async def work(self):
         while True:
-            url = await self.q.get()
+            request = await self.q.get()
 
             # Download page and add new links to self.q.
             try:
-                await asyncio.shield(self.fetch(url))
+                await asyncio.shield(self.handle_request(request))
             except asyncio.CancelledError:
-                print(f"Cancelled URL: {url}")
+                print(f"Cancelled Request: {request}")
             finally:
                 self.q.task_done()
 
@@ -118,7 +164,7 @@ class Crawler:
         self.seen_lock = asyncio.Lock()
 
         for url in self.start_urls:
-            await self.q.put(coerce_url(url))
+            await self.q.put(self.follow(coerce_url(url), self.parse))
 
         workers = [asyncio.create_task(self.work())
                    for _ in range(self.max_tasks)]
@@ -136,3 +182,5 @@ class Crawler:
 
         duration = int((time.perf_counter() - start) * 1000)
         self.logger.info("Crawled %s URLs in %dms", self.requests, duration)
+
+        print([item.url for item in self.items])
