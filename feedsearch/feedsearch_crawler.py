@@ -12,33 +12,30 @@ class FeedsearchSpider(Crawler):
 
     async def parse(self, request: Request, response: Response):
         url = response.url
-        text = response.text
-        if not text:
-            print(f"No text at {url}")
-            return
-
-        soup = BeautifulSoup(text, features="html.parser")
         content_type = response.headers.get("content-type")
 
-        data = text.lower()[:500]
-
-        if not data:
-            return
-
-        if content_type:
-            if "json" in content_type and data.count("jsonfeed.org"):
-                item = Feed()
-                item.url = str(response.url)
-                item.content_type = content_type
+        if response.json:
+            if "version" in response.json:
+                item = Feed(str(response.url), content_type)
+                item.process_data(response.json, response)
                 yield item
                 return
         else:
             print(f"No content type at URL: {url}")
 
+        if not response.text:
+            print(f"No text at {url}")
+            return
+
+        soup = BeautifulSoup(response.text, features="html.parser")
+        data = response.text.lower()[:500]
+
+        if not data:
+            return
+
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
-            item = Feed()
-            item.url = str(response.url)
-            item.content_type = "application/rss+xml"
+            item = Feed(str(response.url), content_type)
+            item.process_data(response.text, response)
             yield item
             return
 

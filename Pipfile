@@ -12,6 +12,7 @@ cchardet = "*"
 aiodns = "*"
 uvloop = "*"
 w3lib = "*"
+feedparser = "*"
 
 [requires]
 python_version = "3.7"
