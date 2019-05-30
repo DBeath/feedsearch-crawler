@@ -5,13 +5,13 @@ import json
 from pprint import pprint
 
 urls = [
-    "http://arstechnica.com",
+    # "http://arstechnica.com",
     "http://davidbeath.com",
-    # "http://xkcd.com",
+    "http://xkcd.com",
     "http://jsonfeed.org",
     # "en.wikipedia.com",
-    # "scientificamerican.org",
-    # "newyorktimes.com",
+    # "scientificamerican.com",
+    # "newyorktimes.com"
 ]
 
 

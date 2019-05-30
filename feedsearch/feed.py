@@ -49,22 +49,24 @@ class Feed(Item):
         if response.headers:
             self.hubs, self.self_url = self.header_links(response.headers)
 
+        original_url = str(response.history[0])
+
         # Try to parse data as JSON
         if isinstance(data, dict):
             self.content_type = "application/json"
             self.parse_json(data)
-            self.calculate_score()
+            self.calculate_score(original_url)
             return
 
         try:
             self.parse_xml(data)
-            self.calculate_score()
+            self.calculate_score(original_url)
         except Exception as e:
             self.logger.exception("Failed to parse feed %s, Error: %s", self.url, e)
 
-    def calculate_score(self):
+    def calculate_score(self, original_url: str = ""):
         try:
-            self.score = self.url_feed_score(self.url)
+            self.score = self.url_feed_score(self.url, original_url)
         except Exception as e:
             self.logger.exception(
                 "Failed to create score for feed %s, Error: %s", self.url, e
