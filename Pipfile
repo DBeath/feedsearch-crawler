@@ -8,6 +8,10 @@ verify_ssl = true
 [packages]
 aiohttp = "*"
 beautifulsoup4 = "*"
+cchardet = "*"
+aiodns = "*"
+uvloop = "*"
+w3lib = "*"
 
 [requires]
 python_version = "3.7"

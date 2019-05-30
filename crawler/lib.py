@@ -16,3 +16,13 @@ def coerce_url(url: str, https: bool = False) -> str:
         return f"https://{url}"
     else:
         return f"http://{url}"
+
+
+def to_bytes(text, encoding=None, errors="strict"):
+    """Return the binary representation of `text`. If `text`
+    is already a bytes object, return it as-is."""
+    if isinstance(text, bytes):
+        return text
+    if encoding is None:
+        encoding = "utf-8"
+    return text.encode(encoding, errors)
