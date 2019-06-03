@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Any
 
 from bs4 import BeautifulSoup
 from yarl import URL
@@ -31,7 +31,8 @@ class FeedsearchSpider(Crawler):
             print(f"No text at {url}")
             return
 
-        soup = BeautifulSoup(response.text, features="html.parser")
+        # soup = BeautifulSoup(response.text, features="html.parser")
+        soup = response.parsed_xml
         data = response.text.lower()[:500]
 
         if not data:
@@ -62,6 +63,9 @@ class FeedsearchSpider(Crawler):
             if should_follow_url(link.get("href"), response):
                 yield self.follow(link.get("href"), self.parse, response)
 
+    async def parse_xml(self, response_text: str) -> Any:
+        return BeautifulSoup(response_text, features="html.parser")
+
 
 def should_follow_url(url: str, response: Response) -> bool:
     if (
@@ -72,13 +76,7 @@ def should_follow_url(url: str, response: Response) -> bool:
         and not invalid_filetype(url)
     ):
         return True
-    #     return False
-    # if query_contains_comments(url):
-    #     return False
-    # if not one_jump_from_original_domain(url, response):
-    #     return False
-    # if is_feedlike_url(url):
-    #     return True
+
     return False
 
 

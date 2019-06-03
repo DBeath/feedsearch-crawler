@@ -105,10 +105,14 @@ class Crawler:
             request_session=self.session,
             history=history,
             callback=callback,
+            xml_parser=self.parse_xml,
             **kwargs,
         )
 
         return request
+
+    async def parse_xml(self, response_text: str):
+        raise NotImplementedError("Not Implemented")
 
     async def parse(self, request: Request, response: Response):
         raise NotImplementedError("Not Implemented")

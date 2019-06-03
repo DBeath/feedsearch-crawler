@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from yarl import URL
 import uuid
 
@@ -10,6 +10,7 @@ class Response:
         method: str,
         encoding: str = "",
         text: str = "",
+        parsed_xml: Any = None,
         json: Dict = None,
         history: List[URL] = None,
         headers=None,
@@ -23,6 +24,7 @@ class Response:
         self.history = history or []
         self.headers = headers
         self.status_code = status_code
+        self.parsed_xml = parsed_xml
         self.id = uuid.uuid4()
 
     @property
