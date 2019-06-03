@@ -5,6 +5,7 @@ from types import AsyncGeneratorType
 from typing import List
 from typing import Union
 import copy
+import inspect
 
 import aiohttp
 from yarl import URL
@@ -26,6 +27,7 @@ except ImportError:
 
 class Crawler:
     dupefilter = DuplicateFilter()
+    post_crawl_callback = None
 
     def __init__(self, start_urls: List = None, max_tasks: int = 10, timeout: int = 10):
         self.max_tasks = max_tasks
@@ -58,7 +60,8 @@ class Crawler:
 
             self.requests += 1
 
-            await self._process_parsed_response(results)
+            if results and inspect.isasyncgen(results):
+                await self._process_parsed_response(results)
 
         except asyncio.CancelledError:
             self.logger.debug("Cancelled URL: %s", request.url)
@@ -122,6 +125,19 @@ class Crawler:
             finally:
                 self.request_queue.task_done()
 
+    async def post_crawl(self, *args, **kwargs):
+        pass
+
+    async def run_callback(self, callback, *args, **kwargs):
+        if not callback:
+            return
+        if inspect.iscoroutinefunction(callback):
+            return await callback(*args, **kwargs)
+        elif inspect.isfunction(callback):
+            return callback(*args, **kwargs)
+        else:
+            self.logger.warning("Callback %s must be a coroutine or function", callback)
+
     async def crawl(self):
         start = time.perf_counter()
         self.request_queue = asyncio.Queue()
@@ -144,6 +160,8 @@ class Crawler:
         finally:
             for w in workers:
                 w.cancel()
+
+        await self.run_callback(self.post_crawl_callback)
 
         await self.session.close()
 

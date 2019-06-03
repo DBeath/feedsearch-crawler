@@ -3,7 +3,7 @@ import copy
 import hashlib
 import logging
 import uuid
-from inspect import iscoroutinefunction
+from inspect import isasyncgenfunction
 from types import AsyncGeneratorType
 from typing import List, Tuple
 
@@ -49,17 +49,18 @@ class Request:
     async def fetch(self) -> Tuple[AsyncGeneratorType, Response]:
         try:
             timeout = aiohttp.ClientTimeout(total=self.timeout)
-            resp = await self.request_session.get(
+            request = self.request_session.get(
                 self.url, headers=self.headers, timeout=timeout
             )
-            try:
-                resp_data = await resp.text(encoding=self.encoding)
-            except UnicodeDecodeError:
-                resp_data = await resp.read()
-            try:
-                resp_json = await resp.json()
-            except Exception:
-                resp_json = None
+            async with request as resp:
+                try:
+                    resp_data = await resp.text(encoding=self.encoding)
+                except UnicodeDecodeError:
+                    resp_data = await resp.read()
+                try:
+                    resp_json = await resp.json()
+                except Exception:
+                    resp_json = None
 
             resp.raise_for_status()
 
@@ -86,10 +87,11 @@ class Request:
             )
             response = self._failed_response(e.status)
 
-        if iscoroutinefunction(self.callback):
-            callback_result = await self.callback(self, response)
-        else:
+        callback_result = None
+        if self.callback and isasyncgenfunction(self.callback):
             callback_result = self.callback(self, response)
+        else:
+            self.logger.warning("Response callback must be an asyncgenfunction. %s %s", self, self.callback)
 
         return callback_result, response
 
