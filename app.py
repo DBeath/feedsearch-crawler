@@ -37,3 +37,6 @@ if __name__ == "__main__":
     results = get_pretty_print(serialized)
     print(results)
     pprint([result["url"] for result in serialized])
+
+    site_metas = [item.serialize() for item in crawler.site_metas]
+    pprint(site_metas)

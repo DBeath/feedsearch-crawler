@@ -4,15 +4,23 @@ from bs4 import BeautifulSoup
 from yarl import URL
 
 from crawler.crawler import Crawler
+from crawler.item import Item
 from feedsearch.feed import Feed
 from crawler.request import Request
 from crawler.response import Response
 from feedsearch.dupefilter import NoQueryDupeFilter
 from feedsearch.lib import query_contains_comments, is_feedlike_url
+from feedsearch.site_meta_processor import SiteMetaProcessor
+from feedsearch.site_meta import SiteMeta
 
 
 class FeedsearchSpider(Crawler):
     dupefilter = NoQueryDupeFilter()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.site_meta_processor = SiteMetaProcessor(self)
+        self.site_metas = set()
 
     async def parse(self, request: Request, response: Response):
         url = response.url
@@ -34,6 +42,9 @@ class FeedsearchSpider(Crawler):
         # soup = BeautifulSoup(response.text, features="html.parser")
         soup = response.parsed_xml
         data = response.text.lower()[:500]
+
+        if url.is_absolute():
+            yield self.site_meta_processor.process(url, request, response)
 
         if not data:
             return
@@ -65,6 +76,12 @@ class FeedsearchSpider(Crawler):
 
     async def parse_xml(self, response_text: str) -> Any:
         return BeautifulSoup(response_text, features="html.parser")
+
+    async def process_item(self, item: Item) -> None:
+        if isinstance(item, Feed):
+            self.items.add(item)
+        elif isinstance(item, SiteMeta):
+            self.site_metas.add(item)
 
 
 def should_follow_url(url: str, response: Response) -> bool:
