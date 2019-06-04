@@ -5,10 +5,10 @@ import json
 from pprint import pprint
 
 urls = [
-    # "http://arstechnica.com",
-    "http://davidbeath.com",
-    "http://xkcd.com",
-    "http://jsonfeed.org",
+    "http://arstechnica.com",
+    # "http://davidbeath.com",
+    # "http://xkcd.com",
+    # "http://jsonfeed.org",
     # "en.wikipedia.com",
     # "scientificamerican.com",
     # "newyorktimes.com"
@@ -39,4 +39,8 @@ if __name__ == "__main__":
     pprint([result["url"] for result in serialized])
 
     site_metas = [item.serialize() for item in crawler.site_metas]
-    pprint(site_metas)
+    metas = get_pretty_print(site_metas)
+    print(metas)
+    # pprint(site_metas)
+
+    pprint(crawler.dupefilter.fingerprints)

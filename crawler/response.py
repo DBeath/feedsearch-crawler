@@ -28,6 +28,10 @@ class Response:
         self.id = uuid.uuid4()
 
     @property
+    def ok(self) -> bool:
+        return self.status_code == 0 or 200 <= self.status_code <= 299
+
+    @property
     def domain(self) -> str:
         return self.url.host
 

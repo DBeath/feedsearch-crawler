@@ -21,54 +21,42 @@ class FeedsearchSpider(Crawler):
         super().__init__(*args, **kwargs)
         self.site_meta_processor = SiteMetaProcessor(self)
         self.site_metas = set()
+        self.post_crawl_callback = self.populate_feed_site_meta
 
     async def parse(self, request: Request, response: Response):
+        if not response.ok:
+            return
+
         url = response.url
         content_type = response.headers.get("content-type")
 
         if response.json:
             if "version" in response.json:
-                item = Feed(str(response.url), content_type)
+                item = Feed(response.url, content_type)
                 item.process_data(response.json, response)
                 yield item
                 return
-        else:
-            print(f"No content type at URL: {url}")
 
         if not response.text:
-            print(f"No text at {url}")
+            self.logger.debug("No text in %s", response)
             return
 
-        # soup = BeautifulSoup(response.text, features="html.parser")
         soup = response.parsed_xml
         data = response.text.lower()[:500]
 
-        if url.is_absolute():
-            yield self.site_meta_processor.process(url, request, response)
+        url_origin = url.origin()
+        if url == url_origin:
+            yield await self.site_meta_processor.process(url, request, response)
 
         if not data:
             return
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
-            item = Feed(str(response.url), content_type)
+            item = Feed(response.url, content_type)
             item.process_data(response.text, response)
             yield item
             return
 
-        # link_tags = soup.find_all("link")
-        # if not link_tags:
-        #     return
-        # for link in link_tags:
-        #     if link.get("type") in [
-        #         "application/rss+xml",
-        #         "text/xml",
-        #         "application/atom+xml",
-        #         "application/x.atom+xml",
-        #         "application/x-atom+xml",
-        #         "application/json",
-        #     ]:
-        #         href = link.get("href", "")
-        #         yield self.follow(href, self.parse, response)
         links = soup.find_all(tag_has_attr)
         for link in links:
             if should_follow_url(link.get("href"), response):
@@ -82,6 +70,15 @@ class FeedsearchSpider(Crawler):
             self.items.add(item)
         elif isinstance(item, SiteMeta):
             self.site_metas.add(item)
+
+    def populate_feed_site_meta(self):
+        for feed in self.items:
+            for meta in self.site_metas:
+                if meta.url == feed.url.origin():
+                    feed.site_url = meta.url
+                    if not feed.favicon:
+                        feed.favicon = meta.icon_url
+                    feed.site_name = meta.site_name
 
 
 def should_follow_url(url: str, response: Response) -> bool:

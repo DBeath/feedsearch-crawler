@@ -29,12 +29,16 @@ class Crawler:
     dupefilter = DuplicateFilter()
     post_crawl_callback = None
 
+    concurrency: int = 10
+
+    requests_successful = 0
+    requests_failed = 0
+
     def __init__(self, start_urls: List = None, max_tasks: int = 10, timeout: int = 10):
         self.max_tasks = max_tasks
         self.session = None
         self.request_queue = None
         self.items = set()
-        self.requests = 0
         self.start_urls = start_urls
         self.user_agent = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -43,12 +47,14 @@ class Crawler:
         self.headers = {"User-Agent": self.user_agent}
         self.logger = logging.getLogger(__name__)
         self.timeout = timeout
+        self.seen_lock = asyncio.Lock()
+        self.semaphore = asyncio.Semaphore(self.concurrency)
 
     async def _handle_request(self, request: Request):
         try:
             start = time.perf_counter()
 
-            results, response = await request.fetch()
+            results, response = await request.fetch_callback()
 
             dur = int((time.perf_counter() - start) * 1000)
             self.logger.debug(
@@ -58,15 +64,20 @@ class Crawler:
                 response.status_code,
             )
 
-            self.requests += 1
+            if response.ok:
+                self.requests_successful += 1
+            else:
+                self.requests_failed += 1
+
+            await self.dupefilter.request_seen(request)
 
             if results and inspect.isasyncgen(results):
                 await self._process_parsed_response(results)
 
         except asyncio.CancelledError:
-            self.logger.debug("Cancelled URL: %s", request.url)
+            self.logger.debug("Cancelled %s", request)
         except Exception as e:
-            self.logger.exception("Exception at URL: %s, %s", request.url, e)
+            self.logger.exception("Exception during %s, %s", request, e)
         finally:
             return
 
@@ -79,7 +90,7 @@ class Crawler:
                     await self.process_item(result)
 
         except Exception as e:
-            self.logger.error(e)
+            self.logger.exception(e)
 
     async def process_item(self, item: Item) -> None:
         self.items.add(item)
@@ -121,7 +132,6 @@ class Crawler:
         while True:
             request = await self.request_queue.get()
 
-            # Download page and add new links to self.q.
             try:
                 await asyncio.shield(self._handle_request(request))
             except asyncio.CancelledError:
@@ -147,7 +157,6 @@ class Crawler:
         self.request_queue = asyncio.Queue()
         timeout = aiohttp.ClientTimeout(total=self.timeout)
         self.session = aiohttp.ClientSession(timeout=timeout)
-        self.seen_lock = asyncio.Lock()
 
         for url in self.start_urls:
             await self.request_queue.put(self.follow(coerce_url(url), self.parse))
@@ -170,4 +179,8 @@ class Crawler:
         await self.session.close()
 
         duration = int((time.perf_counter() - start) * 1000)
-        self.logger.info("Crawled %s URLs in %dms", self.requests, duration)
+        self.logger.info(
+            "Crawled %s URLs in %dms",
+            (self.requests_failed + self.requests_successful),
+            duration,
+        )

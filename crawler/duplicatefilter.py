@@ -1,10 +1,11 @@
 from crawler.request import request_fingerprint, Request
 import asyncio
+import copy
 
 
 class DuplicateFilter:
     def __init__(self):
-        self.fingerprints = set()
+        self.fingerprints = dict()
         self.seen_lock = asyncio.Lock()
 
     async def request_seen(self, request) -> bool:
@@ -12,7 +13,7 @@ class DuplicateFilter:
         async with self.seen_lock:
             if fp in self.fingerprints:
                 return True
-            self.fingerprints.add(fp)
+            self.fingerprints[fp] = copy.copy(request.url)
             return False
 
     def _request_fingerprint(self, request: Request) -> str:
