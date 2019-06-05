@@ -17,9 +17,7 @@ def create_start_urls(url: Union[str, URL]) -> List[str]:
     else:
         origin = URL(url).origin()
 
-    start_urls = [url, origin]
-    start_urls.append(str(origin.join(URL("/about"))))
-    return start_urls
+    return [url, origin, str(origin.join(URL("/about")))]
 
 
 def create_allowed_domains(url: Union[str, URL]) -> List[str]:
@@ -63,9 +61,7 @@ def parse_header_links(value):
         except ValueError:
             url, params = val, ""
 
-        link = {}
-
-        link["url"] = url.strip("<> '\"")
+        link = {"url": url.strip("<> '\"")}
 
         for param in params.split(";"):
             try:

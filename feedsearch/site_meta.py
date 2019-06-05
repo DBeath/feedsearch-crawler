@@ -4,7 +4,7 @@ from crawler.item import Item
 
 
 class SiteMeta(Item):
-    url: URL = None
+    url: URL = ""
     site_url: str = ""
     site_name: str = ""
     icon_url: URL = ""
@@ -24,3 +24,6 @@ class SiteMeta(Item):
 
     def __hash__(self):
         return hash(self.url)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({str(self.url)})"

@@ -6,6 +6,7 @@ from typing import List
 from typing import Union
 import copy
 import inspect
+from abc import ABC, abstractmethod
 
 import aiohttp
 from yarl import URL
@@ -25,14 +26,14 @@ except ImportError:
     pass
 
 
-class Crawler:
+class Crawler(ABC):
     dupefilter = DuplicateFilter()
     post_crawl_callback = None
 
     concurrency: int = 10
+    max_request_size = 1024 * 1024 * 10
 
-    requests_successful = 0
-    requests_failed = 0
+    stats: dict = {"requests_successful": 0, "requests_failed": 0}
 
     def __init__(self, start_urls: List = None, max_tasks: int = 10, timeout: int = 10):
         self.max_tasks = max_tasks
@@ -65,9 +66,9 @@ class Crawler:
             )
 
             if response.ok:
-                self.requests_successful += 1
+                self.stats["requests_successful"] += 1
             else:
-                self.requests_failed += 1
+                self.stats["requests_failed"] += 1
 
             await self.dupefilter.request_seen(request)
 
@@ -117,14 +118,17 @@ class Crawler:
             history=history,
             callback=callback,
             xml_parser=self.parse_xml,
+            max_size=self.max_request_size,
             **kwargs,
         )
 
         return request
 
+    @abstractmethod
     async def parse_xml(self, response_text: str):
         raise NotImplementedError("Not Implemented")
 
+    @abstractmethod
     async def parse(self, request: Request, response: Response):
         raise NotImplementedError("Not Implemented")
 
@@ -179,8 +183,10 @@ class Crawler:
         await self.session.close()
 
         duration = int((time.perf_counter() - start) * 1000)
+        self.stats["duration"] = duration
+
         self.logger.info(
             "Crawled %s URLs in %dms",
-            (self.requests_failed + self.requests_successful),
+            (self.stats["requests_failed"] + self.stats["requests_successful"]),
             duration,
         )

@@ -1,17 +1,17 @@
-import logging
 from yarl import URL
-from crawler.response import Response
+
+from crawler.item_parser import ItemParser
 from crawler.request import Request
+from crawler.response import Response
 from feedsearch.site_meta import SiteMeta
 
 
-class SiteMetaProcessor:
-    def __init__(self, spider):
-        self.spider = spider
-        self.logger = logging.getLogger(__name__)
-
-    async def process(self, url: URL, request: Request, response: Response) -> SiteMeta:
-        site_meta = SiteMeta(url)
+class SiteMetaParser(ItemParser):
+    async def parse_item(
+        self, request: Request, response: Response, *args, **kwargs
+    ) -> SiteMeta:
+        url = response.url
+        site_meta: SiteMeta = SiteMeta(url)
 
         site_meta.url = self.find_site_url(response.parsed_xml, url)
         site_meta.site_name = self.find_site_name(response.parsed_xml)
@@ -19,7 +19,8 @@ class SiteMetaProcessor:
 
         return site_meta
 
-    def find_site_icon_url(self, soup, url) -> URL:
+    @staticmethod
+    def find_site_icon_url(soup, url) -> URL:
         icon_rel = ["apple-touch-icon", "shortcut icon", "icon"]
 
         for rel in icon_rel:

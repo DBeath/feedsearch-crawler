@@ -5,21 +5,24 @@ from yarl import URL
 
 from crawler.crawler import Crawler
 from crawler.item import Item
-from feedsearch.feed import Feed
+from feedsearch.feed_info import FeedInfo
 from crawler.request import Request
 from crawler.response import Response
 from feedsearch.dupefilter import NoQueryDupeFilter
 from feedsearch.lib import query_contains_comments, is_feedlike_url
-from feedsearch.site_meta_processor import SiteMetaProcessor
+from feedsearch.site_meta_parser import SiteMetaParser
 from feedsearch.site_meta import SiteMeta
+from feedsearch.feed_info_parser import FeedInfoParser
 
 
 class FeedsearchSpider(Crawler):
     dupefilter = NoQueryDupeFilter()
+    htmlparser = "html.parser"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.site_meta_processor = SiteMetaProcessor(self)
+        self.site_meta_processor = SiteMetaParser(self)
+        self.feed_info_parser = FeedInfoParser(self)
         self.site_metas = set()
         self.post_crawl_callback = self.populate_feed_site_meta
 
@@ -28,13 +31,16 @@ class FeedsearchSpider(Crawler):
             return
 
         url = response.url
-        content_type = response.headers.get("content-type")
+
+        url_origin = url.origin()
+        if url == url_origin:
+            yield await self.site_meta_processor.parse_item(request, response)
 
         if response.json:
             if "version" in response.json:
-                item = Feed(response.url, content_type)
-                item.process_data(response.json, response)
-                yield item
+                yield await self.feed_info_parser.parse_item(
+                    request, response, type="json"
+                )
                 return
 
         if not response.text:
@@ -44,17 +50,11 @@ class FeedsearchSpider(Crawler):
         soup = response.parsed_xml
         data = response.text.lower()[:500]
 
-        url_origin = url.origin()
-        if url == url_origin:
-            yield await self.site_meta_processor.process(url, request, response)
-
         if not data:
             return
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
-            item = Feed(response.url, content_type)
-            item.process_data(response.text, response)
-            yield item
+            yield await self.feed_info_parser.parse_item(request, response, type="xml")
             return
 
         links = soup.find_all(tag_has_attr)
@@ -63,18 +63,18 @@ class FeedsearchSpider(Crawler):
                 yield self.follow(link.get("href"), self.parse, response)
 
     async def parse_xml(self, response_text: str) -> Any:
-        return BeautifulSoup(response_text, features="html.parser")
+        return BeautifulSoup(response_text, self.htmlparser)
 
     async def process_item(self, item: Item) -> None:
-        if isinstance(item, Feed):
+        if isinstance(item, FeedInfo):
             self.items.add(item)
         elif isinstance(item, SiteMeta):
             self.site_metas.add(item)
 
-    def populate_feed_site_meta(self):
+    async def populate_feed_site_meta(self):
         for feed in self.items:
             for meta in self.site_metas:
-                if meta.url == feed.url.origin():
+                if meta.url.host in feed.url.host:
                     feed.site_url = meta.url
                     if not feed.favicon:
                         feed.favicon = meta.icon_url

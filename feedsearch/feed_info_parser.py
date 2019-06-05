@@ -1,152 +1,171 @@
-from typing import Tuple
+import time
+from typing import Tuple, List, Union, Dict
 
 import feedparser
 from bs4 import BeautifulSoup
-
-from crawler.item import Item
-from crawler.response import Response
-from feedsearch.lib import *
 from yarl import URL
 
+from crawler.item_parser import ItemParser
+from crawler.request import Request
+from crawler.response import Response
+from feedsearch.feed_info import FeedInfo
+from feedsearch.lib import parse_header_links, get_site_root
 
-class Feed(Item):
-    score: int = ""
-    url: URL = None
-    content_type: str = ""
-    version: str = ""
-    title: str = ""
-    hubs: List[str] = []
-    description: str = ""
-    is_push: bool = False
-    self_url: str = ""
-    bozo: int = 0
-    favicon: URL = None
-    site_url: URL = None
-    site_name: str = ""
 
-    def serialize(self):
-        return dict(
-            url=str(self.url),
-            title=self.title,
-            version=self.version,
-            score=self.score,
-            hubs=self.hubs,
-            description=self.description,
-            is_push=self.is_push,
-            self_url=self.self_url,
-            favicon=str(self.favicon),
-            content_type=self.content_type,
-            bozo=self.bozo,
-            site_url=str(self.site_url),
-            site_name=self.site_name,
-        )
+class FeedInfoParser(ItemParser):
+    async def parse_item(
+        self, request: Request, response: Response, *args, **kwargs
+    ) -> FeedInfo:
+        self.logger.info("Parsing feed %s", response.url)
 
-    def __init__(self, url: URL, content_type: str):
-        super().__init__()
-        self.url = url
-        self.content_type = content_type
+        content_type = response.headers.get("content-type", "")
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.url == other.url
-
-    def __hash__(self):
-        return hash(self.url)
-
-    def process_data(self, data: Union[dict, str], response: Response):
-        self.logger.info("Parsing feed %s", self.url)
+        item = FeedInfo(response.url, content_type)
 
         # Check link headers first for WebSub content discovery
         # https://www.w3.org/TR/websub/#discovery
         if response.headers:
-            self.hubs, self.self_url = self.header_links(response.headers)
+            item.hubs, item.self_url = self.header_links(response.headers)
 
         original_url = str(response.history[0])
 
-        # Try to parse data as JSON
-        if isinstance(data, dict):
-            self.content_type = "application/json"
-            self.parse_json(data)
-            self.calculate_score(original_url)
-            return
+        if "type" not in kwargs:
+            raise ValueError("type keyword argument is required")
 
         try:
-            self.parse_xml(data)
-            self.calculate_score(original_url)
+            data_type = kwargs["type"]
+            if data_type == "json":
+                item.content_type = "application/json"
+                self.parse_json(item, response.json)
+                self.calculate_score(item, original_url)
+                return item
+            elif data_type == "xml":
+                self.parse_xml(item, response.text, response.encoding, response.headers)
+                self.calculate_score(item, original_url)
+                if not item.content_type:
+                    item.content_type = "text/xml"
         except Exception as e:
-            self.logger.exception("Failed to parse feed %s, Error: %s", self.url, e)
+            self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
 
-    def calculate_score(self, original_url: str = ""):
+        return item
+
+    def calculate_score(self, item: FeedInfo, original_url: str = ""):
         try:
-            self.score = self.url_feed_score(str(self.url), original_url)
+            item.score = self.url_feed_score(str(item.url), original_url)
         except Exception as e:
             self.logger.exception(
-                "Failed to create score for feed %s, Error: %s", self.url, e
+                "Failed to create score for feed %s, Error: %s", item, e
             )
 
-    def parse_xml(self, data: str) -> None:
+    def parse_xml(
+        self, item: FeedInfo, data: str, encoding: str, headers: Dict
+    ) -> None:
         """
         Get info from XML (RSS or ATOM) feed.
         """
 
         # Parse data with feedparser
         # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
-        parsed = self.parse_feed(data)
+        parsed = self.parse_raw_data(data, encoding, headers)
         if not parsed or parsed.get("bozo") == 1:
-            self.bozo = 1
-            self.logger.warning("No valid feed data in %s", self.url)
+            item.bozo = 1
+            self.logger.warning("No valid feed data for %s", item)
             return
 
         feed = parsed.get("feed")
 
         # Only search if no hubs already present from headers
-        if not self.hubs:
-            self.hubs, self.self_url = self.websub_links(feed)
+        if not item.hubs:
+            item.hubs, item.self_url = self.websub_links(feed)
 
-        if self.hubs and self.self_url:
-            self.is_push = True
+        if item.hubs and item.self_url:
+            item.is_push = True
 
-        self.version = parsed.get("version")
-        self.title = self.feed_title(feed)
-        self.description = self.feed_description(feed)
+        item.version = parsed.get("version")
+        item.title = self.feed_title(feed)
+        item.description = self.feed_description(feed)
 
-    def parse_json(self, data: dict) -> None:
+    @staticmethod
+    def parse_json(item: FeedInfo, data: dict) -> None:
         """
         Get info from JSON feed.
 
+        :param item: FeedInfo object
         :param data: JSON object
         :return: None
         """
-        self.version = data.get("version")
-        if "https://jsonfeed.org/version/" not in self.version:
-            self.bozo = 1
+        item.version = data.get("version")
+        if "https://jsonfeed.org/version/" not in item.version:
+            item.bozo = 1
             return
 
-        self.title = data.get("title")
-        self.description = data.get("description")
+        item.title = data.get("title")
+        item.description = data.get("description")
 
         favicon = data.get("favicon")
         if favicon:
-            self.favicon = URL(favicon)
+            item.favicon = URL(favicon)
 
         # Only search if no hubs already present from headers
-        if not self.hubs:
+        if not item.hubs:
             try:
-                self.hubs = list(hub.get("url") for hub in data.get("hubs", []))
+                item.hubs = list(hub.get("url") for hub in data.get("hubs", []))
             except (IndexError, AttributeError):
                 pass
 
-        if self.hubs:
-            self.is_push = True
+        if item.hubs:
+            item.is_push = True
 
-    @staticmethod
-    def parse_feed(text: str) -> dict:
+    def parse_raw_data(
+        self, raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None
+    ) -> Dict:
         """
-        Parse feed with feedparser.
+        Loads the raw RSS/Atom XML data.
+        Returns feedparser Dict.
+        https://pythonhosted.org/feedparser/
 
-        :param text: Feed string
-        :return: dict
+        :param raw_data: RSS/Atom XML feed
+        :type raw_data: str
+        :param encoding: Character encoding of raw_data
+        :type encoding: str
+        :param headers: Response headers
+        :return: Dict
         """
-        return feedparser.parse(text)
+        if not encoding:
+            encoding = "utf-8"
+
+        h = {}
+        if headers:
+            if isinstance(headers, dict):
+                h = headers
+            else:
+                try:
+                    h.update({k.lower(): v for (k, v) in headers.items()})
+                except KeyError:
+                    pass
+
+            h.pop("content-encoding", None)
+
+        try:
+            start = time.perf_counter()
+
+            if isinstance(raw_data, str):
+                raw_data: bytes = raw_data.encode(encoding)
+
+            content_length = len(raw_data)
+
+            # We want to pass data into feedparser as bytes, otherwise if we accidentally pass a url string
+            # it will attempt a fetch
+            data = feedparser.parse(raw_data, response_headers=h)
+
+            dur = int((time.perf_counter() - start) * 1000)
+            self.logger.debug(
+                "RAW_DATA_PARSE: type=rss_parser size=%s dur=%sms", content_length, dur
+            )
+
+            return data
+        except Exception as e:
+            self.logger.exception("Could not parse RSS data: %s", e)
 
     def feed_title(self, feed: dict) -> str:
         """
@@ -169,7 +188,7 @@ class Feed(Item):
         :return: str
         """
         try:
-            title = BeautifulSoup(title, "html.parser").get_text()
+            title = BeautifulSoup(title, self.spider.htmlparser).get_text()
             if len(title) > 1024:
                 title = title[:1020] + "..."
             return title
@@ -201,7 +220,7 @@ class Feed(Item):
         :return: tuple
         """
         links = feed.get("links", [])
-        return Feed.find_hubs_and_self_links(links)
+        return FeedInfoParser.find_hubs_and_self_links(links)
 
     @staticmethod
     def header_links(headers: dict) -> Tuple[List[str], str]:
@@ -217,7 +236,7 @@ class Feed(Item):
         if link_header:
             print(link_header)
             links = parse_header_links(link_header.decode("utf-8"))
-        return Feed.find_hubs_and_self_links(links)
+        return FeedInfoParser.find_hubs_and_self_links(links)
 
     @staticmethod
     def find_hubs_and_self_links(links: List[dict]) -> Tuple[List[str], str]:

@@ -31,6 +31,7 @@ class Request:
         callback=None,
         xml_parser=None,
         max_size: int = 1024 * 1024 * 10,
+        **kwargs,
     ):
         self.url = url
         self.method = method.upper()
@@ -47,6 +48,10 @@ class Request:
         self.id = uuid.uuid4()
         self.xml_parser = xml_parser
         self.max_size = max_size
+
+        for key, value in kwargs:
+            if hasattr(self, key):
+                setattr(self, key, value)
 
         self.logger = logging.getLogger(__name__)
 
@@ -73,7 +78,7 @@ class Request:
                 self.url, headers=self.headers, timeout=timeout
             )
             async with request as resp:
-                content_length = int(resp.headers.get("Content-Length", 0))
+                content_length: int = int(resp.headers.get("Content-Length", "0"))
                 if content_length > self.max_size:
                     return self._failed_response(413)
 

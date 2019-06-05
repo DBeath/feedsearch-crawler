@@ -1,3 +1,6 @@
+from typing import Any
+
+
 def coerce_url(url: str, https: bool = False) -> str:
     """
     Coerce URL to valid format
@@ -26,3 +29,9 @@ def to_bytes(text, encoding=None, errors="strict"):
     if encoding is None:
         encoding = "utf-8"
     return text.encode(encoding, errors)
+
+
+def to_string(item: Any) -> str:
+    if item is None:
+        return ""
+    return str(item)

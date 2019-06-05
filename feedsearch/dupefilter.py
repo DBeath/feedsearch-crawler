@@ -8,7 +8,7 @@ from yarl import URL
 class NoQueryDupeFilter(DuplicateFilter):
     valid_keys = ["feedformat", "feed", "rss", "atom", "jsonfeed"]
 
-    def _request_fingerprint(self, request: Request):
+    def request_fingerprint(self, request: Request):
         query = request.url.query
         if any(key in query for key in self.valid_keys):
             return request_fingerprint(request)
