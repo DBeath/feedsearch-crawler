@@ -20,6 +20,7 @@ class FeedInfo(Item):
     favicon: URL = ""
     site_url: URL = ""
     site_name: str = ""
+    favicon_data_uri: str = ""
 
     def serialize(self):
         return dict(
@@ -36,6 +37,7 @@ class FeedInfo(Item):
             bozo=self.bozo,
             site_url=to_string(self.site_url),
             site_name=self.site_name,
+            favicon_data_uri=self.favicon_data_uri,
         )
 
     def __init__(self, url: URL, content_type: str):

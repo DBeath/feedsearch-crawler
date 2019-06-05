@@ -1,21 +1,21 @@
 import asyncio
+import copy
+import inspect
 import logging
 import time
+from abc import ABC, abstractmethod
 from types import AsyncGeneratorType
 from typing import List
 from typing import Union
-import copy
-import inspect
-from abc import ABC, abstractmethod
 
 import aiohttp
 from yarl import URL
 
+from crawler.duplicatefilter import DuplicateFilter
 from crawler.item import Item
 from crawler.lib import coerce_url
 from crawler.request import Request
 from crawler.response import Response
-from crawler.duplicatefilter import DuplicateFilter
 
 try:
     import uvloop

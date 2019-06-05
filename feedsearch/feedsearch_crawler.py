@@ -1,3 +1,4 @@
+import base64
 from typing import Union, Any
 
 from bs4 import BeautifulSoup
@@ -5,25 +6,27 @@ from yarl import URL
 
 from crawler.crawler import Crawler
 from crawler.item import Item
-from feedsearch.feed_info import FeedInfo
 from crawler.request import Request
 from crawler.response import Response
 from feedsearch.dupefilter import NoQueryDupeFilter
-from feedsearch.lib import query_contains_comments, is_feedlike_url
-from feedsearch.site_meta_parser import SiteMetaParser
-from feedsearch.site_meta import SiteMeta
+from feedsearch.feed_info import FeedInfo
 from feedsearch.feed_info_parser import FeedInfoParser
+from feedsearch.lib import query_contains_comments, is_feedlike_url
+from feedsearch.site_meta import SiteMeta
+from feedsearch.site_meta_parser import SiteMetaParser
 
 
 class FeedsearchSpider(Crawler):
     dupefilter = NoQueryDupeFilter()
     htmlparser = "html.parser"
+    favicon_data_uri = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.site_meta_processor = SiteMetaParser(self)
         self.feed_info_parser = FeedInfoParser(self)
         self.site_metas = set()
+        self.favicons = dict()
         self.post_crawl_callback = self.populate_feed_site_meta
 
     async def parse(self, request: Request, response: Response):
@@ -79,6 +82,24 @@ class FeedsearchSpider(Crawler):
                     if not feed.favicon:
                         feed.favicon = meta.icon_url
                     feed.site_name = meta.site_name
+
+            if feed.favicon:
+                feed.favicon_data_uri = self.favicons.get(feed.favicon, "")
+
+    async def fetch_data_uri(self, url: URL):
+        req = self.follow(url, self.create_data_uri)
+        await self._process_request(req)
+
+    async def create_data_uri(self, request: Request, response: Response):
+        if not response.ok or not response.text:
+            return
+
+        try:
+            encoded = base64.b64encode(response.text)
+            uri = "data:image/png;base64," + encoded.decode(response.encoding)
+            self.favicons[request.url] = uri
+        except Exception as e:
+            self.logger.warning("Failure encoding image: %s", e)
 
 
 def should_follow_url(url: str, response: Response) -> bool:

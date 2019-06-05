@@ -1,5 +1,6 @@
-from yarl import URL
 from typing import Union, List
+
+from yarl import URL
 
 
 def get_site_root(url: Union[str, URL]) -> str:

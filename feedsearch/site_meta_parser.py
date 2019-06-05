@@ -17,6 +17,9 @@ class SiteMetaParser(ItemParser):
         site_meta.site_name = self.find_site_name(response.parsed_xml)
         site_meta.icon_url = self.find_site_icon_url(response.parsed_xml, url)
 
+        if site_meta.icon_url and self.spider.favicon_data_uri:
+            await self.spider.fetch_data_uri(site_meta.icon_url)
+
         return site_meta
 
     @staticmethod

@@ -47,6 +47,9 @@ class FeedInfoParser(ItemParser):
         except Exception as e:
             self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
 
+        if item.favicon and self.spider.favicon_data_uri:
+            await self.spider.fetch_data_uri(item.favicon)
+
         return item
 
     def calculate_score(self, item: FeedInfo, original_url: str = ""):
@@ -68,9 +71,12 @@ class FeedInfoParser(ItemParser):
         # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
         parsed = self.parse_raw_data(data, encoding, headers)
         if not parsed or parsed.get("bozo") == 1:
-            item.bozo = 1
-            self.logger.warning("No valid feed data for %s", item)
-            return
+            if not isinstance(
+                parsed.get("bozo_exception"), feedparser.CharacterEncodingOverride
+            ):
+                item.bozo = 1
+                self.logger.warning("No valid feed data for %s", item)
+                return
 
         feed = parsed.get("feed")
 

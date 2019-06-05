@@ -1,10 +1,9 @@
 import asyncio
 import copy
 import hashlib
+import inspect
 import logging
 import uuid
-import inspect
-from types import AsyncGeneratorType
 from typing import List, Tuple, Any
 
 import aiohttp
@@ -55,19 +54,15 @@ class Request:
 
         self.logger = logging.getLogger(__name__)
 
-    async def fetch_callback(self) -> Tuple[AsyncGeneratorType, Response]:
+    async def fetch_callback(self) -> Tuple[Any, Response]:
         response = await self._fetch()
 
         callback_result = None
         if self.callback:
-            if inspect.isasyncgenfunction(self.callback):
-                callback_result = self.callback(self, response)
+            if inspect.iscoroutinefunction(self.callback):
+                callback_result = await self.callback(self, response)
             else:
-                self.logger.warning(
-                    "Response callback must be an asyncgenfunction. %s %s",
-                    self,
-                    self.callback,
-                )
+                callback_result = self.callback(self, response)
 
         return callback_result, response
 
