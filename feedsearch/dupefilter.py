@@ -1,8 +1,7 @@
 from w3lib.url import url_query_cleaner
-
-from crawler.duplicatefilter import DuplicateFilter
-from crawler.request import Request, request_fingerprint
 from yarl import URL
+
+from crawler import DuplicateFilter, Request, request_fingerprint
 
 
 class NoQueryDupeFilter(DuplicateFilter):

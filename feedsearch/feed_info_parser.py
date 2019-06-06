@@ -1,13 +1,12 @@
 import time
+from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from crawler.item_parser import ItemParser
-from crawler.request import Request
-from crawler.response import Response
+from crawler import ItemParser, Request, Response
 from feedsearch.feed_info import FeedInfo
 from feedsearch.lib import parse_header_links, get_site_root
 
@@ -15,7 +14,7 @@ from feedsearch.lib import parse_header_links, get_site_root
 class FeedInfoParser(ItemParser):
     async def parse_item(
         self, request: Request, response: Response, *args, **kwargs
-    ) -> FeedInfo:
+    ) -> AsyncGeneratorType:
         self.logger.info("Parsing feed %s", response.url)
 
         content_type = response.headers.get("content-type", "")
@@ -38,9 +37,8 @@ class FeedInfoParser(ItemParser):
                 item.content_type = "application/json"
                 self.parse_json(item, response.json)
                 self.calculate_score(item, original_url)
-                return item
             elif data_type == "xml":
-                self.parse_xml(item, response.text, response.encoding, response.headers)
+                self.parse_xml(item, response.data, response.encoding, response.headers)
                 self.calculate_score(item, original_url)
                 if not item.content_type:
                     item.content_type = "text/xml"
@@ -48,9 +46,9 @@ class FeedInfoParser(ItemParser):
             self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
 
         if item.favicon and self.spider.favicon_data_uri:
-            await self.spider.fetch_data_uri(item.favicon)
+            yield self.spider.follow(item.favicon, self.spider.create_data_uri)
 
-        return item
+        yield item
 
     def calculate_score(self, item: FeedInfo, original_url: str = ""):
         try:

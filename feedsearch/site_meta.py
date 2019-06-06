@@ -1,6 +1,6 @@
 from yarl import URL
 
-from crawler.item import Item
+from crawler import Item
 
 
 class SiteMeta(Item):

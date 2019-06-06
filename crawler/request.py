@@ -5,6 +5,7 @@ import inspect
 import logging
 import uuid
 from typing import List, Tuple, Any
+import json
 
 import aiohttp
 from aiohttp import ClientSession
@@ -22,7 +23,7 @@ class Request:
         self,
         url: URL,
         request_session: ClientSession,
-        encoding: str = "UTF-8",
+        encoding: str = None,
         method: str = "GET",
         headers: dict = None,
         timeout: float = 5.0,
@@ -81,32 +82,41 @@ class Request:
                 if not valid_content_length:
                     return self._failed_response(413)
 
+                if not self.encoding:
+                    self.encoding = resp.get_encoding()
+
                 try:
-                    resp_data = await resp.text(encoding=self.encoding)
-                except UnicodeDecodeError:
-                    resp_data = await resp.read()
-                try:
-                    resp_json = await resp.json()
-                except Exception:
+                    resp_json = await self._json(resp, encoding=self.encoding)
+                except ValueError:
                     resp_json = None
 
-            resp.raise_for_status()
+                resp_data = None
+                parsed_xml = None
+                if not resp_json:
+                    try:
+                        resp_data = await resp.text(encoding=self.encoding)
+                    except UnicodeDecodeError:
+                        resp_data = await resp.read()
+
+                if resp_data and self.xml_parser:
+                    parsed_xml = await self._parse_xml(resp_data)
+
+                resp.raise_for_status()
 
             history = copy.deepcopy(self.history)
             history.append(resp.url)
 
-            parsed_xml = await self._parse_xml(resp_data)
-
             response = Response(
                 url=resp.url,
                 method=resp.method,
-                encoding=resp.get_encoding(),
+                encoding=self.encoding,
                 status_code=resp.status,
                 history=history,
-                text=resp_data,
+                data=resp_data,
                 json=resp_json,
                 headers=resp.headers,
                 parsed_xml=parsed_xml,
+                cookies=resp.cookies,
             )
 
         except asyncio.TimeoutError:
@@ -132,6 +142,20 @@ class Request:
         resp._body = body
         return True
 
+    # noinspection PyProtectedMember
+    async def _json(self, resp, encoding: str = None) -> str:
+        if resp._body is None:
+            await self._read_response(resp)
+
+        stripped = resp._body.strip()  # type: ignore
+        if not stripped:
+            return ""
+
+        if encoding is None:
+            encoding = resp.get_encoding()
+
+        return json.loads(stripped.decode(encoding))
+
     def _failed_response(self, status: int) -> Response:
         return Response(
             url=self.url,
@@ -145,7 +169,8 @@ class Request:
     async def _parse_xml(self, response_text: str) -> Any:
         try:
             return await self.xml_parser(response_text)
-        except Exception:
+        except Exception as e:
+            self.logger.error("Error parsing response xml: %s", e)
             return None
 
     def __repr__(self):

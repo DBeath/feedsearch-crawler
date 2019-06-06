@@ -1,15 +1,12 @@
 from yarl import URL
 
-from crawler.item_parser import ItemParser
-from crawler.request import Request
-from crawler.response import Response
+from crawler import ItemParser, Request, Response
+
 from feedsearch.site_meta import SiteMeta
 
 
 class SiteMetaParser(ItemParser):
-    async def parse_item(
-        self, request: Request, response: Response, *args, **kwargs
-    ) -> SiteMeta:
+    async def parse_item(self, request: Request, response: Response, *args, **kwargs):
         url = response.url
         site_meta: SiteMeta = SiteMeta(url)
 
@@ -18,8 +15,7 @@ class SiteMetaParser(ItemParser):
         site_meta.icon_url = self.find_site_icon_url(response.parsed_xml, url)
 
         if site_meta.icon_url and self.spider.favicon_data_uri:
-            yield self.spider.follow(site_meta.icon_url)
-            # await self.spider.fetch_data_uri(site_meta.icon_url)
+            yield self.spider.follow(site_meta.icon_url, self.spider.create_data_uri)
 
         yield site_meta
 

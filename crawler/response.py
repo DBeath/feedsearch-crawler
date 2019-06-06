@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 
 from yarl import URL
 
@@ -10,22 +10,24 @@ class Response:
         url: URL,
         method: str,
         encoding: str = "",
-        text: str = "",
+        data: Union[str, bytes] = None,
         parsed_xml: Any = None,
         json: Dict = None,
         history: List[URL] = None,
         headers=None,
         status_code: int = -1,
+        cookies=None,
     ):
         self.url = url
         self.encoding = encoding
         self.method = method
-        self.text = text
+        self.data = data
         self.json = json
         self.history = history or []
         self.headers = headers
         self.status_code = status_code
         self.parsed_xml = parsed_xml
+        self.cookies = cookies
         self.id = uuid.uuid4()
 
     @property

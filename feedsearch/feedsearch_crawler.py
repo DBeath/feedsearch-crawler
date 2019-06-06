@@ -4,10 +4,8 @@ from typing import Union, Any
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from crawler.crawler import Crawler
-from crawler.item import Item
-from crawler.request import Request
-from crawler.response import Response
+from crawler import Crawler, Item, Request, Response
+
 from feedsearch.dupefilter import NoQueryDupeFilter
 from feedsearch.feed_info import FeedInfo
 from feedsearch.feed_info_parser import FeedInfoParser
@@ -35,26 +33,24 @@ class FeedsearchSpider(Crawler):
 
         url = response.url
 
-        url_origin = url.origin()
-        if url == url_origin:
-            yield self.site_meta_processor.parse_item(request, response)
-
         if response.json:
-            if "version" in response.json:
-                yield await self.feed_info_parser.parse_item(
-                    request, response, type="json"
-                )
+            if "version" and "jsonfeed" and "feed_url" in response.json:
+                yield self.feed_info_parser.parse_item(request, response, type="json")
                 return
 
-        if not response.text:
+        if not isinstance(response.data, str):
             self.logger.debug("No text in %s", response)
             return
 
-        soup = response.parsed_xml
-        data = response.text.lower()[:500]
+        if not response.parsed_xml:
+            self.logger.debug("No parsed XML in %s", response)
 
-        if not data:
-            return
+        soup = response.parsed_xml
+        data = response.data.lower()[:500]
+
+        url_origin = url.origin()
+        if url == url_origin:
+            yield self.site_meta_processor.parse_item(request, response)
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
             yield self.feed_info_parser.parse_item(request, response, type="xml")
@@ -91,11 +87,11 @@ class FeedsearchSpider(Crawler):
         await self._process_request(req)
 
     async def create_data_uri(self, request: Request, response: Response):
-        if not response.ok or not response.text:
+        if not response.ok or not isinstance(response.data, bytes):
             return
 
         try:
-            encoded = base64.b64encode(response.text)
+            encoded = base64.b64encode(response.data)
             uri = "data:image/png;base64," + encoded.decode(response.encoding)
             self.favicons[request.url] = uri
         except Exception as e:

@@ -4,8 +4,7 @@ import inspect
 import logging
 import time
 from abc import ABC, abstractmethod
-from types import AsyncGeneratorType
-from typing import List
+from typing import List, Any
 from typing import Union
 
 import aiohttp
@@ -72,8 +71,8 @@ class Crawler(ABC):
 
             await self.dupefilter.request_seen(request)
 
-            if results and inspect.isasyncgen(results):
-                await self._process_parsed_response(results)
+            if results:
+                await self._process_request_callback_result(results)
 
         except asyncio.CancelledError:
             self.logger.debug("Cancelled %s", request)
@@ -82,18 +81,17 @@ class Crawler(ABC):
         finally:
             return
 
-    async def _process_parsed_response(self, results: AsyncGeneratorType):
+    async def _process_request_callback_result(self, result: Any):
         try:
-            async for result in results:
-                if inspect.isasyncgen(result):
-                    await self._process_parsed_response(result)
-                # elif inspect.iscoroutine(result):
-                #     await result
-                elif isinstance(result, Request):
-                    await self._process_request(result)
-                elif isinstance(result, Item):
-                    await self.process_item(result)
-
+            if inspect.isasyncgen(result):
+                async for value in result:
+                    await self._process_request_callback_result(value)
+            elif inspect.iscoroutine(result):
+                await self._process_request_callback_result(await result)
+            elif isinstance(result, Request):
+                await self._process_request(result)
+            elif isinstance(result, Item):
+                await self.process_item(result)
         except Exception as e:
             self.logger.exception(e)
 
@@ -175,7 +173,6 @@ class Crawler(ABC):
         try:
             async with self.session:
                 await asyncio.wait_for(self.request_queue.join(), timeout=self.timeout)
-                # await self.request_queue.join()
         except asyncio.TimeoutError:
             self.logger.debug("Timed out after %s seconds", self.timeout)
         finally:

@@ -2,8 +2,7 @@ from typing import List
 
 from yarl import URL
 
-from crawler.item import Item
-from crawler.lib import to_string
+from crawler import Item, to_string
 
 
 class FeedInfo(Item):
