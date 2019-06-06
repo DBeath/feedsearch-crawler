@@ -1,18 +1,15 @@
 import asyncio
 import copy
-import hashlib
 import inspect
+import json
 import logging
 import uuid
 from typing import List, Tuple, Any
-import json
 
 import aiohttp
 from aiohttp import ClientSession
-from w3lib.url import canonicalize_url
 from yarl import URL
 
-from crawler.lib import to_bytes
 from crawler.response import Response
 
 
@@ -176,10 +173,3 @@ class Request:
 
     def __repr__(self):
         return f"{self.__class__.__name__}({str(self.url)})"
-
-
-def request_fingerprint(request: Request) -> str:
-    fp = hashlib.sha1()
-    fp.update(to_bytes(request.method))
-    fp.update(to_bytes(canonicalize_url(str(request.url))))
-    return fp.hexdigest()

@@ -11,6 +11,9 @@ class SiteMetaParser(ItemParser):
         site_meta: SiteMeta = SiteMeta(url)
 
         xml = await response.xml
+        if not xml:
+            return
+
         site_meta.url = self.find_site_url(xml, url)
         site_meta.site_name = self.find_site_name(xml)
         site_meta.icon_url = self.find_site_icon_url(xml, url)

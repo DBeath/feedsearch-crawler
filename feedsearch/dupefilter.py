@@ -1,17 +1,16 @@
 from w3lib.url import url_query_cleaner
 from yarl import URL
 
-from crawler import DuplicateFilter, Request, request_fingerprint
+from crawler import DuplicateFilter
 
 
 class NoQueryDupeFilter(DuplicateFilter):
     valid_keys = ["feedformat", "feed", "rss", "atom", "jsonfeed"]
 
-    def request_fingerprint(self, request: Request):
-        query = request.url.query
+    def url_fingerprint(self, url: URL, method: str = "") -> str:
+        query = url.query
         if any(key in query for key in self.valid_keys):
-            return request_fingerprint(request)
+            return self.url_fingerprint_hash(url, method)
 
-        new_url = url_query_cleaner(str(request.url))
-        request.url = URL(new_url)
-        return request_fingerprint(request)
+        url = URL(url_query_cleaner(str(url)))
+        return self.url_fingerprint_hash(url, method)

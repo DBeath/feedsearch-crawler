@@ -69,7 +69,7 @@ class Crawler(ABC):
             else:
                 self.stats["requests_failed"] += 1
 
-            await self.dupefilter.request_seen(response)
+            await self.dupefilter.url_seen(response.url, response.method)
 
             if results:
                 await self._process_request_callback_result(results)
@@ -99,7 +99,7 @@ class Crawler(ABC):
         self.items.add(item)
 
     async def _process_request(self, request: Request) -> None:
-        seen = await self.dupefilter.request_seen(request)
+        seen = await self.dupefilter.url_seen(request.url, request.method)
         if not seen:
             self.request_queue.put_nowait(request)
 

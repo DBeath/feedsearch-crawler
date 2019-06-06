@@ -42,9 +42,6 @@ class FeedsearchSpider(Crawler):
             self.logger.debug("No text in %s", response)
             return
 
-        if not response.xml:
-            self.logger.debug("No parsed XML in %s", response)
-
         data = response.text.lower()[:500]
 
         url_origin = url.origin()
@@ -56,6 +53,8 @@ class FeedsearchSpider(Crawler):
             return
 
         soup = await response.xml
+        if not soup:
+            return
 
         links = soup.find_all(tag_has_attr)
         for link in links:

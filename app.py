@@ -30,7 +30,7 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    crawler = FeedsearchSpider(start_urls=urls, max_tasks=30, timeout=100000)
+    crawler = FeedsearchSpider(start_urls=urls, max_tasks=10, timeout=100000)
     asyncio.run(crawler.crawl())
 
     serialized = [item.serialize() for item in crawler.items]
