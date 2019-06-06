@@ -1,4 +1,7 @@
 import logging
+from types import AsyncGeneratorType
+from typing import Union
+
 from crawler.response import Response
 from crawler.request import Request
 from crawler.item import Item
@@ -13,5 +16,5 @@ class ItemParser(ABC):
     @abstractmethod
     async def parse_item(
         self, request: Request, response: Response, *args, **kwargs
-    ) -> Item:
+    ) -> Union[Item, AsyncGeneratorType]:
         raise NotImplementedError("Not Implemented")

@@ -77,6 +77,10 @@ class Request:
                 if content_length > self.max_size:
                     return self._failed_response(413)
 
+                valid_content_length = await self._read_response(resp)
+                if not valid_content_length:
+                    return self._failed_response(413)
+
                 try:
                     resp_data = await resp.text(encoding=self.encoding)
                 except UnicodeDecodeError:
@@ -115,6 +119,18 @@ class Request:
             response = self._failed_response(e.status)
 
         return response
+
+    async def _read_response(self, resp) -> bool:
+        body: bytes = b""
+        while True:
+            chunk = await resp.content.read(1024)
+            if not chunk:
+                break
+            body += chunk
+            if len(body) > self.max_size:
+                return False
+        resp._body = body
+        return True
 
     def _failed_response(self, status: int) -> Response:
         return Response(

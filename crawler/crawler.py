@@ -85,7 +85,11 @@ class Crawler(ABC):
     async def _process_parsed_response(self, results: AsyncGeneratorType):
         try:
             async for result in results:
-                if isinstance(result, Request):
+                if inspect.isasyncgen(result):
+                    await self._process_parsed_response(result)
+                # elif inspect.iscoroutine(result):
+                #     await result
+                elif isinstance(result, Request):
                     await self._process_request(result)
                 elif isinstance(result, Item):
                     await self.process_item(result)

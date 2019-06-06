@@ -18,9 +18,10 @@ class SiteMetaParser(ItemParser):
         site_meta.icon_url = self.find_site_icon_url(response.parsed_xml, url)
 
         if site_meta.icon_url and self.spider.favicon_data_uri:
-            await self.spider.fetch_data_uri(site_meta.icon_url)
+            yield self.spider.follow(site_meta.icon_url)
+            # await self.spider.fetch_data_uri(site_meta.icon_url)
 
-        return site_meta
+        yield site_meta
 
     @staticmethod
     def find_site_icon_url(soup, url) -> URL:

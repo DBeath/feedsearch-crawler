@@ -37,7 +37,7 @@ class FeedsearchSpider(Crawler):
 
         url_origin = url.origin()
         if url == url_origin:
-            yield await self.site_meta_processor.parse_item(request, response)
+            yield self.site_meta_processor.parse_item(request, response)
 
         if response.json:
             if "version" in response.json:
@@ -57,7 +57,7 @@ class FeedsearchSpider(Crawler):
             return
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
-            yield await self.feed_info_parser.parse_item(request, response, type="xml")
+            yield self.feed_info_parser.parse_item(request, response, type="xml")
             return
 
         links = soup.find_all(tag_has_attr)
