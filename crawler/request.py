@@ -90,16 +90,16 @@ class Request:
                 except ValueError:
                     resp_json = None
 
-                resp_data = None
+                resp_text = None
                 parsed_xml = None
                 if not resp_json:
                     try:
-                        resp_data = await resp.text(encoding=self.encoding)
+                        resp_text = await resp.text(encoding=self.encoding)
                     except UnicodeDecodeError:
-                        resp_data = await resp.read()
+                        resp_text = None
 
-                if resp_data and self.xml_parser:
-                    parsed_xml = await self._parse_xml(resp_data)
+                # if resp_text and self.xml_parser:
+                #     parsed_xml = await self._parse_xml(resp_text)
 
                 resp.raise_for_status()
 
@@ -112,10 +112,11 @@ class Request:
                 encoding=self.encoding,
                 status_code=resp.status,
                 history=history,
-                data=resp_data,
+                text=resp_text,
+                data=resp._body,
                 json=resp_json,
                 headers=resp.headers,
-                parsed_xml=parsed_xml,
+                xml_parser=self._parse_xml,
                 cookies=resp.cookies,
             )
 

@@ -163,9 +163,7 @@ class FeedInfoParser(ItemParser):
             data = feedparser.parse(raw_data, response_headers=h)
 
             dur = int((time.perf_counter() - start) * 1000)
-            self.logger.debug(
-                "RAW_DATA_PARSE: type=rss_parser size=%s dur=%sms", content_length, dur
-            )
+            self.logger.debug("Feed Parse: size=%s dur=%sms", content_length, dur)
 
             return data
         except Exception as e:
@@ -238,7 +236,6 @@ class FeedInfoParser(ItemParser):
         link_header = headers.get("Link")
         links: list = []
         if link_header:
-            print(link_header)
             links = parse_header_links(link_header.decode("utf-8"))
         return FeedInfoParser.find_hubs_and_self_links(links)
 

@@ -69,7 +69,7 @@ class Crawler(ABC):
             else:
                 self.stats["requests_failed"] += 1
 
-            await self.dupefilter.request_seen(request)
+            await self.dupefilter.request_seen(response)
 
             if results:
                 await self._process_request_callback_result(results)

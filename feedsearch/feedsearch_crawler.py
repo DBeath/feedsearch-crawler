@@ -38,15 +38,14 @@ class FeedsearchSpider(Crawler):
                 yield self.feed_info_parser.parse_item(request, response, type="json")
                 return
 
-        if not isinstance(response.data, str):
+        if not isinstance(response.text, str):
             self.logger.debug("No text in %s", response)
             return
 
-        if not response.parsed_xml:
+        if not response.xml:
             self.logger.debug("No parsed XML in %s", response)
 
-        soup = response.parsed_xml
-        data = response.data.lower()[:500]
+        data = response.text.lower()[:500]
 
         url_origin = url.origin()
         if url == url_origin:
@@ -55,6 +54,8 @@ class FeedsearchSpider(Crawler):
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
             yield self.feed_info_parser.parse_item(request, response, type="xml")
             return
+
+        soup = await response.xml
 
         links = soup.find_all(tag_has_attr)
         for link in links:
@@ -111,7 +112,7 @@ def should_follow_url(url: str, response: Response) -> bool:
     return False
 
 
-def tag_has_attr(tag):
+def tag_has_attr(tag) -> bool:
     return tag.has_attr("href")
 
 
@@ -138,7 +139,7 @@ def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> b
     return False
 
 
-def invalid_filetype(url: Union[str, URL]):
+def invalid_filetype(url: Union[str, URL]) -> bool:
     if isinstance(url, URL):
         url = str(url)
     url_ending = url.split(".")[-1]

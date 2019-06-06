@@ -10,9 +10,10 @@ class SiteMetaParser(ItemParser):
         url = response.url
         site_meta: SiteMeta = SiteMeta(url)
 
-        site_meta.url = self.find_site_url(response.parsed_xml, url)
-        site_meta.site_name = self.find_site_name(response.parsed_xml)
-        site_meta.icon_url = self.find_site_icon_url(response.parsed_xml, url)
+        xml = await response.xml
+        site_meta.url = self.find_site_url(xml, url)
+        site_meta.site_name = self.find_site_name(xml)
+        site_meta.icon_url = self.find_site_icon_url(xml, url)
 
         if site_meta.icon_url and self.spider.favicon_data_uri:
             yield self.spider.follow(site_meta.icon_url, self.spider.create_data_uri)
