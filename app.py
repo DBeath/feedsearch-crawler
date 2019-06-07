@@ -36,7 +36,7 @@ if __name__ == "__main__":
     #
     # serialized = [item.serialize() for item in crawler.items]
 
-    items = search(urls[0])
+    items = search(urls[0], concurrency=40, try_urls=False)
     serialized = [item.serialize() for item in items]
 
     results = get_pretty_print(serialized)

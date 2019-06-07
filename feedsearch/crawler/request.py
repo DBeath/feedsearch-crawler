@@ -42,10 +42,10 @@ class Request:
         self.timeout = timeout
         self.history = history or []
         self.encoding = encoding
-        self.callback = callback
-        self.failure_callback = failure_callback
+        self._callback = callback
+        self._failure_callback = failure_callback
         self.id = uuid.uuid4()
-        self.xml_parser = xml_parser
+        self._xml_parser = xml_parser
         self.max_size = max_size
 
         for key, value in kwargs:
@@ -59,16 +59,10 @@ class Request:
 
         callback_result = None
 
-        if response.ok and self.callback:
-            if inspect.iscoroutinefunction(self.callback):
-                callback_result = await self.callback(self, response)
-            else:
-                callback_result = self.callback(self, response)
-        elif self.failure_callback:
-            if inspect.iscoroutinefunction(self.failure_callback):
-                callback_result = await self.failure_callback(self, response)
-            else:
-                callback_result = self.failure_callback(self, response)
+        if response.ok and self._callback:
+            callback_result = self._callback(self, response)
+        elif not response.ok and self._failure_callback:
+            callback_result = self._failure_callback(self, response)
 
         return callback_result, response
 
@@ -170,7 +164,7 @@ class Request:
 
     async def _parse_xml(self, response_text: str) -> Any:
         try:
-            return await self.xml_parser(response_text)
+            return await self._xml_parser(response_text)
         except Exception as e:
             self.logger.error("Error parsing response xml: %s", e)
             return None

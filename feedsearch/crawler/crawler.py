@@ -32,7 +32,14 @@ class Crawler(ABC):
     concurrency: int = 10
     max_request_size = 1024 * 1024 * 10
 
-    stats: dict = {"requests_successful": 0, "requests_failed": 0}
+    stats: dict = {
+        "requests_added": 0,
+        "requests_successful": 0,
+        "requests_failed": 0,
+        "total_content_length": 0,
+        "items_processed": 0,
+        "urls_seen": 0,
+    }
 
     def __init__(
         self,
@@ -40,6 +47,8 @@ class Crawler(ABC):
         max_tasks: int = 10,
         timeout: int = 10,
         user_agent: str = "",
+        *args,
+        **kwargs,
     ):
         self.max_tasks = max_tasks
         self.session = None
@@ -76,6 +85,8 @@ class Crawler(ABC):
             else:
                 self.stats["requests_failed"] += 1
 
+            self.stats["total_content_length"] += response.content_length
+
             await self.dupefilter.url_seen(response.url, response.method)
 
             if results:
@@ -99,6 +110,7 @@ class Crawler(ABC):
                 await self._process_request(result)
             elif isinstance(result, Item):
                 await self.process_item(result)
+                self.stats["items_processed"] += 1
         except Exception as e:
             self.logger.exception(e)
 
@@ -108,6 +120,7 @@ class Crawler(ABC):
     async def _process_request(self, request: Request) -> None:
         seen = await self.dupefilter.url_seen(request.url, request.method)
         if not seen:
+            self.stats["requests_added"] += 1
             self.logger.debug("Queue Add: %s", request)
             self.request_queue.put_nowait(request)
 
@@ -205,9 +218,11 @@ class Crawler(ABC):
 
         duration = int((time.perf_counter() - start) * 1000)
         self.stats["duration"] = duration
+        self.stats["urls_seen"] = len(self.dupefilter.fingerprints)
 
         self.logger.info(
-            "Crawl finished: url=%s time=%dms",
+            "Crawl finished: urls=%s time=%dms",
             (self.stats["requests_failed"] + self.stats["requests_successful"]),
             duration,
         )
+        self.logger.debug("Stats: %s", self.stats)

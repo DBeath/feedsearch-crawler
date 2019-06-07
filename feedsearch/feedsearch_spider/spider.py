@@ -25,6 +25,8 @@ class FeedsearchSpider(Crawler):
         self.site_metas = set()
         self.favicons = dict()
         self.post_crawl_callback = self.populate_feed_site_meta
+        if "try_urls" in kwargs:
+            self.try_urls = kwargs["try_urls"]
 
     async def parse(self, request: Request, response: Response):
         if not response.ok:
@@ -134,10 +136,13 @@ class FeedsearchSpider(Crawler):
             "rss.xml",
             "index.json",
             "about",
-            "about/feeds" "rss-feeds",
+            "about/feeds",
+            "rss-feeds",
         }
 
-        urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
+        if self.try_urls:
+            urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
+
         self.start_urls = urls
 
 
@@ -182,13 +187,13 @@ def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> b
     if len(response.history) == 1:
         return True
 
-    if len(response.history) > 1:
-        if (
-            response.history[-2].host == response.history[0].host
-            and url.host == response.history[-1].host
-        ):
-            return True
-    return False
+    if (
+        response.history[-1].host != response.history[0].host
+        and url.host != response.history[0].host
+    ):
+        return False
+
+    return True
 
 
 def invalid_filetype(url: Union[str, URL]) -> bool:

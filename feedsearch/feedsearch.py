@@ -9,15 +9,29 @@ def get_pretty_print(json_object: object):
     return json.dumps(json_object, sort_keys=True, indent=2, separators=(",", ": "))
 
 
-def search(url: str, timeout: float = 20, user_agent: str = ""):
+def search(
+    url: str,
+    timeout: float = 20,
+    user_agent: str = "",
+    concurrency: int = 10,
+    try_urls: bool = False,
+):
 
-    results = asyncio.run(search_async(url, timeout, user_agent))
+    results = asyncio.run(search_async(url, timeout, user_agent, concurrency, try_urls))
     return results
 
 
-async def search_async(url: str, timeout: float = 20, user_agent: str = ""):
+async def search_async(
+    url: str,
+    timeout: float = 20,
+    user_agent: str = "",
+    concurrency: int = 10,
+    try_urls: bool = False,
+):
 
-    crawler = FeedsearchSpider(max_tasks=10, timeout=timeout, user_agent=user_agent)
+    crawler = FeedsearchSpider(
+        max_tasks=concurrency, timeout=timeout, user_agent=user_agent, try_urls=try_urls
+    )
     await crawler.crawl(url)
 
     return sort_urls(crawler.items)
