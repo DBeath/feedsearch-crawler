@@ -3,7 +3,7 @@ import hashlib
 from w3lib.url import canonicalize_url
 from yarl import URL
 
-from crawler.lib import to_bytes
+from feedsearch.crawler.lib import to_bytes
 import asyncio
 import copy
 

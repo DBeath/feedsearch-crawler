@@ -4,14 +4,13 @@ from typing import Union, Any
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from crawler import Crawler, Item, Request, Response
+from feedsearch.crawler import Crawler, Item, Request, Response
 
-from feedsearch.dupefilter import NoQueryDupeFilter
-from feedsearch.feed_info import FeedInfo
-from feedsearch.feed_info_parser import FeedInfoParser
-from feedsearch.lib import query_contains_comments, is_feedlike_string
-from feedsearch.site_meta import SiteMeta
-from feedsearch.site_meta_parser import SiteMetaParser
+from feedsearch.feedsearch_spider.dupefilter import NoQueryDupeFilter
+from feedsearch.feedsearch_spider.feed_info import FeedInfo
+from feedsearch.feedsearch_spider.feed_info_parser import FeedInfoParser
+from feedsearch.feedsearch_spider.site_meta import SiteMeta
+from feedsearch.feedsearch_spider.site_meta_parser import SiteMetaParser
 
 
 class FeedsearchSpider(Crawler):
@@ -102,6 +101,45 @@ class FeedsearchSpider(Crawler):
         except Exception as e:
             self.logger.warning("Failure encoding image: %s", e)
 
+    def create_start_urls(self, url: Union[str, URL]):
+        if isinstance(url, str):
+            url = URL(url)
+
+        if url.scheme not in ["http", "https"]:
+            url = url.with_scheme("http")
+
+        origin = url.origin()
+
+        urls = [url, origin]
+
+        suffixes = {
+            "index.xml",
+            "atom.xml",
+            "feeds",
+            "feeds/default",
+            "feed",
+            "feed/default",
+            "feeds/posts/default",
+            "?feed=rss",
+            "?feed=atom",
+            "?feed=rss2",
+            "?feed=rdf",
+            "rss",
+            "atom",
+            "rdf",
+            "index.rss",
+            "index.rdf",
+            "index.atom",
+            "data/rss",
+            "rss.xml",
+            "index.json",
+            "about",
+            "about/feeds" "rss-feeds",
+        }
+
+        urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
+        self.start_urls = urls
+
 
 def should_follow_alternate(link, response: Response) -> bool:
     href = link.get("href")
@@ -160,3 +198,16 @@ def invalid_filetype(url: Union[str, URL]) -> bool:
     if url_ending in ["png", "md", "css", "jpg", "jpeg"]:
         return True
     return False
+
+
+def query_contains_comments(url: Union[str, URL]) -> bool:
+    if isinstance(url, URL):
+        query = url.query
+    else:
+        query = URL(url).query
+
+    return any(key in query for key in ["comment", "comments", "post"])
+
+
+def is_feedlike_string(string: str) -> bool:
+    return any(map(string.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))

@@ -10,7 +10,7 @@ import aiohttp
 from aiohttp import ClientSession
 from yarl import URL
 
-from crawler.response import Response
+from feedsearch.crawler.response import Response
 
 
 class Request:
@@ -27,6 +27,7 @@ class Request:
         history: List = None,
         callback=None,
         xml_parser=None,
+        failure_callback=None,
         max_size: int = 1024 * 1024 * 10,
         **kwargs,
     ):
@@ -42,6 +43,7 @@ class Request:
         self.history = history or []
         self.encoding = encoding
         self.callback = callback
+        self.failure_callback = failure_callback
         self.id = uuid.uuid4()
         self.xml_parser = xml_parser
         self.max_size = max_size
@@ -56,11 +58,17 @@ class Request:
         response = await self._fetch()
 
         callback_result = None
-        if self.callback:
+
+        if response.ok and self.callback:
             if inspect.iscoroutinefunction(self.callback):
                 callback_result = await self.callback(self, response)
             else:
                 callback_result = self.callback(self, response)
+        elif self.failure_callback:
+            if inspect.iscoroutinefunction(self.failure_callback):
+                callback_result = await self.failure_callback(self, response)
+            else:
+                callback_result = self.failure_callback(self, response)
 
         return callback_result, response
 
@@ -75,8 +83,8 @@ class Request:
                 if content_length > self.max_size:
                     return self._failed_response(413)
 
-                valid_content_length = await self._read_response(resp)
-                if not valid_content_length:
+                content_read, actual_content_length = await self._read_response(resp)
+                if not content_read:
                     return self._failed_response(413)
 
                 if not self.encoding:
@@ -93,9 +101,6 @@ class Request:
                         resp_text = await resp.text(encoding=self.encoding)
                     except UnicodeDecodeError:
                         resp_text = None
-
-                # if resp_text and self.xml_parser:
-                #     parsed_xml = await self._parse_xml(resp_text)
 
                 resp.raise_for_status()
 
@@ -115,20 +120,19 @@ class Request:
                 xml_parser=self._parse_xml,
                 cookies=resp.cookies,
                 redirect_history=resp.history,
+                content_length=actual_content_length,
             )
 
         except asyncio.TimeoutError:
-            self.logger.warning("Timeout fetching URL: %s", self.url)
+            self.logger.debug("Failed fetch: url=%s reason=timeout", self.url)
             response = self._failed_response(408)
         except aiohttp.ClientResponseError as e:
-            self.logger.warning(
-                "Failed fetching URL: %s, Reason: %s", self.url, e.message
-            )
+            self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
             response = self._failed_response(e.status)
 
         return response
 
-    async def _read_response(self, resp) -> bool:
+    async def _read_response(self, resp) -> Tuple[bool, int]:
         body: bytes = b""
         while True:
             chunk = await resp.content.read(1024)
@@ -136,9 +140,9 @@ class Request:
                 break
             body += chunk
             if len(body) > self.max_size:
-                return False
+                return False, 0
         resp._body = body
-        return True
+        return True, len(body)
 
     # noinspection PyProtectedMember
     async def _json(self, resp, encoding: str = None) -> str:

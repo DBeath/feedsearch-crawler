@@ -1,8 +1,7 @@
-import asyncio
-from feedsearch.feedsearch_crawler import FeedsearchSpider
 import logging
 import json
 from pprint import pprint
+from feedsearch import search
 
 urls = [
     "http://arstechnica.com",
@@ -22,7 +21,7 @@ def get_pretty_print(json_object: object):
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("crawler")
+    logger = logging.getLogger("feedsearch.crawler")
     logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -32,17 +31,21 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    crawler = FeedsearchSpider(start_urls=urls, max_tasks=10, timeout=100000)
-    asyncio.run(crawler.crawl())
+    # crawler = FeedsearchSpider(start_urls=urls, max_tasks=10, timeout=100000)
+    # asyncio.run(crawler.crawl())
+    #
+    # serialized = [item.serialize() for item in crawler.items]
 
-    serialized = [item.serialize() for item in crawler.items]
+    items = search(urls[0])
+    serialized = [item.serialize() for item in items]
+
     results = get_pretty_print(serialized)
     print(results)
     pprint([result["url"] for result in serialized])
 
-    site_metas = [item.serialize() for item in crawler.site_metas]
-    metas = get_pretty_print(site_metas)
-    print(metas)
-    # pprint(site_metas)
-
-    pprint(crawler.dupefilter.fingerprints)
+    # site_metas = [item.serialize() for item in crawler.site_metas]
+    # metas = get_pretty_print(site_metas)
+    # print(metas)
+    # # pprint(site_metas)
+    #
+    # pprint(crawler.dupefilter.fingerprints)

@@ -2,9 +2,9 @@ import logging
 from types import AsyncGeneratorType
 from typing import Union
 
-from crawler.response import Response
-from crawler.request import Request
-from crawler.item import Item
+from feedsearch.crawler.response import Response
+from feedsearch.crawler.request import Request
+from feedsearch.crawler.item import Item
 from abc import ABC, abstractmethod
 
 

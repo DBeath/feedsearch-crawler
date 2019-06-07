@@ -10,11 +10,11 @@ from typing import Union
 import aiohttp
 from yarl import URL
 
-from crawler.duplicatefilter import DuplicateFilter
-from crawler.item import Item
-from crawler.lib import coerce_url
-from crawler.request import Request
-from crawler.response import Response
+from feedsearch.crawler.duplicatefilter import DuplicateFilter
+from feedsearch.crawler.item import Item
+from feedsearch.crawler.lib import coerce_url
+from feedsearch.crawler.request import Request
+from feedsearch.crawler.response import Response
 
 try:
     import uvloop
@@ -34,13 +34,19 @@ class Crawler(ABC):
 
     stats: dict = {"requests_successful": 0, "requests_failed": 0}
 
-    def __init__(self, start_urls: List = None, max_tasks: int = 10, timeout: int = 10):
+    def __init__(
+        self,
+        start_urls: List = None,
+        max_tasks: int = 10,
+        timeout: int = 10,
+        user_agent: str = "",
+    ):
         self.max_tasks = max_tasks
         self.session = None
         self.request_queue = None
         self.items = set()
-        self.start_urls = start_urls
-        self.user_agent = (
+        self.start_urls = start_urls or []
+        self.user_agent = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36"
         )
@@ -147,10 +153,7 @@ class Crawler(ABC):
             finally:
                 self.request_queue.task_done()
 
-    async def post_crawl(self, *args, **kwargs):
-        pass
-
-    async def run_callback(self, callback, *args, **kwargs):
+    async def _run_callback(self, callback, *args, **kwargs):
         if not callback:
             return
         if inspect.iscoroutinefunction(callback):
@@ -160,7 +163,22 @@ class Crawler(ABC):
         else:
             self.logger.warning("Callback %s must be a coroutine or function", callback)
 
-    async def crawl(self):
+    def create_start_urls(self, url: Union[str, URL]):
+        if isinstance(url, str):
+            url = URL(url)
+
+        if url.scheme not in ["http", "https"]:
+            url = url.with_scheme("http")
+
+        self.start_urls = [url]
+
+    async def crawl(self, url: Union[URL, str] = ""):
+        if url:
+            self.create_start_urls(url)
+
+        if not self.start_urls:
+            raise ValueError("crawler.start_urls are required")
+
         start = time.perf_counter()
         self.request_queue = asyncio.Queue()
         timeout = aiohttp.ClientTimeout(total=self.timeout)
@@ -181,7 +199,7 @@ class Crawler(ABC):
             for w in workers:
                 w.cancel()
 
-        await self.run_callback(self.post_crawl_callback)
+        await self._run_callback(self.post_crawl_callback)
 
         await self.session.close()
 
@@ -189,7 +207,7 @@ class Crawler(ABC):
         self.stats["duration"] = duration
 
         self.logger.info(
-            "Crawled %s URLs in %dms",
+            "Crawl finished: url=%s time=%dms",
             (self.stats["requests_failed"] + self.stats["requests_successful"]),
             duration,
         )

@@ -12,32 +12,10 @@ def get_site_root(url: Union[str, URL]) -> str:
     return URL(url).host
 
 
-def create_start_urls(url: Union[str, URL]) -> List[str]:
-    if isinstance(url, URL):
-        origin = url.origin()
-    else:
-        origin = URL(url).origin()
-
-    return [url, origin, str(origin.join(URL("/about")))]
-
-
 def create_allowed_domains(url: Union[str, URL]) -> List[str]:
     if isinstance(url, URL):
         return [url.host]
     return [URL(url).host]
-
-
-def query_contains_comments(url: Union[str, URL]) -> bool:
-    if isinstance(url, URL):
-        query = url.query
-    else:
-        query = URL(url).query
-
-    return any(key in query for key in ["comment", "comments", "post"])
-
-
-def is_feedlike_string(string: str) -> bool:
-    return any(map(string.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))
 
 
 def parse_header_links(value):

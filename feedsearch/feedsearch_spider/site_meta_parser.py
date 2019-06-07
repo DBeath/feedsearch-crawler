@@ -1,8 +1,7 @@
 from yarl import URL
 
-from crawler import ItemParser, Request, Response
-
-from feedsearch.site_meta import SiteMeta
+from feedsearch.crawler import ItemParser, Request, Response
+from feedsearch.feedsearch_spider.site_meta import SiteMeta
 
 
 class SiteMetaParser(ItemParser):

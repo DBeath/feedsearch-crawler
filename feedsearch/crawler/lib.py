@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, Union
+from yarl import URL
 
 
-def coerce_url(url: str, https: bool = False) -> str:
+def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
     """
     Coerce URL to valid format
 
@@ -9,16 +10,16 @@ def coerce_url(url: str, https: bool = False) -> str:
     :param https: Force https if no scheme in url
     :return: str
     """
-    url.strip()
-    if url.startswith("feed://"):
-        return f"http://{url[7:]}"
-    for proto in ["http://", "https://"]:
-        if url.startswith(proto):
-            return url
-    if https:
-        return f"https://{url}"
-    else:
-        return f"http://{url}"
+    if isinstance(url, str):
+        url = URL(url)
+
+    if url.scheme not in ["http", "https"]:
+        if https:
+            url = url.with_scheme("https")
+        else:
+            url = url.with_scheme("http")
+
+    return url
 
 
 def to_bytes(text, encoding: str = "utf-8", errors: str = "strict"):

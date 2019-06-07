@@ -1,7 +1,7 @@
 from w3lib.url import url_query_cleaner
 from yarl import URL
 
-from crawler import DuplicateFilter
+from feedsearch.crawler import DuplicateFilter
 
 
 class NoQueryDupeFilter(DuplicateFilter):

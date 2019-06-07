@@ -21,6 +21,7 @@ class Response:
         cookies=None,
         xml_parser=None,
         redirect_history=None,
+        content_length: int = 0,
     ):
         self.url = url
         self.encoding = encoding
@@ -35,6 +36,7 @@ class Response:
         self.id = uuid.uuid4()
         self._xml_parser = xml_parser
         self.redirect_history = redirect_history
+        self.content_length = content_length
 
     @property
     def ok(self) -> bool:
