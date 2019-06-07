@@ -21,17 +21,19 @@ def coerce_url(url: str, https: bool = False) -> str:
         return f"http://{url}"
 
 
-def to_bytes(text, encoding=None, errors="strict"):
+def to_bytes(text, encoding: str = "utf-8", errors: str = "strict"):
     """Return the binary representation of `text`. If `text`
     is already a bytes object, return it as-is."""
+    if not text:
+        return b""
     if isinstance(text, bytes):
         return text
-    if encoding is None:
-        encoding = "utf-8"
     return text.encode(encoding, errors)
 
 
-def to_string(item: Any) -> str:
+def to_string(item: Any, encoding: str = "utf-8", errors: str = "strict") -> str:
     if item is None:
         return ""
+    if isinstance(item, bytes):
+        return item.decode(encoding, errors)
     return str(item)

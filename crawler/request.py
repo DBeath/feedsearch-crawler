@@ -88,7 +88,6 @@ class Request:
                     resp_json = None
 
                 resp_text = None
-                parsed_xml = None
                 if not resp_json:
                     try:
                         resp_text = await resp.text(encoding=self.encoding)
@@ -115,6 +114,7 @@ class Request:
                 headers=resp.headers,
                 xml_parser=self._parse_xml,
                 cookies=resp.cookies,
+                redirect_history=resp.history,
             )
 
         except asyncio.TimeoutError:

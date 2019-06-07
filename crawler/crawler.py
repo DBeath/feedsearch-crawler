@@ -58,10 +58,11 @@ class Crawler(ABC):
 
             dur = int((time.perf_counter() - start) * 1000)
             self.logger.debug(
-                "Fetched: %s in %dms. Status: %s",
+                "Fetched: url=%s dur=%dms status=%s prev=%s",
                 response.url,
                 dur,
                 response.status_code,
+                response.originator_url,
             )
 
             if response.ok:
@@ -101,6 +102,7 @@ class Crawler(ABC):
     async def _process_request(self, request: Request) -> None:
         seen = await self.dupefilter.url_seen(request.url, request.method)
         if not seen:
+            self.logger.debug("Queue Add: %s", request)
             self.request_queue.put_nowait(request)
 
     def follow(
@@ -165,7 +167,7 @@ class Crawler(ABC):
         self.session = aiohttp.ClientSession(timeout=timeout)
 
         for url in self.start_urls:
-            await self.request_queue.put(self.follow(coerce_url(url), self.parse))
+            await self._process_request(self.follow(coerce_url(url), self.parse))
 
         workers = [asyncio.create_task(self._work()) for _ in range(self.max_tasks)]
 

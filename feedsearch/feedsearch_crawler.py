@@ -9,7 +9,7 @@ from crawler import Crawler, Item, Request, Response
 from feedsearch.dupefilter import NoQueryDupeFilter
 from feedsearch.feed_info import FeedInfo
 from feedsearch.feed_info_parser import FeedInfoParser
-from feedsearch.lib import query_contains_comments, is_feedlike_url
+from feedsearch.lib import query_contains_comments, is_feedlike_string
 from feedsearch.site_meta import SiteMeta
 from feedsearch.site_meta_parser import SiteMetaParser
 
@@ -58,8 +58,13 @@ class FeedsearchSpider(Crawler):
 
         links = soup.find_all(tag_has_attr)
         for link in links:
-            if should_follow_url(link.get("href"), response):
-                yield self.follow(link.get("href"), self.parse, response)
+            href = link.get("href", "")
+            if href:
+                if (
+                    "alternate" in link.get("rel", "")
+                    and should_follow_alternate(link, response)
+                ) or should_follow_url(href, response):
+                    yield self.follow(href, self.parse, response)
 
     async def parse_xml(self, response_text: str) -> Any:
         return BeautifulSoup(response_text, self.htmlparser)
@@ -98,13 +103,20 @@ class FeedsearchSpider(Crawler):
             self.logger.warning("Failure encoding image: %s", e)
 
 
+def should_follow_alternate(link, response: Response) -> bool:
+    href = link.get("href")
+    return is_feedlike_string(link.get("type", "")) and one_jump_from_original_domain(
+        href, response
+    )
+
+
 def should_follow_url(url: str, response: Response) -> bool:
     if (
         "/amp/" not in url
+        and is_feedlike_string(url)
+        and not invalid_filetype(url)
         and not query_contains_comments(url)
         and one_jump_from_original_domain(url, response)
-        and is_feedlike_url(url)
-        and not invalid_filetype(url)
     ):
         return True
 
@@ -127,6 +139,9 @@ def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> b
 
     # Url is subdomain
     if response.history[0].host in url.host:
+        return True
+
+    if len(response.history) == 1:
         return True
 
     if len(response.history) > 1:

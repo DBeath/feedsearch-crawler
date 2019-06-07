@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from yarl import URL
 
@@ -20,6 +20,7 @@ class Response:
         status_code: int = -1,
         cookies=None,
         xml_parser=None,
+        redirect_history=None,
     ):
         self.url = url
         self.encoding = encoding
@@ -33,6 +34,7 @@ class Response:
         self.cookies = cookies
         self.id = uuid.uuid4()
         self._xml_parser = xml_parser
+        self.redirect_history = redirect_history
 
     @property
     def ok(self) -> bool:
@@ -47,6 +49,12 @@ class Response:
         if not self.history:
             return ""
         return self.history[-1].host
+
+    @property
+    def originator_url(self) -> Optional[URL]:
+        if not self.history or len(self.history) == 1:
+            return None
+        return self.history[-2]
 
     @property
     async def xml(self) -> Any:

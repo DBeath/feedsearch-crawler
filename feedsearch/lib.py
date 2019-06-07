@@ -36,10 +36,8 @@ def query_contains_comments(url: Union[str, URL]) -> bool:
     return any(key in query for key in ["comment", "comments", "post"])
 
 
-def is_feedlike_url(url: Union[str, URL]) -> bool:
-    if isinstance(url, URL):
-        url = str(url)
-    return any(map(url.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))
+def is_feedlike_string(string: str) -> bool:
+    return any(map(string.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))
 
 
 def parse_header_links(value):

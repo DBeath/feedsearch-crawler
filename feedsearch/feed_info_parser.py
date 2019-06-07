@@ -6,7 +6,7 @@ import feedparser
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from crawler import ItemParser, Request, Response
+from crawler import ItemParser, Request, Response, to_string
 from feedsearch.feed_info import FeedInfo
 from feedsearch.lib import parse_header_links, get_site_root
 
@@ -236,7 +236,8 @@ class FeedInfoParser(ItemParser):
         link_header = headers.get("Link")
         links: list = []
         if link_header:
-            links = parse_header_links(link_header.decode("utf-8"))
+
+            links = parse_header_links(to_string(link_header))
         return FeedInfoParser.find_hubs_and_self_links(links)
 
     @staticmethod
