@@ -105,6 +105,8 @@ class FeedsearchSpider(Crawler):
 
     def create_start_urls(self, url: Union[str, URL]):
         if isinstance(url, str):
+            if "//" not in url:
+                url = f"//{url}"
             url = URL(url)
 
         if url.scheme not in ["http", "https"]:
@@ -148,9 +150,21 @@ class FeedsearchSpider(Crawler):
 
 def should_follow_alternate(link, response: Response) -> bool:
     href = link.get("href")
-    return is_feedlike_string(link.get("type", "")) and one_jump_from_original_domain(
+    return is_valid_alternate(link.get("type", "")) and one_jump_from_original_domain(
         href, response
     )
+
+
+def is_valid_alternate(string: str) -> bool:
+    if any(map(string.lower().count, ["json+oembed"])):
+        return False
+    if any(
+        map(
+            string.lower().count,
+            ["application/json", "rss+xml", "atom+xml", "rss", "atom"],
+        )
+    ):
+        return True
 
 
 def should_follow_url(url: str, response: Response) -> bool:
@@ -158,6 +172,7 @@ def should_follow_url(url: str, response: Response) -> bool:
         "/amp/" not in url
         and is_feedlike_string(url)
         and not invalid_filetype(url)
+        and not ignore(url)
         and not query_contains_comments(url)
         and one_jump_from_original_domain(url, response)
     ):
@@ -216,3 +231,9 @@ def query_contains_comments(url: Union[str, URL]) -> bool:
 
 def is_feedlike_string(string: str) -> bool:
     return any(map(string.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))
+
+
+def ignore(string: str) -> bool:
+    return any(
+        map(string.lower().count, ["wp-includes", "wp-content", "wp-json", "xmlrpc"])
+    )

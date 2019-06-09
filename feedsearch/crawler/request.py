@@ -96,35 +96,36 @@ class Request:
                     except UnicodeDecodeError:
                         resp_text = None
 
+                history = copy.deepcopy(self.history)
+                history.append(resp.url)
+
+                response = Response(
+                    url=resp.url,
+                    method=resp.method,
+                    encoding=self.encoding,
+                    status_code=resp.status,
+                    history=history,
+                    text=resp_text,
+                    data=resp._body,
+                    json=resp_json,
+                    headers=resp.headers,
+                    xml_parser=self._parse_xml,
+                    cookies=resp.cookies,
+                    redirect_history=resp.history,
+                    content_length=actual_content_length,
+                )
+
                 resp.raise_for_status()
-
-            history = copy.deepcopy(self.history)
-            history.append(resp.url)
-
-            response = Response(
-                url=resp.url,
-                method=resp.method,
-                encoding=self.encoding,
-                status_code=resp.status,
-                history=history,
-                text=resp_text,
-                data=resp._body,
-                json=resp_json,
-                headers=resp.headers,
-                xml_parser=self._parse_xml,
-                cookies=resp.cookies,
-                redirect_history=resp.history,
-                content_length=actual_content_length,
-            )
 
         except asyncio.TimeoutError:
             self.logger.debug("Failed fetch: url=%s reason=timeout", self.url)
             response = self._failed_response(408)
         except aiohttp.ClientResponseError as e:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
-            response = self._failed_response(e.status)
-
-        return response
+            if not response:
+                response = self._failed_response(e.status, history)
+        finally:
+            return response
 
     async def _read_response(self, resp) -> Tuple[bool, int]:
         body: bytes = b""
@@ -152,7 +153,9 @@ class Request:
 
         return json.loads(stripped.decode(encoding))
 
-    def _failed_response(self, status: int) -> Response:
+    def _failed_response(
+        self, status: int, history: List[URL] = None, headers=None
+    ) -> Response:
         return Response(
             url=self.url,
             method=self.method,
