@@ -15,7 +15,7 @@ from feedsearch.feedsearch_spider.site_meta_parser import SiteMetaParser
 
 
 class FeedsearchSpider(Crawler):
-    dupefilter = NoQueryDupeFilter()
+    duplicate_filter_class = NoQueryDupeFilter
     htmlparser = "html.parser"
     favicon_data_uri = True
 

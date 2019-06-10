@@ -28,7 +28,7 @@ except ImportError:
 
 
 class Crawler(ABC):
-    dupefilter = DuplicateFilter()
+    duplicate_filter_class = DuplicateFilter
     post_crawl_callback = None
 
     concurrency: int = 10
@@ -49,6 +49,8 @@ class Crawler(ABC):
         "items_processed": 0,
         "urls_seen": 0,
     }
+
+    _dupefilter = None
 
     def __init__(
         self,
@@ -88,6 +90,8 @@ class Crawler(ABC):
         self.seen_lock = asyncio.Lock()
         self.semaphore = asyncio.Semaphore(self.concurrency)
 
+        self._dupefilter = self.duplicate_filter_class()
+
     async def _handle_request(self, request: Request):
         try:
             start = time.perf_counter()
@@ -110,7 +114,7 @@ class Crawler(ABC):
 
             self.stats["total_content_length"] += response.content_length
 
-            await self.dupefilter.url_seen(response.url, response.method)
+            await self._dupefilter.url_seen(response.url, response.method)
 
             if results:
                 await self._process_request_callback_result(results)
@@ -147,7 +151,7 @@ class Crawler(ABC):
             self.logger.exception(e)
 
     async def _process_request(self, request: Request) -> None:
-        seen = await self.dupefilter.url_seen(request.url, request.method)
+        seen = await self._dupefilter.url_seen(request.url, request.method)
 
         if self.max_depth and len(request.history) == self.max_depth:
             self.logger.debug("Max Depth reached: %s", request)
@@ -261,7 +265,7 @@ class Crawler(ABC):
 
         duration = int((time.perf_counter() - start) * 1000)
         self.stats["duration"] = duration
-        self.stats["urls_seen"] = len(self.dupefilter.fingerprints)
+        self.stats["urls_seen"] = len(self._dupefilter.fingerprints)
 
         self.logger.info(
             "Crawl finished: urls=%s time=%dms",
