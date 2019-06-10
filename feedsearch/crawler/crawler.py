@@ -32,7 +32,6 @@ class Crawler(ABC):
     post_crawl_callback = None
 
     concurrency: int = 10
-    max_tasks: int = 10
     max_request_size = 1024 * 1024 * 10
     max_depth: int = 0
     max_callback_recursion: int = 10
@@ -54,14 +53,16 @@ class Crawler(ABC):
     def __init__(
         self,
         start_urls: List = None,
-        max_tasks: int = 10,
+        concurrency: int = 10,
         total_timeout: Union[float, ClientTimeout] = 10,
         request_timeout: Union[float, ClientTimeout] = 2,
         user_agent: str = "",
+        max_request_size: int = 1024 * 1024 * 10,
+        max_depth: int = 10,
         *args,
         **kwargs,
     ):
-        self.max_tasks = max_tasks
+        self.concurrency = concurrency
         self.session = None
         self.request_queue = None
         self.items = set()
@@ -80,6 +81,9 @@ class Crawler(ABC):
 
         self.total_timeout = total_timeout
         self.request_timeout = request_timeout
+
+        self.max_request_size = max_request_size
+        self.max_depth = max_depth
 
         self.seen_lock = asyncio.Lock()
         self.semaphore = asyncio.Semaphore(self.concurrency)
@@ -236,7 +240,7 @@ class Crawler(ABC):
             await self._process_request(self.follow(coerce_url(url), self.parse))
 
         self.workers = [
-            asyncio.create_task(self._work()) for _ in range(self.max_tasks)
+            asyncio.create_task(self._work()) for _ in range(self.concurrency)
         ]
 
         # When all work is done, exit.
