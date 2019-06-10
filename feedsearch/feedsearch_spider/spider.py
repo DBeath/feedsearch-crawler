@@ -1,4 +1,5 @@
 import base64
+from types import AsyncGeneratorType
 from typing import Union, Any
 
 from bs4 import BeautifulSoup
@@ -28,7 +29,7 @@ class FeedsearchSpider(Crawler):
         if "try_urls" in kwargs:
             self.try_urls = kwargs["try_urls"]
 
-    async def parse(self, request: Request, response: Response):
+    async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
         if not response.ok:
             return
 

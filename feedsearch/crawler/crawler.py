@@ -4,10 +4,12 @@ import inspect
 import logging
 import time
 from abc import ABC, abstractmethod
+from types import AsyncGeneratorType
 from typing import List, Any
 from typing import Union
 
 import aiohttp
+from aiohttp import ClientTimeout
 from yarl import URL
 
 from feedsearch.crawler.duplicatefilter import DuplicateFilter
@@ -30,7 +32,15 @@ class Crawler(ABC):
     post_crawl_callback = None
 
     concurrency: int = 10
+    max_tasks: int = 10
     max_request_size = 1024 * 1024 * 10
+    max_depth: int = 0
+    max_callback_recursion: int = 10
+
+    workers = []
+
+    total_timeout: ClientTimeout
+    request_timeout: ClientTimeout
 
     stats: dict = {
         "requests_added": 0,
@@ -45,7 +55,8 @@ class Crawler(ABC):
         self,
         start_urls: List = None,
         max_tasks: int = 10,
-        timeout: int = 10,
+        total_timeout: Union[float, ClientTimeout] = 10,
+        request_timeout: Union[float, ClientTimeout] = 2,
         user_agent: str = "",
         *args,
         **kwargs,
@@ -61,7 +72,15 @@ class Crawler(ABC):
         )
         self.headers = {"User-Agent": self.user_agent}
         self.logger = logging.getLogger(__name__)
-        self.timeout = timeout
+
+        if not isinstance(total_timeout, ClientTimeout):
+            total_timeout = aiohttp.ClientTimeout(total=total_timeout)
+        if not isinstance(request_timeout, ClientTimeout):
+            request_timeout = aiohttp.ClientTimeout(total=request_timeout)
+
+        self.total_timeout = total_timeout
+        self.request_timeout = request_timeout
+
         self.seen_lock = asyncio.Lock()
         self.semaphore = asyncio.Semaphore(self.concurrency)
 
@@ -69,7 +88,7 @@ class Crawler(ABC):
         try:
             start = time.perf_counter()
 
-            results, response = await request.fetch_callback()
+            results, response = await request.fetch_callback(self.semaphore)
 
             dur = int((time.perf_counter() - start) * 1000)
             self.logger.debug(
@@ -99,13 +118,22 @@ class Crawler(ABC):
         finally:
             return
 
-    async def _process_request_callback_result(self, result: Any):
+    async def _process_request_callback_result(
+        self, result: Any, callback_recursion: int = 0
+    ):
+        if callback_recursion >= self.max_callback_recursion:
+            return
+
         try:
             if inspect.isasyncgen(result):
                 async for value in result:
-                    await self._process_request_callback_result(value)
+                    await self._process_request_callback_result(
+                        value, callback_recursion + 1
+                    )
             elif inspect.iscoroutine(result):
-                await self._process_request_callback_result(await result)
+                await self._process_request_callback_result(
+                    await result, callback_recursion + 1
+                )
             elif isinstance(result, Request):
                 await self._process_request(result)
             elif isinstance(result, Item):
@@ -114,11 +142,13 @@ class Crawler(ABC):
         except Exception as e:
             self.logger.exception(e)
 
-    async def process_item(self, item: Item) -> None:
-        self.items.add(item)
-
     async def _process_request(self, request: Request) -> None:
         seen = await self.dupefilter.url_seen(request.url, request.method)
+
+        if self.max_depth and len(request.history) == self.max_depth:
+            self.logger.debug("Max Depth reached: %s", request)
+            return
+
         if not seen:
             self.stats["requests_added"] += 1
             self.logger.debug("Queue Add: %s", request)
@@ -132,7 +162,8 @@ class Crawler(ABC):
 
         history = []
         if response:
-            url = response.url.join(url)
+            if not url.is_absolute():
+                url = response.url.origin().join(url)
             history = copy.deepcopy(response.history)
 
         request = Request(
@@ -142,17 +173,22 @@ class Crawler(ABC):
             callback=callback,
             xml_parser=self.parse_xml,
             max_size=self.max_request_size,
+            timeout=self.request_timeout,
             **kwargs,
         )
 
         return request
 
     @abstractmethod
-    async def parse_xml(self, response_text: str):
+    async def process_item(self, item: Item) -> None:
+        self.items.add(item)
+
+    @abstractmethod
+    async def parse_xml(self, response_text: str) -> Any:
         raise NotImplementedError("Not Implemented")
 
     @abstractmethod
-    async def parse(self, request: Request, response: Response):
+    async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
         raise NotImplementedError("Not Implemented")
 
     async def _work(self):
@@ -160,7 +196,7 @@ class Crawler(ABC):
             request = await self.request_queue.get()
 
             try:
-                await asyncio.shield(self._handle_request(request))
+                await self._handle_request(request)
             except asyncio.CancelledError:
                 self.logger.debug("Cancelled Request: %s", request)
             finally:
@@ -194,22 +230,25 @@ class Crawler(ABC):
 
         start = time.perf_counter()
         self.request_queue = asyncio.Queue()
-        timeout = aiohttp.ClientTimeout(total=self.timeout)
-        self.session = aiohttp.ClientSession(timeout=timeout)
+        self.session = aiohttp.ClientSession(timeout=self.total_timeout)
 
         for url in self.start_urls:
             await self._process_request(self.follow(coerce_url(url), self.parse))
 
-        workers = [asyncio.create_task(self._work()) for _ in range(self.max_tasks)]
+        self.workers = [
+            asyncio.create_task(self._work()) for _ in range(self.max_tasks)
+        ]
 
         # When all work is done, exit.
         try:
             async with self.session:
-                await asyncio.wait_for(self.request_queue.join(), timeout=self.timeout)
+                await asyncio.wait_for(
+                    self.request_queue.join(), timeout=self.total_timeout.total
+                )
         except asyncio.TimeoutError:
-            self.logger.debug("Timed out after %s seconds", self.timeout)
+            self.logger.debug("Timed out after %s seconds", self.total_timeout)
         finally:
-            for w in workers:
+            for w in self.workers:
                 w.cancel()
 
         await self._run_callback(self.post_crawl_callback)

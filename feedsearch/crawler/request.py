@@ -1,13 +1,13 @@
 import asyncio
 import copy
-import inspect
 import json
 import logging
 import uuid
-from typing import List, Tuple, Any
+from asyncio import Semaphore
+from typing import List, Tuple, Any, Union
 
 import aiohttp
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
 from yarl import URL
 
 from feedsearch.crawler.response import Response
@@ -23,7 +23,7 @@ class Request:
         encoding: str = None,
         method: str = "GET",
         headers: dict = None,
-        timeout: float = 5.0,
+        timeout: Union[float, ClientTimeout] = 5.0,
         history: List = None,
         callback=None,
         xml_parser=None,
@@ -39,6 +39,8 @@ class Request:
             raise ValueError(f"request_session must be of type ClientSession")
         self.request_session = request_session
         self.headers = headers
+        if not isinstance(timeout, ClientTimeout):
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
         self.timeout = timeout
         self.history = history or []
         self.encoding = encoding
@@ -54,8 +56,9 @@ class Request:
 
         self.logger = logging.getLogger(__name__)
 
-    async def fetch_callback(self) -> Tuple[Any, Response]:
-        response = await self._fetch()
+    async def fetch_callback(self, semaphore: Semaphore) -> Tuple[Any, Response]:
+        async with semaphore:
+            response = await self._fetch()
 
         callback_result = None
 
@@ -66,13 +69,18 @@ class Request:
 
         return callback_result, response
 
+    # noinspection PyProtectedMember
     async def _fetch(self) -> Response:
+        history = copy.deepcopy(self.history)
+
         try:
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
             request = self.request_session.get(
-                self.url, headers=self.headers, timeout=timeout
+                self.url, headers=self.headers, timeout=self.timeout
             )
+
             async with request as resp:
+                history.append(resp.url)
+
                 content_length: int = int(resp.headers.get("Content-Length", "0"))
                 if content_length > self.max_size:
                     return self._failed_response(413)
@@ -96,9 +104,6 @@ class Request:
                     except UnicodeDecodeError:
                         resp_text = None
 
-                history = copy.deepcopy(self.history)
-                history.append(resp.url)
-
                 response = Response(
                     url=resp.url,
                     method=resp.method,
@@ -119,7 +124,8 @@ class Request:
 
         except asyncio.TimeoutError:
             self.logger.debug("Failed fetch: url=%s reason=timeout", self.url)
-            response = self._failed_response(408)
+            history.append(self.url)
+            response = self._failed_response(408, history)
         except aiohttp.ClientResponseError as e:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
             if not response:
@@ -160,9 +166,9 @@ class Request:
             url=self.url,
             method=self.method,
             encoding=self.encoding,
-            history=self.history,
+            history=history or [],
             status_code=status,
-            headers={},
+            headers=headers or {},
         )
 
     async def _parse_xml(self, response_text: str) -> Any:
