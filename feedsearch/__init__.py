@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from typing import List
 
@@ -10,36 +9,29 @@ logging.getLogger("feedsearch.crawler").addHandler(logging.NullHandler())
 name = "Feedsearch Crawler"
 
 
-def get_pretty_print(json_object: object):
-    return json.dumps(json_object, sort_keys=True, indent=2, separators=(",", ": "))
+def search(url: str, try_urls: bool = False, *args, **kwargs) -> List[FeedInfo]:
+    """
+    Search for feeds at a URL.
 
-
-def search(
-    url: str,
-    timeout: float = 20,
-    user_agent: str = "",
-    concurrency: int = 10,
-    try_urls: bool = False,
-):
-
-    results = asyncio.run(search_async(url, timeout, user_agent, concurrency, try_urls))
+    :param url: URL to search
+    :param try_urls: Tries different paths that may contain feeds.
+    :return: List of FeedInfo objects
+    """
+    results = asyncio.run(search_async(url, try_urls=try_urls, *args, **kwargs))
     return results
 
 
 async def search_async(
-    url: str,
-    timeout: float = 20,
-    user_agent: str = "",
-    concurrency: int = 10,
-    try_urls: bool = False,
-):
+    url: str, try_urls: bool = False, *args, **kwargs
+) -> List[FeedInfo]:
+    """
+    Search asynchronously for feeds at a URL.
 
-    crawler = FeedsearchSpider(
-        concurrency=concurrency,
-        timeout=timeout,
-        user_agent=user_agent,
-        try_urls=try_urls,
-    )
+    :param url: URL to search
+    :param try_urls: Tries different paths that may contain feeds.
+    :return: List of FeedInfo objects
+    """
+    crawler = FeedsearchSpider(try_urls=try_urls, *args, **kwargs)
     await crawler.crawl(url)
 
     return sort_urls(crawler.items)

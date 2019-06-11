@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Union, Dict
 from yarl import URL
 
 
@@ -38,3 +38,10 @@ def to_string(item: Any, encoding: str = "utf-8", errors: str = "strict") -> str
     if isinstance(item, bytes):
         return item.decode(encoding, errors)
     return str(item)
+
+
+def case_insensitive_key(key: str, dict: Dict) -> bool:
+    k = key.lower()
+    for key in dict.keys():
+        if key.lower() == k:
+            return True

@@ -14,7 +14,7 @@ from yarl import URL
 
 from feedsearch.crawler.duplicatefilter import DuplicateFilter
 from feedsearch.crawler.item import Item
-from feedsearch.crawler.lib import coerce_url
+from feedsearch.crawler.lib import coerce_url, case_insensitive_key
 from feedsearch.crawler.request import Request
 from feedsearch.crawler.response import Response
 
@@ -57,24 +57,20 @@ class Crawler(ABC):
         start_urls: List = None,
         concurrency: int = 10,
         total_timeout: Union[float, ClientTimeout] = 10,
-        request_timeout: Union[float, ClientTimeout] = 2,
+        request_timeout: Union[float, ClientTimeout] = 3,
         user_agent: str = "",
         max_request_size: int = 1024 * 1024 * 10,
         max_depth: int = 10,
+        headers: dict = None,
         *args,
         **kwargs,
     ):
-        self.concurrency = concurrency
-        self.session = None
-        self.request_queue = None
-        self.items = set()
         self.start_urls = start_urls or []
+        self.concurrency = concurrency
         self.user_agent = user_agent or (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36"
         )
-        self.headers = {"User-Agent": self.user_agent}
-        self.logger = logging.getLogger(__name__)
 
         if not isinstance(total_timeout, ClientTimeout):
             total_timeout = aiohttp.ClientTimeout(total=total_timeout)
@@ -87,6 +83,16 @@ class Crawler(ABC):
         self.max_request_size = max_request_size
         self.max_depth = max_depth
 
+        self.headers = headers or {"User-Agent": self.user_agent}
+
+        if not case_insensitive_key("User-Agent", self.headers):
+            self.headers["User-Agent"] = self.user_agent
+
+        self.logger = logging.getLogger(__name__)
+
+        self.session = None
+        self.request_queue = None
+        self.items = set()
         self.seen_lock = asyncio.Lock()
         self.semaphore = asyncio.Semaphore(self.concurrency)
 

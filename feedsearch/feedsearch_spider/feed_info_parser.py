@@ -291,6 +291,8 @@ class FeedInfoParser(ItemParser):
             score -= 9
         if "alt" in url:
             score -= 7
+        if "index" in url:
+            score += 10
         kw = ["atom", "rss", ".xml", "feed", "rdf"]
         for p, t in zip(range(len(kw) * 2, 0, -2), kw):
             if t in url:

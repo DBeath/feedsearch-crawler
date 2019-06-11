@@ -20,6 +20,9 @@ class Request:
         self,
         url: URL,
         request_session: ClientSession,
+        params: dict = None,
+        data: Union[dict, bytes] = None,
+        json_data: dict = None,
         encoding: str = None,
         method: str = "GET",
         headers: dict = None,
@@ -31,6 +34,26 @@ class Request:
         max_size: int = 1024 * 1024 * 10,
         **kwargs,
     ):
+        """
+        A pending HTTP request to a URL. Wraps an aiohttp ClientSession request.
+        https://aiohttp.readthedocs.io/en/stable/client_reference.html
+
+        :param params: Mapping of query string parameters
+        :param data: Dictionary, bytes, or file-like object to send in the body of the request
+        :param json_data: Json dict to send as body. Not compatible with data
+        :param url: Request URL
+        :param request_session:
+        :param encoding:
+        :param method:
+        :param headers:
+        :param timeout:
+        :param history:
+        :param callback:
+        :param xml_parser:
+        :param failure_callback:
+        :param max_size:
+        :param kwargs:
+        """
         self.url = url
         self.method = method.upper()
         if self.method not in self.METHOD:
@@ -49,6 +72,9 @@ class Request:
         self.id = uuid.uuid4()
         self._xml_parser = xml_parser
         self.max_size = max_size
+        self.json_data = json_data
+        self.data = data
+        self.params = params
 
         for key, value in kwargs:
             if hasattr(self, key):
@@ -74,11 +100,7 @@ class Request:
         history = copy.deepcopy(self.history)
 
         try:
-            request = self.request_session.get(
-                self.url, headers=self.headers, timeout=self.timeout
-            )
-
-            async with request as resp:
+            async with self._create_request() as resp:
                 history.append(resp.url)
 
                 content_length: int = int(resp.headers.get("Content-Length", "0"))
@@ -93,7 +115,7 @@ class Request:
                     self.encoding = resp.get_encoding()
 
                 try:
-                    resp_json = await self._json(resp, encoding=self.encoding)
+                    resp_json = await self._read_json(resp, encoding=self.encoding)
                 except ValueError:
                     resp_json = None
 
@@ -133,6 +155,21 @@ class Request:
         finally:
             return response
 
+    def _create_request(self):
+        if self.method == "GET":
+            return self.request_session.get(
+                self.url, headers=self.headers, timeout=self.timeout, params=self.params
+            )
+        else:
+            return self.request_session.post(
+                self.url,
+                headers=self.headers,
+                timeout=self.timeout,
+                params=self.params,
+                data=self.data,
+                json=self.json_data,
+            )
+
     async def _read_response(self, resp) -> Tuple[bool, int]:
         body: bytes = b""
         while True:
@@ -146,7 +183,7 @@ class Request:
         return True, len(body)
 
     # noinspection PyProtectedMember
-    async def _json(self, resp, encoding: str = None) -> str:
+    async def _read_json(self, resp, encoding: str = None) -> str:
         if resp._body is None:
             await self._read_response(resp)
 
