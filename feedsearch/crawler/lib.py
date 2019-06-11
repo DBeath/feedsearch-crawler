@@ -13,11 +13,17 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
     if isinstance(url, str):
         url = URL(url)
 
+    scheme = "https" if https else "http"
+
+    if not url.is_absolute():
+        url_string = str(url)
+        split = url_string.split("/", 1)
+        url = URL.build(scheme=scheme, host=split[0])
+        if len(split) > 1:
+            url = url.with_path(split[1])
+
     if url.scheme not in ["http", "https"]:
-        if https:
-            url = url.with_scheme("https")
-        else:
-            url = url.with_scheme("http")
+        url = url.with_scheme(scheme)
 
     return url
 

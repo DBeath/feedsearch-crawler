@@ -12,10 +12,26 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "Readme.md"), encoding="utf-8") as f:
     readme = f.read()
 
-if sys.argv[-1] == "publish":
+
+def build():
     os.system("python3 setup.py sdist bdist_wheel")
+
+
+def publish():
     os.system("twine upload dist/*")
+
+
+if sys.argv[-1] == "build":
+    build()
     sys.exit()
+elif sys.argv[-1] == "publish":
+    build()
+    publish()
+    sys.exit()
+elif sys.argv[-1] == "publish-only":
+    publish()
+    sys.exit()
+
 
 packages = ["feedsearch", "feedsearch.crawler", "feedsearch.feedsearch_spider"]
 

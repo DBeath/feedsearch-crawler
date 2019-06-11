@@ -47,7 +47,10 @@ class FeedsearchSpider(Crawler):
         data = response.text.lower()[:500]
 
         url_origin = url.origin()
-        if url == url_origin:
+        request_url_origin = request.url.origin()
+        # If the returned url is an origin url, or the request url is an origin url (and there may have been a redirect)
+        # then parse the site meta.
+        if url == url_origin or request.url == request_url_origin:
             yield self.site_meta_processor.parse_item(request, response)
 
         if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
