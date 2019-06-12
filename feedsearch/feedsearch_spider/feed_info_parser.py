@@ -8,7 +8,7 @@ from yarl import URL
 
 from feedsearch.crawler import ItemParser, Request, Response, to_string
 from feedsearch.feedsearch_spider.feed_info import FeedInfo
-from feedsearch.feedsearch_spider.lib import parse_header_links, get_site_root
+from feedsearch.feedsearch_spider.lib import parse_header_links
 
 
 class FeedInfoParser(ItemParser):
@@ -26,8 +26,6 @@ class FeedInfoParser(ItemParser):
         if response.headers:
             item.hubs, item.self_url = self.header_links(response.headers)
 
-        original_url = str(response.history[0])
-
         if "type" not in kwargs:
             raise ValueError("type keyword argument is required")
 
@@ -36,10 +34,8 @@ class FeedInfoParser(ItemParser):
             if data_type == "json":
                 item.content_type = "application/json"
                 self.parse_json(item, response.json)
-                self.calculate_score(item, original_url)
             elif data_type == "xml":
                 self.parse_xml(item, response.data, response.encoding, response.headers)
-                self.calculate_score(item, original_url)
                 if not item.content_type:
                     item.content_type = "text/xml"
         except Exception as e:
@@ -48,15 +44,8 @@ class FeedInfoParser(ItemParser):
         if item.favicon and self.spider.favicon_data_uri:
             yield self.spider.follow(item.favicon, self.spider.create_data_uri)
 
+        self.score_item(item, response.history[0])
         yield item
-
-    def calculate_score(self, item: FeedInfo, original_url: str = ""):
-        try:
-            item.score = self.url_feed_score(str(item.url), original_url)
-        except Exception as e:
-            self.logger.exception(
-                "Failed to create score for feed %s, Error: %s", item, e
-            )
 
     def parse_xml(
         self, item: FeedInfo, data: str, encoding: str, headers: Dict
@@ -267,36 +256,48 @@ class FeedInfoParser(ItemParser):
         return hub_urls, self_url
 
     @staticmethod
-    def url_feed_score(url: str, original_url: str = "") -> int:
-        """
-        Return a Score based on estimated relevance of the feed Url
-        to the original search Url
-
-        :param url: Feed Url
-        :param original_url: Searched Url
-        :return: Score integer
-        """
+    def score_item(item: FeedInfo, original_url: URL):
         score = 0
 
+        url_str = str(item.url)
+
+        # -- Score Decrement --
+
         if original_url:
-            url_domain = get_site_root(url)
-            original_domain = get_site_root(original_url)
+            host = original_url.host
+            if host.startswith("www."):
+                host = host[len("www."):]
 
-            if original_domain not in url_domain:
-                score -= 17
+            if host not in item.url.host:
+                score -= 20
 
-        if "comments" in url:
-            score -= 15
-        if "georss" in url:
-            score -= 9
-        if "alt" in url:
+        # Decrement the score by every extra path in the url
+        parts_len = len(item.url.parts)
+        if parts_len > 2:
+            score -= (parts_len - 2) * 2
+
+        if item.bozo:
+            score -= 20
+        if not item.description:
+            score -= 10
+        if "georss" in url_str:
+            score -= 10
+        if "alt" in url_str:
             score -= 7
-        if "index" in url:
+        if "comments" in url_str or "comments" in item.title.lower():
+            score -= 15
+
+        # -- Score Increment --
+        if item.url.scheme == "https":
             score += 10
+        if item.is_push:
+            score += 10
+        if "index" in url_str:
+            score += 15
+
         kw = ["atom", "rss", ".xml", "feed", "rdf"]
         for p, t in zip(range(len(kw) * 2, 0, -2), kw):
-            if t in url:
+            if t in url_str:
                 score += p
-        if url.startswith("https"):
-            score += 9
-        return score
+
+        item.score = score

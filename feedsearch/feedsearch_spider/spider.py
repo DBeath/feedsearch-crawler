@@ -1,6 +1,6 @@
 import base64
 from types import AsyncGeneratorType
-from typing import Union, Any
+from typing import Union, Any, List
 
 from bs4 import BeautifulSoup
 from yarl import URL
@@ -18,6 +18,7 @@ class FeedsearchSpider(Crawler):
     duplicate_filter_class = NoQueryDupeFilter
     htmlparser = "html.parser"
     favicon_data_uri = True
+    try_urls = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -119,7 +120,7 @@ class FeedsearchSpider(Crawler):
         except Exception as e:
             self.logger.warning("Failure encoding image: %s", e)
 
-    def create_start_urls(self, url: Union[str, URL]):
+    def create_start_urls(self, url: Union[str, URL]) -> List[URL]:
         if isinstance(url, str):
             if "//" not in url:
                 url = f"//{url}"
@@ -161,7 +162,7 @@ class FeedsearchSpider(Crawler):
         if self.try_urls:
             urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
 
-        self.start_urls = urls
+        return urls
 
 
 def should_follow_alternate(link, response: Response) -> bool:

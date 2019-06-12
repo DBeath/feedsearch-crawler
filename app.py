@@ -5,7 +5,7 @@ from pprint import pprint
 from feedsearch import search, FeedsearchSpider
 
 urls = [
-    # "http://arstechnica.com",
+    #"http://arstechnica.com",
     # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -13,8 +13,9 @@ urls = [
     # "scientificamerican.com",
     # "newyorktimes.com",
     # "https://www.dancarlin.com",
-    # "https://www.hanselminutes.com/"
-    "nytimes.com"
+    # "https://www.hanselminutes.com/",
+    #"nytimes.com",
+    "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/"
 ]
 
 
@@ -33,8 +34,8 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    crawler = FeedsearchSpider(start_urls=urls, max_tasks=10, timeout=100000)
-    asyncio.run(crawler.crawl())
+    crawler = FeedsearchSpider(max_tasks=10, timeout=100000)
+    asyncio.run(crawler.crawl(urls[0]))
 
     serialized = [item.serialize() for item in crawler.items]
 
