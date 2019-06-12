@@ -81,14 +81,26 @@ class FeedsearchSpider(Crawler):
             self.site_metas.add(item)
 
     async def populate_feed_site_meta(self):
+        """
+        Populate FeedInfo site information with data from the relevant SiteMeta item
+        """
         for feed in self.items:
+            # Check each SiteMeta for a url host match
             for meta in self.site_metas:
-                if meta.url.host in feed.url.host:
+                # If the meta url host begins with www, then we remove it because the feed may be on
+                # a different subdomain
+                host = meta.url.host
+                if host.startswith("www."):
+                    host = host[len("www."):]
+
+                # If the meta url host is in the feed url host then we can assume that the feed belongs to that site
+                if host in feed.url.host:
                     feed.site_url = meta.url
+                    feed.site_name = meta.site_name
                     if not feed.favicon:
                         feed.favicon = meta.icon_url
-                    feed.site_name = meta.site_name
 
+            # Populate favicon data uri if available
             if feed.favicon:
                 feed.favicon_data_uri = self.favicons.get(feed.favicon, "")
 

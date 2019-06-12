@@ -11,11 +11,11 @@ import copy
 class DuplicateFilter:
     def __init__(self):
         self.fingerprints = dict()
-        self.seen_lock = asyncio.Lock()
+        self._seen_lock = asyncio.Lock()
 
     async def url_seen(self, url: URL, method: str = "") -> bool:
         fp = self.url_fingerprint(url, method)
-        async with self.seen_lock:
+        async with self._seen_lock:
             if fp in self.fingerprints:
                 return True
             self.fingerprints[fp] = copy.copy(url)

@@ -22,9 +22,6 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
         if len(split) > 1:
             url = url.with_path(split[1])
 
-    if url.scheme not in ["http", "https"]:
-        url = url.with_scheme(scheme)
-
     return url
 
 
@@ -39,6 +36,9 @@ def to_bytes(text, encoding: str = "utf-8", errors: str = "strict"):
 
 
 def to_string(item: Any, encoding: str = "utf-8", errors: str = "strict") -> str:
+    """
+    Return the string representation of 'item'.
+    """
     if item is None:
         return ""
     if isinstance(item, bytes):
@@ -46,8 +46,11 @@ def to_string(item: Any, encoding: str = "utf-8", errors: str = "strict") -> str
     return str(item)
 
 
-def case_insensitive_key(key: str, dict: Dict) -> bool:
+def case_insensitive_key(key: str, dictionary: Dict) -> bool:
+    """
+    Check if a case-insensitive key is in a dictionary.
+    """
     k = key.lower()
-    for key in dict.keys():
+    for key in dictionary.keys():
         if key.lower() == k:
             return True

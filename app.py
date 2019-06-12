@@ -9,11 +9,12 @@ urls = [
     # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
-    "en.wikipedia.com",
+    #"en.wikipedia.com",
     # "scientificamerican.com",
     # "newyorktimes.com",
     # "https://www.dancarlin.com",
     # "https://www.hanselminutes.com/"
+    "nytimes.com"
 ]
 
 

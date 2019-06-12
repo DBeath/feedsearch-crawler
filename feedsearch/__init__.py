@@ -42,7 +42,7 @@ def sort_urls(feeds: List[FeedInfo]) -> List[FeedInfo]:
     Sort list of feeds based on Url score
 
     :param feeds: List of FeedInfo objects
-    :return: List of FeedInfo objects
+    :return: List of FeedInfo objects sorted by score
     """
     feeds = [f for f in feeds if isinstance(f, FeedInfo)]
     sorted_urls = sorted(list(set(feeds)), key=lambda x: x.score, reverse=True)

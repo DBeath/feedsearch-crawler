@@ -31,7 +31,7 @@ class Request:
         callback=None,
         xml_parser=None,
         failure_callback=None,
-        max_size: int = 1024 * 1024 * 10,
+        max_content_length: int = 1024 * 1024 * 10,
         **kwargs,
     ):
         """
@@ -51,7 +51,7 @@ class Request:
         :param callback:
         :param xml_parser:
         :param failure_callback:
-        :param max_size:
+        :param max_content_length:
         :param kwargs:
         """
         self.url = url
@@ -71,7 +71,7 @@ class Request:
         self._failure_callback = failure_callback
         self.id = uuid.uuid4()
         self._xml_parser = xml_parser
-        self.max_size = max_size
+        self.max_content_length = max_content_length
         self.json_data = json_data
         self.data = data
         self.params = params
@@ -104,7 +104,7 @@ class Request:
                 history.append(resp.url)
 
                 content_length: int = int(resp.headers.get("Content-Length", "0"))
-                if content_length > self.max_size:
+                if content_length > self.max_content_length:
                     return self._failed_response(413)
 
                 content_read, actual_content_length = await self._read_response(resp)
@@ -177,7 +177,7 @@ class Request:
             if not chunk:
                 break
             body += chunk
-            if len(body) > self.max_size:
+            if len(body) > self.max_content_length:
                 return False, 0
         resp._body = body
         return True, len(body)
