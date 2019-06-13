@@ -152,7 +152,13 @@ class Request:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
             if not response:
                 response = self._failed_response(e.status, history)
+        except Exception as e:
+            self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
+            if not response:
+                response = self._failed_response(500, history)
         finally:
+            if resp and not resp.closed:
+                resp.close()
             return response
 
     def _create_request(self):
