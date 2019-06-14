@@ -1,4 +1,5 @@
 import base64
+import re
 from types import AsyncGeneratorType
 from typing import Union, Any, List
 
@@ -92,7 +93,7 @@ class FeedsearchSpider(Crawler):
                 # a different subdomain
                 host = meta.url.host
                 if host.startswith("www."):
-                    host = host[len("www."):]
+                    host = host[len("www.") :]
 
                 # If the meta url host is in the feed url host then we can assume that the feed belongs to that site
                 if host in feed.url.host:
@@ -175,12 +176,7 @@ def should_follow_alternate(link, response: Response) -> bool:
 def is_valid_alternate(string: str) -> bool:
     if any(map(string.lower().count, ["json+oembed"])):
         return False
-    if any(
-        map(
-            string.lower().count,
-            ["application/json", "rss+xml", "atom+xml", "rss", "atom"],
-        )
-    ):
+    if any(map(string.lower().count, ["application/json", "rss", "atom", "rdf"])):
         return True
 
 
@@ -228,11 +224,12 @@ def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> b
     return True
 
 
-def invalid_filetype(url: Union[str, URL]) -> bool:
-    if isinstance(url, URL):
-        url = str(url)
-    url_ending = url.split(".")[-1]
-    if url_ending in ["png", "md", "css", "jpg", "jpeg"]:
+# URL string should not contain invalid file types.
+file_regex = re.compile(".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi)/?$", re.IGNORECASE)
+
+
+def invalid_filetype(url: str) -> bool:
+    if file_regex.search(url.strip()):
         return True
     return False
 
@@ -246,8 +243,14 @@ def query_contains_comments(url: Union[str, URL]) -> bool:
     return any(key in query for key in ["comment", "comments", "post"])
 
 
+# Feed-like string should be whole word to help rule out false positives.
+feedlike_regex = re.compile("\\b(rss|feed|atom|json|xml|rdf|feeds)\\b", re.IGNORECASE)
+
+
 def is_feedlike_string(string: str) -> bool:
-    return any(map(string.lower().count, ["rss", "rdf", "xml", "atom", "feed", "json"]))
+    if feedlike_regex.search(string):
+        return True
+    return False
 
 
 def ignore(string: str) -> bool:

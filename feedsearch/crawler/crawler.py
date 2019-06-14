@@ -218,7 +218,9 @@ class Crawler(ABC):
             return
 
         if self.allowed_schemes and request.url.scheme not in self.allowed_schemes:
-            self.logger.debug("URI Scheme '%s' not allowed: %s", request.url.scheme, request)
+            self.logger.debug(
+                "URI Scheme '%s' not allowed: %s", request.url.scheme, request
+            )
             return
 
         if self.max_depth and len(request.history) >= self.max_depth:

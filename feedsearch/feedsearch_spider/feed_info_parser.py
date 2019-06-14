@@ -266,7 +266,7 @@ class FeedInfoParser(ItemParser):
         if original_url:
             host = original_url.host
             if host.startswith("www."):
-                host = host[len("www."):]
+                host = host[len("www.") :]
 
             if host not in item.url.host:
                 score -= 20

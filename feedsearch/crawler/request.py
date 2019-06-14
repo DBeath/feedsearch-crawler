@@ -126,6 +126,9 @@ class Request:
                     except UnicodeDecodeError:
                         resp_text = None
 
+                if not resp.closed:
+                    resp.close()
+
                 response = Response(
                     url=resp.url,
                     method=resp.method,
@@ -157,8 +160,6 @@ class Request:
             if not response:
                 response = self._failed_response(500, history)
         finally:
-            if resp and not resp.closed:
-                resp.close()
             return response
 
     def _create_request(self):
