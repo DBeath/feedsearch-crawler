@@ -44,6 +44,7 @@ class FeedInfoParser(ItemParser):
         if item.favicon and self.spider.favicon_data_uri:
             yield self.spider.follow(item.favicon, self.spider.create_data_uri)
 
+        item.content_length = response.content_length
         self.score_item(item, response.history[0])
         yield item
 
