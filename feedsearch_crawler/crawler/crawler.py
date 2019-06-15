@@ -12,11 +12,11 @@ import aiohttp
 from aiohttp import ClientTimeout
 from yarl import URL
 
-from feedsearch.crawler.duplicatefilter import DuplicateFilter
-from feedsearch.crawler.item import Item
-from feedsearch.crawler.lib import coerce_url, case_insensitive_key
-from feedsearch.crawler.request import Request
-from feedsearch.crawler.response import Response
+from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
+from feedsearch_crawler.crawler.item import Item
+from feedsearch_crawler.crawler.lib import coerce_url, case_insensitive_key
+from feedsearch_crawler.crawler.request import Request
+from feedsearch_crawler.crawler.response import Response
 
 try:
     import uvloop
@@ -108,7 +108,7 @@ class Crawler(ABC):
 
         self.allowed_schemes = allowed_schemes
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("feedsearch_crawler")
 
         # Default set for parsed items.
         self.items: set = set()

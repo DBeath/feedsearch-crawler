@@ -6,20 +6,20 @@ from typing import Union, Any, List
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from feedsearch.crawler import Crawler, Item, Request, Response
+from feedsearch_crawler.crawler import Crawler, Item, Request, Response
 
-from feedsearch.feedsearch_spider.dupefilter import NoQueryDupeFilter
-from feedsearch.feedsearch_spider.feed_info import FeedInfo
-from feedsearch.feedsearch_spider.feed_info_parser import FeedInfoParser
-from feedsearch.feedsearch_spider.site_meta import SiteMeta
-from feedsearch.feedsearch_spider.site_meta_parser import SiteMetaParser
+from feedsearch_crawler.feed_spider.dupefilter import NoQueryDupeFilter
+from feedsearch_crawler.feed_spider.feed_info import FeedInfo
+from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
+from feedsearch_crawler.feed_spider.site_meta import SiteMeta
+from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 
 class FeedsearchSpider(Crawler):
     duplicate_filter_class = NoQueryDupeFilter
     htmlparser = "html.parser"
     favicon_data_uri = True
-    try_urls = False
+    try_urls: Union[List[str], bool] = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -30,6 +30,8 @@ class FeedsearchSpider(Crawler):
         self.post_crawl_callback = self.populate_feed_site_meta
         if "try_urls" in kwargs:
             self.try_urls = kwargs["try_urls"]
+        if "favicon_data_uri" in kwargs:
+            self.favicon_data_uri = kwargs["favicon_data_uri"]
 
     async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
         if not response.ok:
@@ -161,7 +163,10 @@ class FeedsearchSpider(Crawler):
         }
 
         if self.try_urls:
-            urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
+            if isinstance(self.try_urls, list):
+                urls.extend(origin.join(URL(suffix)) for suffix in self.try_urls)
+            else:
+                urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
 
         return urls
 

@@ -2,20 +2,21 @@ import asyncio
 import logging
 import json
 from pprint import pprint
-from feedsearch import search, FeedsearchSpider
+from feedsearch_crawler import search, FeedsearchSpider
 
 urls = [
-    #"http://arstechnica.com",
-    # "http://davidbeath.com",
+    # "http://arstechnica.com",
+    "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
-    #"en.wikipedia.com",
+    # "en.wikipedia.com",
     # "scientificamerican.com",
     # "newyorktimes.com",
     # "https://www.dancarlin.com",
     # "https://www.hanselminutes.com/",
-    #"nytimes.com",
-    "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/"
+    # "nytimes.com",
+    # "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/",
+    # "feedhandbook.com"
 ]
 
 
@@ -24,7 +25,7 @@ def get_pretty_print(json_object: object):
 
 
 if __name__ == "__main__":
-    logger = logging.getLogger("feedsearch.crawler")
+    logger = logging.getLogger("feedsearch_crawler")
     logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -34,8 +35,13 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    crawler = FeedsearchSpider(max_tasks=10, timeout=100000)
-    asyncio.run(crawler.crawl(urls[0]))
+    user_agent = "Mozilla/5.0 Feedsearch Bot"
+
+    crawler = FeedsearchSpider(
+        concurrency=10, timeout=100000, user_agent=user_agent, favicon_data_uri=False
+    )
+    crawler.start_urls = urls
+    asyncio.run(crawler.crawl())
 
     serialized = [item.serialize() for item in crawler.items]
 

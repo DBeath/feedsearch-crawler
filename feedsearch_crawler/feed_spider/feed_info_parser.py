@@ -6,9 +6,9 @@ import feedparser
 from bs4 import BeautifulSoup
 from yarl import URL
 
-from feedsearch.crawler import ItemParser, Request, Response, to_string
-from feedsearch.feedsearch_spider.feed_info import FeedInfo
-from feedsearch.feedsearch_spider.lib import parse_header_links
+from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
+from feedsearch_crawler.feed_spider.feed_info import FeedInfo
+from feedsearch_crawler.feed_spider.lib import parse_header_links
 
 
 class FeedInfoParser(ItemParser):

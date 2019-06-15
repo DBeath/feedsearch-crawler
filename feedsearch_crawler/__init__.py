@@ -1,15 +1,17 @@
 import asyncio
 import logging
-from typing import List
+from typing import List, Union
 
-from feedsearch.feedsearch_spider import FeedsearchSpider, FeedInfo
+from feedsearch_crawler.feed_spider import FeedsearchSpider, FeedInfo
 
-logging.getLogger("feedsearch.crawler").addHandler(logging.NullHandler())
+logging.getLogger("feedsearch_crawler").addHandler(logging.NullHandler())
 
 name = "Feedsearch Crawler"
 
 
-def search(url: str, try_urls: bool = False, *args, **kwargs) -> List[FeedInfo]:
+def search(
+    url: str, try_urls: Union[List[str], bool] = False, *args, **kwargs
+) -> List[FeedInfo]:
     """
     Search for feeds at a URL.
 
@@ -22,7 +24,7 @@ def search(url: str, try_urls: bool = False, *args, **kwargs) -> List[FeedInfo]:
 
 
 async def search_async(
-    url: str, try_urls: bool = False, *args, **kwargs
+    url: str, try_urls: Union[List[str], bool] = False, *args, **kwargs
 ) -> List[FeedInfo]:
     """
     Search asynchronously for feeds at a URL.
@@ -34,7 +36,7 @@ async def search_async(
     crawler = FeedsearchSpider(try_urls=try_urls, *args, **kwargs)
     await crawler.crawl(url)
 
-    return sort_urls(crawler.items)
+    return sort_urls(list(crawler.items))
 
 
 def sort_urls(feeds: List[FeedInfo]) -> List[FeedInfo]:

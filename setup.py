@@ -33,7 +33,7 @@ elif sys.argv[-1] == "publish-only":
     sys.exit()
 
 
-packages = ["feedsearch", "feedsearch.crawler", "feedsearch.feedsearch_spider"]
+packages = ["feedsearch_crawler", "feedsearch_crawler.crawler", "feedsearch_crawler.feed_spider"]
 
 required = [
     "aiohttp",
@@ -47,7 +47,7 @@ required = [
 
 setup(
     name="feedsearch-crawler",
-    version="0.0.5",
+    version="0.1.0",
     description="Search sites for RSS, Atom, and JSON feeds",
     long_description=readme,
     long_description_content_type="text/markdown",

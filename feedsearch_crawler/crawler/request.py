@@ -10,7 +10,7 @@ import aiohttp
 from aiohttp import ClientSession, ClientTimeout
 from yarl import URL
 
-from feedsearch.crawler.response import Response
+from feedsearch_crawler.crawler.response import Response
 
 
 class Request:
@@ -80,7 +80,7 @@ class Request:
             if hasattr(self, key):
                 setattr(self, key, value)
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("feedsearch_crawler")
 
     async def fetch_callback(self, semaphore: Semaphore) -> Tuple[Any, Response]:
         async with semaphore:
