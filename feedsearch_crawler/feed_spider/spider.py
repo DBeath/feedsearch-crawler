@@ -260,5 +260,8 @@ def is_feedlike_string(string: str) -> bool:
 
 def ignore(string: str) -> bool:
     return any(
-        map(string.lower().count, ["wp-includes", "wp-content", "wp-json", "xmlrpc"])
+        map(
+            string.lower().count,
+            ["wp-includes", "wp-content", "wp-json", "xmlrpc", "wp-admin"],
+        )
     )

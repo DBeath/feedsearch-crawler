@@ -99,6 +99,7 @@ class Request:
     async def _fetch(self) -> Response:
         history = copy.deepcopy(self.history)
 
+        response = None
         try:
             async with self._create_request() as resp:
                 history.append(resp.url)
@@ -157,9 +158,9 @@ class Request:
                 response = self._failed_response(e.status, history)
         except Exception as e:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
+        finally:
             if not response:
                 response = self._failed_response(500, history)
-        finally:
             return response
 
     def _create_request(self):

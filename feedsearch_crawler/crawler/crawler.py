@@ -85,10 +85,6 @@ class Crawler(ABC):
         """
         self.start_urls = start_urls or []
         self.concurrency = concurrency
-        self.user_agent = user_agent or (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36"
-        )
 
         if not isinstance(total_timeout, ClientTimeout):
             total_timeout = aiohttp.ClientTimeout(total=total_timeout)
@@ -101,10 +97,14 @@ class Crawler(ABC):
         self.max_content_length = max_content_length
         self.max_depth = max_depth
 
-        self.headers = headers or {"User-Agent": self.user_agent}
+        self.user_agent = user_agent or (
+            "Mozilla/5.0 (compatible; Feedsearch-Crawler; +https://pypi.org/project/feedsearch-crawler)"
+        )
 
-        if not case_insensitive_key("User-Agent", self.headers):
-            self.headers["User-Agent"] = self.user_agent
+        self.headers = {"User-Agent": self.user_agent, "Upgrade-Insecure-Requests": "1"}
+
+        if headers:
+            self.headers = {**self.headers, **headers}
 
         self.allowed_schemes = allowed_schemes
 
@@ -358,7 +358,9 @@ class Crawler(ABC):
         start = time.perf_counter()
         # Create the Request Queue and ClientSession within the asyncio loop.
         self._request_queue = asyncio.Queue()
-        self._session = aiohttp.ClientSession(timeout=self.total_timeout)
+        self._session = aiohttp.ClientSession(
+            timeout=self.total_timeout, headers=self.headers
+        )
 
         # Create a Request for each start URL and add it to the Request Queue.
         for url in self.start_urls:
