@@ -16,7 +16,9 @@ urls = [
     # "https://www.hanselminutes.com/",
     # "nytimes.com",
     # "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/",
-    # "feedhandbook.com"
+    # "feedhandbook.com",
+    # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/"
+    # "localhost:8080"
 ]
 
 
@@ -35,17 +37,26 @@ if __name__ == "__main__":
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    user_agent = "Mozilla/5.0 Feedsearch Bot"
+    user_agent = "Mozilla/5.0 Feedsearch"
+
+    # headers = {
+    #     "User-Agent": "Feedsearch Bot",
+    #     "X-Testing-Header": "Testing,testing,123",
+    # }
 
     crawler = FeedsearchSpider(
-        concurrency=10, timeout=100000, user_agent=user_agent, favicon_data_uri=False
+        concurrency=10,
+        timeout=100000,
+        user_agent=user_agent,
+        favicon_data_uri=False,
+        # headers=headers,
     )
-    crawler.start_urls = urls
-    asyncio.run(crawler.crawl())
+    # crawler.start_urls = urls
+    asyncio.run(crawler.crawl(urls[0]))
 
     serialized = [item.serialize() for item in crawler.items]
 
-    # items = search(urls[0], concurrency=40, try_urls=False)
+    # items = search(urls[0], concurrency=40, try_urls=False, favicon_data_uri=False)
     # serialized = [item.serialize() for item in items]
 
     results = get_pretty_print(serialized)

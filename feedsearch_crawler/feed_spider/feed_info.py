@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from yarl import URL
@@ -21,8 +22,11 @@ class FeedInfo(Item):
     site_name: str = ""
     favicon_data_uri: str = ""
     content_length: int = 0
+    last_published: datetime = None
 
     def serialize(self):
+        last_published = self.last_published.isoformat() if self.last_published else ""
+
         return dict(
             url=to_string(self.url),
             title=self.title,
@@ -39,6 +43,7 @@ class FeedInfo(Item):
             site_name=self.site_name,
             favicon_data_uri=self.favicon_data_uri,
             content_length=self.content_length,
+            last_published=last_published,
         )
 
     def __init__(self, url: URL, content_type: str):

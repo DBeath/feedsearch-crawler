@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
@@ -67,6 +68,8 @@ class FeedInfoParser(ItemParser):
                 return
 
         feed = parsed.get("feed")
+        if not feed:
+            return
 
         # Only search if no hubs already present from headers
         if not item.hubs:
@@ -78,6 +81,25 @@ class FeedInfoParser(ItemParser):
         item.version = parsed.get("version")
         item.title = self.feed_title(feed)
         item.description = self.feed_description(feed)
+
+        try:
+            dates = []
+            if feed.get("published_parsed"):
+                dates.append(
+                    datetime.utcfromtimestamp(
+                        time.mktime(feed.get("published_parsed", ""))
+                    )
+                )
+            if feed.get("updated_parsed"):
+                dates.append(
+                    datetime.utcfromtimestamp(
+                        time.mktime(feed.get("updated_parsed", ""))
+                    )
+                )
+            item.last_published = sorted(dates, reverse=True)[0]
+        except Exception as e:
+            self.logger.error("Unable to get feed published date: %s", e)
+            pass
 
     @staticmethod
     def parse_json(item: FeedInfo, data: dict) -> None:
