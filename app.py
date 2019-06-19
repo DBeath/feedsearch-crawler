@@ -2,7 +2,7 @@ import asyncio
 import logging
 import json
 from pprint import pprint
-from feedsearch_crawler import search, FeedsearchSpider
+from feedsearch_crawler import search, FeedsearchSpider, output_opml
 
 urls = [
     # "http://arstechnica.com",
@@ -70,3 +70,5 @@ if __name__ == "__main__":
 
     pprint(crawler.favicons)
     pprint(crawler._dupefilter.fingerprints)
+
+    print(output_opml(crawler.items).decode())

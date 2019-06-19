@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from xml.etree import ElementTree
 from typing import List, Union
 
 from feedsearch_crawler.feed_spider import FeedsearchSpider, FeedInfo
@@ -49,3 +50,33 @@ def sort_urls(feeds: List[FeedInfo]) -> List[FeedInfo]:
     feeds = [f for f in feeds if isinstance(f, FeedInfo)]
     sorted_urls = sorted(list(set(feeds)), key=lambda x: x.score, reverse=True)
     return sorted_urls
+
+
+def output_opml(feeds: List[FeedInfo]) -> bytes:
+    """
+    Return feeds as a subscriptionlist OPML file.
+    http://dev.opml.org/spec2.html#subscriptionLists
+
+    :param feeds: List of FeedInfo objects
+    :return: OPML file as XML bytestring
+    """
+    root = ElementTree.Element("opml", version="2.0")
+    head = ElementTree.SubElement(root, "head")
+    title = ElementTree.SubElement(head, "title")
+    title.text = "Feeds"
+    body = ElementTree.SubElement(root, "body")
+
+    for feed in feeds:
+        ElementTree.SubElement(
+            body,
+            "outline",
+            text=feed.title,
+            title=feed.title,
+            type="rss",
+            xmlUrl=str(feed.url),
+            htmlUrl=str(feed.site_url),
+            description=feed.description,
+            version=feed.version,
+        )
+
+    return ElementTree.tostring(root, encoding="utf8", method="xml")

@@ -56,6 +56,14 @@ import logging
 logger = logging.getLogger("feedsearch_crawler")
 ```
 
+Feedsearch Crawler also provides a handy function to output the returned feeds as an [OPML](https://en.wikipedia.org/wiki/OPML) subscription list, encoded as a UTF-8 bytestring. 
+
+``` python
+from feedsearch_crawler import output_opml
+
+output_opml(feeds).decode()
+```
+
 ## Search Arguments
 ``search`` and ``search_async`` take the following arguments:
 
