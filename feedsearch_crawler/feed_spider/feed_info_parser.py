@@ -1,9 +1,10 @@
 import time
-from datetime import datetime
+from datetime import datetime, date
 from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
+import udatetime
 from bs4 import BeautifulSoup
 from yarl import URL
 
@@ -84,25 +85,29 @@ class FeedInfoParser(ItemParser):
 
         try:
             dates = []
-            if feed.get("published_parsed"):
-                dates.append(
-                    datetime.utcfromtimestamp(
-                        time.mktime(feed.get("published_parsed", ""))
+            now_date = datetime.utcnow().date()
+
+            for entry in parsed.get("entries", None):
+                if entry.get("published_parsed"):
+                    published = datetime.fromtimestamp(
+                        time.mktime(entry.get("published_parsed", ""))
                     )
-                )
-            if feed.get("updated_parsed"):
-                dates.append(
-                    datetime.utcfromtimestamp(
-                        time.mktime(feed.get("updated_parsed", ""))
+                    if published.date() <= now_date:
+                        dates.append(published)
+
+                if entry.get("updated_parsed"):
+                    updated = datetime.fromtimestamp(
+                        time.mktime(entry.get("updated_parsed", ""))
                     )
-                )
-            item.last_published = sorted(dates, reverse=True)[0]
+                    if updated.date() <= now_date:
+                        dates.append(updated)
+
+            item.last_updated = sorted(dates, reverse=True)[0]
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
 
-    @staticmethod
-    def parse_json(item: FeedInfo, data: dict) -> None:
+    def parse_json(self, item: FeedInfo, data: dict) -> None:
         """
         Get info from JSON feed.
 
@@ -131,6 +136,26 @@ class FeedInfoParser(ItemParser):
 
         if item.hubs:
             item.is_push = True
+
+        try:
+            dates = []
+            now_date: date = datetime.utcnow().date()
+
+            for entry in data.get("items"):
+                if entry.get("date_published"):
+                    published: datetime = udatetime.from_string(entry["date_published"])
+                    if published.date() <= now_date:
+                        dates.append(published)
+
+                if entry.get("date_modified"):
+                    modified: datetime = udatetime.from_string(entry["date_modified"])
+                    if modified.date() <= now_date:
+                        dates.append(modified)
+
+            item.last_updated = sorted(dates, reverse=True)[0]
+        except Exception as e:
+            self.logger.error("Unable to get feed published date: %s", e)
+            pass
 
     def parse_raw_data(
         self, raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None

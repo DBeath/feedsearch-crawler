@@ -22,10 +22,10 @@ class FeedInfo(Item):
     site_name: str = ""
     favicon_data_uri: str = ""
     content_length: int = 0
-    last_published: datetime = None
+    last_updated: datetime = None
 
     def serialize(self):
-        last_published = self.last_published.isoformat() if self.last_published else ""
+        last_updated = self.last_updated.isoformat() if self.last_updated else ""
 
         return dict(
             url=to_string(self.url),
@@ -43,7 +43,7 @@ class FeedInfo(Item):
             site_name=self.site_name,
             favicon_data_uri=self.favicon_data_uri,
             content_length=self.content_length,
-            last_published=last_published,
+            last_updated=last_updated,
         )
 
     def __init__(self, url: URL, content_type: str):
