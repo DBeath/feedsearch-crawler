@@ -3,8 +3,8 @@ import copy
 import json
 import logging
 import uuid
-from asyncio import Semaphore
-from typing import List, Tuple, Any, Union
+from asyncio import Semaphore, IncompleteReadError, LimitOverrunError
+from typing import List, Tuple, Any, Union, Optional
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
@@ -42,17 +42,17 @@ class Request:
         :param data: Dictionary, bytes, or file-like object to send in the body of the request
         :param json_data: Json dict to send as body. Not compatible with data
         :param url: Request URL
-        :param request_session:
-        :param encoding:
-        :param method:
-        :param headers:
-        :param timeout:
-        :param history:
-        :param callback:
-        :param xml_parser:
-        :param failure_callback:
-        :param max_content_length:
-        :param kwargs:
+        :param request_session: aiohttp ClientSession
+        :param encoding: Default Response encoding
+        :param method: HTTP method
+        :param headers: HTTP headers for the request
+        :param timeout: Seconds before Request times out
+        :param history: Response history, list of previous URLs
+        :param callback: Callback function to run after request is successful
+        :param xml_parser: Function to parse Response XML
+        :param failure_callback: Callback function to run if request is unsuccessful
+        :param max_content_length: Maximum allowed size in bytes of Response content
+        :param kwargs: Optional keyword arguments
         """
         self.url = url
         self.method = method.upper()
@@ -84,6 +84,12 @@ class Request:
         self.logger = logging.getLogger("feedsearch_crawler")
 
     async def fetch_callback(self, semaphore: Semaphore) -> Tuple[Any, Response]:
+        """
+        Fetch HTTP Response and run Callbacks.
+
+        :param semaphore: asyncio Semaphore
+        :returns: Tuple of Callback result and Response object
+        """
         async with semaphore:
             response = await self._fetch()
 
@@ -98,6 +104,12 @@ class Request:
 
     # noinspection PyProtectedMember
     async def _fetch(self) -> Response:
+        """
+        Run HTTP Request and fetch HTTP Response.
+
+        :return: Response object
+        """
+        # Copy the Request history so that it isn't a pointer.
         history = copy.deepcopy(self.history)
 
         response = None
@@ -105,29 +117,33 @@ class Request:
             async with self._create_request() as resp:
                 history.append(resp.url)
 
+                # Fail the response if the content length header is too large.
                 content_length: int = int(resp.headers.get("Content-Length", "0"))
                 if content_length > self.max_content_length:
                     return self._failed_response(413)
 
+                # Read the response content, and fail the response if the actual content size is too large.
                 content_read, actual_content_length = await self._read_response(resp)
                 if not content_read:
                     return self._failed_response(413)
 
+                # Set encoding automatically from response if not specified.
                 if not self.encoding:
                     self.encoding = resp.get_encoding()
 
+                # Read response content
                 try:
-                    resp_json = await self._read_json(resp, encoding=self.encoding)
-                except ValueError:
+                    # Read response content as text
+                    resp_text = await resp.text(encoding=self.encoding)
+
+                    # Attempt to read response content as JSON
+                    resp_json = await self._read_json(resp_text)
+                # If response content can't be decoded then neither text or JSON can be set.
+                except UnicodeDecodeError:
+                    resp_text = None
                     resp_json = None
 
-                resp_text = None
-                if not resp_json:
-                    try:
-                        resp_text = await resp.text(encoding=self.encoding)
-                    except UnicodeDecodeError:
-                        resp_text = None
-
+                # Close the asyncio response
                 if not resp.closed:
                     resp.close()
 
@@ -147,6 +163,8 @@ class Request:
                     content_length=actual_content_length,
                 )
 
+                # Raise exception after the Response object is created, because we only catch TimeoutErrors and
+                # asyncio.ClientResponseErrors, and there may be valid data otherwise.
                 resp.raise_for_status()
 
         except asyncio.TimeoutError:
@@ -161,16 +179,22 @@ class Request:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
         finally:
             self.has_run = True
+            # Make sure there is a valid Response object.
             if not response:
                 response = self._failed_response(500, history)
             return response
 
     def _create_request(self):
-        if self.method == "GET":
+        """
+        Create an asyncio HTTP Request.
+
+        :return: asyncio HTTP Request
+        """
+        if self.method.upper() == "GET":
             return self.request_session.get(
                 self.url, headers=self.headers, timeout=self.timeout, params=self.params
             )
-        else:
+        elif self.method.upper() == "POST":
             return self.request_session.post(
                 self.url,
                 headers=self.headers,
@@ -179,36 +203,65 @@ class Request:
                 data=self.data,
                 json=self.json_data,
             )
+        else:
+            raise ValueError(
+                "HTTP method %s is not valid. Must be GET or POST", self.method
+            )
 
     async def _read_response(self, resp) -> Tuple[bool, int]:
+        """
+        Read HTTP Response content as bytes.
+
+        :param resp: asyncio HTTP Response
+        :return: Tuple (read status, content length in bytes)
+        """
         body: bytes = b""
-        while True:
-            chunk = await resp.content.read(1024)
-            if not chunk:
-                break
-            body += chunk
-            if len(body) > self.max_content_length:
-                return False, 0
+        try:
+            async for chunk in resp.content.iter_chunked(1024):
+                if not chunk:
+                    break
+                body += chunk
+                if len(body) > self.max_content_length:
+                    return False, 0
+        except (IncompleteReadError, LimitOverrunError) as e:
+            self.logger.exception("Failed to read Response content: %s", e)
+            return False, 0
         resp._body = body
         return True, len(body)
 
     # noinspection PyProtectedMember
-    async def _read_json(self, resp, encoding: str = None) -> str:
-        if resp._body is None:
-            await self._read_response(resp)
+    async def _read_json(self, resp_text: Union[str, None]) -> Optional[dict]:
+        """
+        Attempt to read Response content as JSON.
 
-        stripped = resp._body.strip()  # type: ignore
+        :param resp_text: HTTP response context as text string
+        :return: JSON dict or None
+        """
+
+        # If the text hasn't been parsed then we won't be able to parse JSON either.
+        if not resp_text:
+            return
+
+        stripped = resp_text.strip()  # type: ignore
         if not stripped:
-            return ""
+            return None
 
-        if encoding is None:
-            encoding = resp.get_encoding()
-
-        return json.loads(stripped.decode(encoding))
+        try:
+            return json.loads(stripped)
+        except ValueError:
+            return None
 
     def _failed_response(
         self, status: int, history: List[URL] = None, headers=None
     ) -> Response:
+        """
+        Create a failed Response object with the provided Status Code.
+
+        :param status: HTTP Status Code
+        :param history: Response History as list of URLs
+        :param headers: Response Headers
+        :return: Failed Response object
+        """
         return Response(
             url=self.url,
             method=self.method,
@@ -219,6 +272,12 @@ class Request:
         )
 
     async def _parse_xml(self, response_text: str) -> Any:
+        """
+        Use provided XML Parsers method to attempt to parse Response content as XML.
+
+        :param response_text: Response content as text string.
+        :return: Response content as parsed XML. Type depends on XML parser.
+        """
         try:
             return await self._xml_parser(response_text)
         except Exception as e:

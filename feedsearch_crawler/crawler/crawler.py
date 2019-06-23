@@ -5,6 +5,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from statistics import harmonic_mean
 from types import AsyncGeneratorType
 from typing import List, Any
 from typing import Union
@@ -46,7 +47,7 @@ class Crawler(ABC):
     # Callback to be run after all workers are finished.
     post_crawl_callback = None
 
-    # Max number of workers and of concurrent http requests.
+    # Max number of concurrent http requests.
     concurrency: int = 10
     # Max size of incoming http response content.
     max_content_length = 1024 * 1024 * 10
@@ -62,6 +63,8 @@ class Crawler(ABC):
     _session: aiohttp.ClientSession
     # Task queue for Requests. Created on Crawl start.
     _request_queue: asyncio.Queue
+    # Semaphore for controlling HTTP Request concurrency.
+    _semaphore: asyncio.Semaphore
 
     def __init__(
         self,
@@ -121,20 +124,43 @@ class Crawler(ABC):
 
         # Default set for parsed items.
         self.items: set = set()
-        # Semaphore for controlling HTTP Request concurrency.
-        self._semaphore = asyncio.Semaphore(self.concurrency)
 
         # URL Duplicate Filter instance.
-        self._dupefilter = self.duplicate_filter_class()
+        self._duplicate_filter = self.duplicate_filter_class()
+
+        self.request_durations = []
+        self.request_content_length = []
 
         # Crawl statistics.
         self.stats: dict = {
+            # Number of HTTP Requests added and sent.
             "requests_added": 0,
+            # Number of HTTP Requests that were successful (HTTP Status code 200-299).
             "requests_successful": 0,
+            # Number of HTTP Requests that were unsuccessful (HTTP Status code not in 200s).
             "requests_failed": 0,
-            "total_content_length": 0,
+            # Total size in bytes of all HTTP Requests.
+            "content_length_total": 0,
+            # Harmonic mean of total HTTP Request content length in bytes.
+            "content_length_avg": 0,
+            # Highest HTTP Request content length in bytes.
+            "content_length_max": 0,
+            # Lowest HTTP Request content length in bytes.
+            "content_length_min": 0,
+            # Number of Items processed.
             "items_processed": 0,
+            # Number of URls seen and added to duplicate filter.
             "urls_seen": 0,
+            # Harmonic mean of HTTP Request duration in Milliseconds.
+            "requests_duration_avg": 0,
+            # Highest HTTP request duration in Milliseconds.
+            "requests_duration_max": 0,
+            # Lowest HTTp request duration in Milliseconds.
+            "requests_duration_min": 0,
+            # Total HTTP request duration in Milliseconds.
+            "requests_duration_total": 0,
+            # Total duration of crawl in Milliseconds.
+            "total_duration": 0,
         }
 
     async def _handle_request(self, request: Request) -> None:
@@ -155,6 +181,7 @@ class Crawler(ABC):
             results, response = await request.fetch_callback(self._semaphore)
 
             dur = int((time.perf_counter() - start) * 1000)
+            self.request_durations.append(dur)
             self.logger.debug(
                 "Fetched: url=%s dur=%dms status=%s prev=%s",
                 response.url,
@@ -168,12 +195,13 @@ class Crawler(ABC):
             else:
                 self.stats["requests_failed"] += 1
 
-            self.stats["total_content_length"] += response.content_length
+            self.request_content_length.append(response.content_length)
 
             # Mark the Response URL as seen in the duplicate filter, as it may be different from the Request URL
             # due to redirects.
-            await self._dupefilter.url_seen(response.url, response.method)
+            await self._duplicate_filter.url_seen(response.url, response.method)
 
+            # Add callback results to the queue for processing.
             if results:
                 self._request_queue.put_nowait(CallbackResult(results, 0))
 
@@ -241,22 +269,25 @@ class Crawler(ABC):
         :param request: HTTP Request
         :return: None
         """
-        # Check that the URL is not already seen, and add it to the duplicate filter seen list.
-        if await self._dupefilter.url_seen(request.url, request.method):
+        # If URL is not already seen, and add it to the duplicate filter seen list.
+        if await self._duplicate_filter.url_seen(request.url, request.method):
             return
 
+        # The URL scheme must be in the list of allowed schemes.
         if self.allowed_schemes and request.url.scheme not in self.allowed_schemes:
             self.logger.debug(
                 "URI Scheme '%s' not allowed: %s", request.url.scheme, request
             )
             return
 
+        # Restrict the depth of the Request chain to the maximum depth.
         if self.max_depth and len(request.history) >= self.max_depth:
             self.logger.debug("Max Depth of '%d' reached: %s", self.max_depth, request)
             return
 
         self.stats["requests_added"] += 1
         self.logger.debug("Queue Add: %s", request)
+        # Add the Request to the queue for processing.
         self._request_queue.put_nowait(request)
 
     def follow(
@@ -279,8 +310,10 @@ class Crawler(ABC):
 
         history = []
         if response:
+            # Join the URL to the Response URL if it doesn't contain a domain.
             if not url.is_absolute():
                 url = response.url.origin().join(url)
+            # Copy the Response history so that it isn't a pointer.
             history = copy.deepcopy(response.history)
 
         request = Request(
@@ -398,6 +431,10 @@ class Crawler(ABC):
         start = time.perf_counter()
         # Create the Request Queue and ClientSession within the asyncio loop.
         self._request_queue = asyncio.Queue()
+
+        # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
+        self._semaphore = asyncio.Semaphore(self.concurrency)
+
         self._session = aiohttp.ClientSession(
             timeout=self.total_timeout, headers=self.headers
         )
@@ -407,8 +444,9 @@ class Crawler(ABC):
             await self._process_request(self.follow(coerce_url(url), self.parse))
 
         # Create workers to process the Request Queue.
+        # Create twice as many workers as potential concurrent requests, to handle request callbacks without delay.
         self._workers = [
-            asyncio.create_task(self._work()) for _ in range(self.concurrency)
+            asyncio.create_task(self._work()) for _ in range(self.concurrency * 2)
         ]
 
         try:
@@ -431,8 +469,20 @@ class Crawler(ABC):
         await self._session.close()
 
         duration = int((time.perf_counter() - start) * 1000)
-        self.stats["duration"] = duration
-        self.stats["urls_seen"] = len(self._dupefilter.fingerprints)
+
+        # Record statistics
+        self.stats["total_duration"] = duration
+        self.stats["requests_duration_total"] = int(sum(self.request_durations))
+        self.stats["requests_duration_avg"] = int(harmonic_mean(self.request_durations))
+        self.stats["requests_duration_max"] = int(max(self.request_durations))
+        self.stats["requests_duration_min"] = int(min(self.request_durations))
+        self.stats["content_length_total"] = int(sum(self.request_content_length))
+        self.stats["content_length_avg"] = int(
+            harmonic_mean(self.request_content_length)
+        )
+        self.stats["content_length_max"] = int(max(self.request_content_length))
+        self.stats["content_length_min"] = int(min(self.request_content_length))
+        self.stats["urls_seen"] = len(self._duplicate_filter.fingerprints)
 
         self.logger.info(
             "Crawl finished: requests=%s time=%dms",
