@@ -4,6 +4,7 @@ import inspect
 import logging
 import time
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from types import AsyncGeneratorType
 from typing import List, Any
 from typing import Union
@@ -14,7 +15,7 @@ from yarl import URL
 
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
-from feedsearch_crawler.crawler.lib import coerce_url, case_insensitive_key
+from feedsearch_crawler.crawler.lib import coerce_url, ignore_aiohttp_ssl_eror
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 
@@ -25,6 +26,14 @@ try:
 except ImportError:
     uvloop = None
     pass
+
+
+@dataclass
+class CallbackResult:
+    """Dataclass for holding callback results and recording recursion"""
+
+    result: Any
+    callback_recursion: int
 
 
 class Crawler(ABC):
@@ -136,6 +145,10 @@ class Crawler(ABC):
         :return: None
         """
         try:
+            if request.has_run:
+                self.logger.warning("%s has already run", request)
+                return
+
             start = time.perf_counter()
 
             # Fetch the request and run its callback
@@ -162,7 +175,7 @@ class Crawler(ABC):
             await self._dupefilter.url_seen(response.url, response.method)
 
             if results:
-                await self._process_request_callback_result(results)
+                self._request_queue.put_nowait(CallbackResult(results, 0))
 
         except asyncio.CancelledError:
             self.logger.debug("Cancelled: %s", request)
@@ -178,25 +191,40 @@ class Crawler(ABC):
         Process the Request callback result depending on the result type.
         Request callbacks may contain nested iterators.
 
-        :param result: Callback Result. May be an AsyncGenerator, Coroutine, Request, or Item.
+        :param result: Callback Result. May be an CallbackResult class, AsyncGenerator, Coroutine, Request, or Item.
         :param callback_recursion: Incremented counter to limit this method's recursion.
         :return: None
         """
         if callback_recursion >= self.max_callback_recursion:
+            self.logger.warning(
+                "Max callback recursion of %d reached", self.max_callback_recursion
+            )
             return
 
         try:
-            if inspect.isasyncgen(result):
-                async for value in result:
-                    await self._process_request_callback_result(
-                        value, callback_recursion + 1
-                    )
-            elif inspect.iscoroutine(result):
+            # If a CallbackResult class is passed, process the result values from within the class.
+            if isinstance(result, CallbackResult):
                 await self._process_request_callback_result(
-                    await result, callback_recursion + 1
+                    result.result, result.callback_recursion
                 )
+            # For async generators, put each value back on the queue for processing.
+            # This will happen recursively until the end of the recursion chain or max_callback_recursion is reached.
+            elif inspect.isasyncgen(result):
+                async for value in result:
+                    self._request_queue.put_nowait(
+                        CallbackResult(value, callback_recursion + 1)
+                    )
+            # For coroutines, await the result then put the value back on the queue for further processing.
+            elif inspect.iscoroutine(result):
+                value = await result
+                self._request_queue.put_nowait(
+                    CallbackResult(value, callback_recursion + 1)
+                )
+            # Requests are checked for uniqueness and put onto the queue.
             elif isinstance(result, Request):
                 await self._process_request(result)
+
+            # Items are handled by the implementing Class
             elif isinstance(result, Item):
                 await self.process_item(result)
                 self.stats["items_processed"] += 1
@@ -299,15 +327,23 @@ class Crawler(ABC):
 
     async def _work(self):
         """
-        Worker function for handling Requests.
+        Worker function for handling request queue items.
         """
         while True:
-            request = await self._request_queue.get()
+            item = await self._request_queue.get()
 
             try:
-                await self._handle_request(request)
-            except asyncio.CancelledError:
-                self.logger.debug("Cancelled Request: %s", request)
+                # Fetch Request and handle callbacks
+                if isinstance(item, Request):
+                    try:
+                        await self._handle_request(item)
+                    except asyncio.CancelledError:
+                        self.logger.debug("Cancelled Request: %s", item)
+                # Process Callback results
+                elif isinstance(item, CallbackResult):
+                    await self._process_request_callback_result(
+                        item.result, item.callback_recursion
+                    )
             finally:
                 self._request_queue.task_done()
 
@@ -349,6 +385,10 @@ class Crawler(ABC):
 
         :param url: An optional URL to start the crawl. If not provided then start_urls are used.
         """
+
+        # Fix for ssl errors
+        ignore_aiohttp_ssl_eror(asyncio.get_running_loop())
+
         if url:
             self.start_urls = self.create_start_urls(url)
 

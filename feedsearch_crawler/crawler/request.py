@@ -75,6 +75,7 @@ class Request:
         self.json_data = json_data
         self.data = data
         self.params = params
+        self.has_run: bool = False
 
         for key, value in kwargs:
             if hasattr(self, key):
@@ -159,6 +160,7 @@ class Request:
         except Exception as e:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
         finally:
+            self.has_run = True
             if not response:
                 response = self._failed_response(500, history)
             return response
