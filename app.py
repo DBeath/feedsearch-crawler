@@ -69,6 +69,8 @@ if __name__ == "__main__":
     # pprint(site_metas)
 
     pprint(crawler.favicons)
-    pprint(crawler._dupefilter.fingerprints)
+    pprint(crawler._duplicate_filter.fingerprints)
 
-    print(output_opml(crawler.items).decode())
+    print(output_opml(list(crawler.items)).decode())
+
+    pprint(crawler.stats)

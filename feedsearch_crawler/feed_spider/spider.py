@@ -81,10 +81,7 @@ class FeedsearchSpider(Crawler):
         for link in links:
             # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
             # if they look like they might point to valid feeds.
-            if (
-                "alternate" in link.get("rel", "")
-                and should_follow_alternate(link, response)
-            ) or should_follow_url(link, response):
+            if should_follow_url(link, response):
                 yield self.follow(link.get("href"), self.parse, response)
 
     async def parse_xml(self, response_text: str) -> Any:
@@ -207,34 +204,6 @@ class FeedsearchSpider(Crawler):
         return urls
 
 
-def should_follow_alternate(link: bs4.Tag, response: Response) -> bool:
-    """
-    Check that an link of type "alternate" may be a valid feed link.
-
-    :param link: Link tag.
-    :param response: Reponse
-    :return: boolean
-    """
-    href = link.get("href")
-    return link_has_feed_type(link.get("type", "")) and one_jump_from_original_domain(
-        href, response
-    )
-
-
-def link_has_feed_type(string: str) -> bool:
-    """
-    Check if link type may be valid feed type.
-
-    :param string: Link tag "type" value
-    :return: boolean
-    """
-    # json+oembed is never a valid feed
-    if any(map(string.lower().count, ["json+oembed"])):
-        return False
-    if any(map(string.lower().count, ["application/json", "rss", "atom", "rdf"])):
-        return True
-
-
 def should_follow_url(link: bs4.Tag, response: Response) -> bool:
     """
     Check that the link should be followed if it may contain feed information.
@@ -243,25 +212,34 @@ def should_follow_url(link: bs4.Tag, response: Response) -> bool:
     :param response: Response
     :return: boolean
     """
-    url_str = link.get("href")
-    link_type = link.get("type")
+    href: str = link.get("href")
+    link_type: str = link.get("type")
 
     # No href value in link.
-    if not url_str:
+    if not href:
         return False
 
-    url = URL(url_str)
+    url = URL(href)
+
+    is_one_jump: bool = is_one_jump_from_original_domain(url, response)
 
     # If the link may have a valid feed type then follow it regardless of the url text.
-    if link_type and link_has_feed_type(link_type) and "json" not in link_type:
+    if (
+        link_type
+        and any(
+            map(link_type.lower().count, ["application/json", "rss", "atom", "rdf"])
+        )
+        and "json+oembed" not in link_type
+        and is_one_jump
+    ):
         return True
     # Else validate the actual URL string for possible feed values.
     elif (
-        not ignore(url_str)
-        and not invalid_filetype(url_str)
-        and is_feedlike_url(url, url_str)
-        and not query_contains_comments(url)
-        and one_jump_from_original_domain(url, response)
+        is_one_jump
+        and not has_invalid_contents(href)
+        and not is_invalid_filetype(href)
+        and is_feedlike_url(url, href)
+        and not has_comments_in_querystring(url)
     ):
         return True
 
@@ -278,7 +256,7 @@ def tag_has_href(tag: bs4.Tag) -> bool:
     return tag.has_attr("href")
 
 
-def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> bool:
+def is_one_jump_from_original_domain(url: Union[str, URL], response: Response) -> bool:
     """
     Check that the current URL is only one response away from the originally queried domain.
 
@@ -331,7 +309,7 @@ def one_jump_from_original_domain(url: Union[str, URL], response: Response) -> b
 file_regex = re.compile(".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi)/?$", re.IGNORECASE)
 
 
-def invalid_filetype(url: str) -> bool:
+def is_invalid_filetype(url: str) -> bool:
     """
     Check if url string has an invalid filetype extension.
 
@@ -343,7 +321,7 @@ def invalid_filetype(url: str) -> bool:
     return False
 
 
-def query_contains_comments(url: URL) -> bool:
+def has_comments_in_querystring(url: URL) -> bool:
     """
     Check if URL querystring contains comment keys.
 
@@ -375,7 +353,7 @@ def is_feedlike_url(url: URL, url_string: str) -> bool:
     return False
 
 
-def ignore(string: str) -> bool:
+def has_invalid_contents(string: str) -> bool:
     """
     Ignore any string containing the following strings.
 
