@@ -67,16 +67,19 @@ def output_opml(feeds: List[FeedInfo]) -> bytes:
     body = ElementTree.SubElement(root, "body")
 
     for feed in feeds:
-        ElementTree.SubElement(
-            body,
-            "outline",
-            text=feed.title,
-            title=feed.title,
-            type="rss",
-            xmlUrl=str(feed.url),
-            htmlUrl=str(feed.site_url),
-            description=feed.description,
-            version=feed.version,
-        )
+        if not feed.url:
+            continue
+
+        fe = ElementTree.SubElement(body, "outline", type="rss", xmlUrl=str(feed.url))
+
+        if feed.title:
+            fe.set("text", feed.title)
+            fe.set("title", feed.title)
+        if feed.site_url:
+            fe.set("htmlUrl", str(feed.site_url))
+        if feed.description:
+            fe.set("description", feed.description)
+        if feed.version:
+            fe.set("version", feed.version)
 
     return ElementTree.tostring(root, encoding="utf8", method="xml")

@@ -118,7 +118,7 @@ class FeedsearchSpider(Crawler):
                 # a different subdomain
                 host = meta.url.host
                 if host.startswith("www."):
-                    host = host[len("www.") :]
+                    host = host[4:]
 
                 # If the meta url host is in the feed url host then we can assume that the feed belongs to that site
                 if host in feed.url.host:
@@ -256,7 +256,7 @@ def tag_has_href(tag: bs4.Tag) -> bool:
     return tag.has_attr("href")
 
 
-def is_one_jump_from_original_domain(url: Union[str, URL], response: Response) -> bool:
+def is_one_jump_from_original_domain(url: URL, response: Response) -> bool:
     """
     Check that the current URL is only one response away from the originally queried domain.
 
@@ -277,8 +277,6 @@ def is_one_jump_from_original_domain(url: Union[str, URL], response: Response) -
     :param response: Response object
     :return: boolean
     """
-    if isinstance(url, str):
-        url = URL(url)
 
     if not url.is_absolute():
         url = url.join(response.url)
