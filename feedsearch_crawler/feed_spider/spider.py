@@ -1,5 +1,6 @@
 import base64
 import re
+import pathlib
 from types import AsyncGeneratorType
 from typing import Union, Any, List
 from w3lib.url import url_query_cleaner
@@ -15,12 +16,42 @@ from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
+# Regex to check that a feed-like string is a whole word to help rule out false positives.
+feedlike_regex = re.compile("\\b(rss|feed|atom|json|xml|rdf|feeds)\\b", re.IGNORECASE)
+
+# Regex to check URL string for invalid file types.
+file_regex = re.compile(
+    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff?2|svg|ttf)/?$",
+    re.IGNORECASE,
+)
+
+invalid_filetypes = [
+    "jpeg",
+    "jpg",
+    "png",
+    "gif",
+    "bmp",
+    "mp4",
+    "mp3",
+    "mkv",
+    "md",
+    "css",
+    "avi",
+    "pdf",
+    "js",
+    "woff",
+    "woff2",
+    "svg",
+    "ttf",
+]
+
 
 class FeedsearchSpider(Crawler):
     duplicate_filter_class = NoQueryDupeFilter
     htmlparser = "html.parser"
     favicon_data_uri = True
     try_urls: Union[List[str], bool] = False
+    full_crawl: bool = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -33,6 +64,8 @@ class FeedsearchSpider(Crawler):
             self.try_urls = kwargs["try_urls"]
         if "favicon_data_uri" in kwargs:
             self.favicon_data_uri = kwargs["favicon_data_uri"]
+        if "full_crawl" in kwargs:
+            self.full_crawl = kwargs["full_crawl"]
 
     async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
         """
@@ -77,11 +110,11 @@ class FeedsearchSpider(Crawler):
             return
 
         # Find all links in the Response.
-        links = soup.find_all(tag_has_href)
+        links = soup.find_all(self.tag_has_href)
         for link in links:
             # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
             # if they look like they might point to valid feeds.
-            if should_follow_url(link, response):
+            if self.should_follow_url(link, response):
                 yield self.follow(link.get("href"), self.parse, response)
 
     async def parse_xml(self, response_text: str) -> Any:
@@ -117,6 +150,9 @@ class FeedsearchSpider(Crawler):
                 # If the meta url host begins with www, then we remove it because the feed may be on
                 # a different subdomain
                 host = meta.url.host
+                if not host:
+                    self.logger.warning("No host in SiteMeta %s", meta)
+                    return
                 if host.startswith("www."):
                     host = host[4:]
 
@@ -203,164 +239,165 @@ class FeedsearchSpider(Crawler):
 
         return urls
 
+    def should_follow_url(self, link: bs4.Tag, response: Response) -> bool:
+        """
+        Check that the link should be followed if it may contain feed information.
 
-def should_follow_url(link: bs4.Tag, response: Response) -> bool:
-    """
-    Check that the link should be followed if it may contain feed information.
+        :param link: Link tag.
+        :param response: Response
+        :return: boolean
+        """
+        href: str = link.get("href")
+        link_type: str = link.get("type")
 
-    :param link: Link tag.
-    :param response: Response
-    :return: boolean
-    """
-    href: str = link.get("href")
-    link_type: str = link.get("type")
+        # No href value in link.
+        if not href:
+            return False
 
-    # No href value in link.
-    if not href:
-        return False
+        try:
+            url = URL(href)
+        except UnicodeError as e:
+            self.logger.error("Failed to encode href: %s : %s", href, str(e))
+            return False
 
-    url = URL(href)
+        is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
 
-    is_one_jump: bool = is_one_jump_from_original_domain(url, response)
-
-    # If the link may have a valid feed type then follow it regardless of the url text.
-    if (
-        link_type
-        and any(
-            map(link_type.lower().count, ["application/json", "rss", "atom", "rdf"])
-        )
-        and "json+oembed" not in link_type
-        and is_one_jump
-    ):
-        return True
-    # Else validate the actual URL string for possible feed values.
-    elif (
-        is_one_jump
-        and not has_invalid_contents(href)
-        and not is_invalid_filetype(href)
-        and is_feedlike_url(url, href)
-        and not has_comments_in_querystring(url)
-    ):
-        return True
-
-    return False
-
-
-def tag_has_href(tag: bs4.Tag) -> bool:
-    """
-    Find all tags that contain links.
-
-    :param tag: XML tag
-    :return: boolean
-    """
-    return tag.has_attr("href")
-
-
-def is_one_jump_from_original_domain(url: URL, response: Response) -> bool:
-    """
-    Check that the current URL is only one response away from the originally queried domain.
-
-    We want to be able to follow potential feed links that point to a different domain than
-    the originally queried domain, but not to follow any deeper than that.
-
-    Sub-domains of the original domain are ok.
-
-    i.e: the following are ok
-        "test.com" -> "feedhost.com"
-        "test.com/feeds" -> "example.com/feed.xml"
-        "test.com" -> "feeds.test.com"
-
-    not ok:
-        "test.com" -> "feedhost.com" (we stop here) -> "feedhost.com/feeds"
-
-    :param url: URL object or string
-    :param response: Response object
-    :return: boolean
-    """
-
-    if not url.is_absolute():
-        url = url.join(response.url)
-
-    # This is the first Response in the chain
-    if len(response.history) == 1:
-        return True
-
-    # URL is same domain
-    if url.host == response.history[0].host:
-        return True
-
-    # URL is sub-domain
-    if response.history[0].host in url.host:
-        return True
-
-    # URL domain and current Response domain are different from original domain
-    if (
-        response.history[-1].host != response.history[0].host
-        and url.host != response.history[0].host
-    ):
-        return False
-
-    return True
-
-
-# Regex to check URL string for invalid file types.
-file_regex = re.compile(".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi)/?$", re.IGNORECASE)
-
-
-def is_invalid_filetype(url: str) -> bool:
-    """
-    Check if url string has an invalid filetype extension.
-
-    :param url: URL string
-    :return: boolean
-    """
-    if file_regex.search(url.strip()):
-        return True
-    return False
-
-
-def has_comments_in_querystring(url: URL) -> bool:
-    """
-    Check if URL querystring contains comment keys.
-
-    :param url: URL object
-    :return: boolean
-    """
-    return any(key in url.query for key in ["comment", "comments", "post"])
-
-
-# Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile("\\b(rss|feed|atom|json|xml|rdf|feeds)\\b", re.IGNORECASE)
-
-
-def is_feedlike_url(url: URL, url_string: str) -> bool:
-    """
-    Check if url looks like it may point to something resembling a feed.
-
-    :param url: URL object
-    :param url_string: URL string
-    :return: boolean
-    """
-    # Check url string without query parameters
-    if feedlike_regex.search(url_query_cleaner(url_string)):
-        return True
-    # Check querystring keys
-    for key in url.query:
-        if feedlike_regex.search(key):
+        # If the link may have a valid feed type then follow it regardless of the url text.
+        if (
+            link_type
+            and any(
+                map(link_type.lower().count, ["application/json", "rss", "atom", "rdf"])
+            )
+            and "json+oembed" not in link_type
+            and is_one_jump
+        ):
             return True
-    return False
+        # Else validate the actual URL string for possible feed values.
 
+        else:
+            follow = (
+                is_one_jump
+                and not self.has_invalid_contents(href)
+                and self.is_valid_filetype(href)
+                and not self.has_comments_in_querystring(url)
+            )
+            if self.full_crawl:
+                return follow
+            else:
+                return follow and self.is_feedlike_url(url, href)
 
-def has_invalid_contents(string: str) -> bool:
-    """
-    Ignore any string containing the following strings.
+    @staticmethod
+    def tag_has_href(tag: bs4.Tag) -> bool:
+        """
+        Find all tags that contain links.
 
-    :param string: String to check
-    :return: boolean
-    """
-    return any(
-        map(
-            string.lower().count,
-            ["wp-includes", "wp-content", "wp-json", "xmlrpc", "wp-admin", "/amp/"],
+        :param tag: XML tag
+        :return: boolean
+        """
+        return tag.has_attr("href")
+
+    @staticmethod
+    def is_one_jump_from_original_domain(url: URL, response: Response) -> bool:
+        """
+        Check that the current URL is only one response away from the originally queried domain.
+
+        We want to be able to follow potential feed links that point to a different domain than
+        the originally queried domain, but not to follow any deeper than that.
+
+        Sub-domains of the original domain are ok.
+
+        i.e: the following are ok
+            "test.com" -> "feedhost.com"
+            "test.com/feeds" -> "example.com/feed.xml"
+            "test.com" -> "feeds.test.com"
+
+        not ok:
+            "test.com" -> "feedhost.com" (we stop here) -> "feedhost.com/feeds"
+
+        :param url: URL object or string
+        :param response: Response object
+        :return: boolean
+        """
+
+        if not url.is_absolute():
+            url = url.join(response.url)
+
+        # This is the first Response in the chain
+        if len(response.history) == 1:
+            return True
+
+        # URL is same domain
+        if url.host == response.history[0].host:
+            return True
+
+        # URL is sub-domain
+        if response.history[0].host in url.host:
+            return True
+
+        # URL domain and current Response domain are different from original domain
+        if (
+            response.history[-1].host != response.history[0].host
+            and url.host != response.history[0].host
+        ):
+            return False
+
+        return True
+
+    @staticmethod
+    def is_valid_filetype(url: str) -> bool:
+        """
+        Check if url string has an invalid filetype extension.
+
+        :param url: URL string
+        :return: boolean
+        """
+        # if file_regex.search(url.strip()):
+        #     return False
+        # return True
+        suffix = pathlib.Path(url).suffix.strip(".").lower()
+        if suffix in invalid_filetypes:
+            return False
+        return True
+
+    @staticmethod
+    def has_comments_in_querystring(url: URL) -> bool:
+        """
+        Check if URL querystring contains comment keys.
+
+        :param url: URL object
+        :return: boolean
+        """
+        return any(key in url.query for key in ["comment", "comments", "post"])
+
+    @staticmethod
+    def is_feedlike_url(url: URL, url_string: str) -> bool:
+        """
+        Check if url looks like it may point to something resembling a feed.
+
+        :param url: URL object
+        :param url_string: URL string
+        :return: boolean
+        """
+        # Check url string without query parameters
+        if feedlike_regex.search(url_query_cleaner(url_string)):
+            return True
+        # Check querystring keys
+        for key in url.query:
+            if feedlike_regex.search(key):
+                return True
+        return False
+
+    @staticmethod
+    def has_invalid_contents(string: str) -> bool:
+        """
+        Ignore any string containing the following strings.
+
+        :param string: String to check
+        :return: boolean
+        """
+        return any(
+            map(
+                string.lower().count,
+                ["wp-includes", "wp-content", "wp-json", "xmlrpc", "wp-admin", "/amp/"],
+            )
         )
-    )

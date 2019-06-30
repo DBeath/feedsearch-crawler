@@ -5,7 +5,7 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from statistics import harmonic_mean
+from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
 from typing import List, Any
 from typing import Union
@@ -17,6 +17,7 @@ from yarl import URL
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.lib import coerce_url, ignore_aiohttp_ssl_eror
+from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 
@@ -30,7 +31,7 @@ except ImportError:
 
 
 @dataclass
-class CallbackResult:
+class CallbackResult(Queueable):
     """Dataclass for holding callback results and recording recursion"""
 
     result: Any
@@ -52,7 +53,7 @@ class Crawler(ABC):
     # Max size of incoming http response content.
     max_content_length = 1024 * 1024 * 10
     # Max crawl depth. i.e. The max length of the response history.
-    max_depth: int = 0
+    max_depth: int = 4
     # Max callback recursion depth, to prevent accidental infinite recursion from AsyncGenerators.
     max_callback_recursion: int = 10
 
@@ -86,8 +87,9 @@ class Crawler(ABC):
         :param allowed_schemes: List of strings of allowed Request URI schemes. e.g. ["http", "https"]
         :param start_urls: List of initial URLs to crawl.
         :param concurrency: Max number of workers and of concurrent HTTP requests.
-        :param total_timeout: Total aiohttp ClientSession timeout. Crawl will end if this timeout is triggered.
-        :param request_timeout: Total timeout for each individual HTTP request.
+        :param total_timeout: Total aiohttp ClientSession timeout in seconds.
+            Crawl will end if this timeout is triggered.
+        :param request_timeout: Total timeout in seconds for each individual HTTP request.
         :param user_agent: Default User-Agent for HTTP requests.
         :param max_content_length: Max size in bytes of incoming http response content.
         :param max_depth: Max crawl depth. i.e. The max length of the response history.
@@ -130,6 +132,7 @@ class Crawler(ABC):
 
         self.request_durations = []
         self.request_content_length = []
+        self.queue_wait_times = []
 
         # Crawl statistics.
         self.stats: dict = {
@@ -141,12 +144,14 @@ class Crawler(ABC):
             "requests_failed": 0,
             # Total size in bytes of all HTTP Requests.
             "content_length_total": 0,
-            # Harmonic mean of total HTTP Request content length in bytes.
+            # Harmonic mean of total HTTP Response content length in bytes.
             "content_length_avg": 0,
-            # Highest HTTP Request content length in bytes.
+            # Highest HTTP Response content length in bytes.
             "content_length_max": 0,
-            # Lowest HTTP Request content length in bytes.
+            # Lowest HTTP Response content length in bytes.
             "content_length_min": 0,
+            # Median HTTP Response content length in bytes.
+            "content_length_median": 0,
             # Number of Items processed.
             "items_processed": 0,
             # Number of URls seen and added to duplicate filter.
@@ -155,12 +160,24 @@ class Crawler(ABC):
             "requests_duration_avg": 0,
             # Highest HTTP request duration in Milliseconds.
             "requests_duration_max": 0,
-            # Lowest HTTp request duration in Milliseconds.
+            # Lowest HTTP request duration in Milliseconds.
             "requests_duration_min": 0,
             # Total HTTP request duration in Milliseconds.
             "requests_duration_total": 0,
+            # Median HTTP request duration in Milliseconds.
+            "requests_duration_median": 0,
             # Total duration of crawl in Milliseconds.
             "total_duration": 0,
+            # Response status codes.
+            "status_codes": {},
+            # Lowest queue wait time in Milliseconds.
+            "queue_wait_max": 0,
+            # Highest queue wait time in Milliseconds.
+            "queue_wait_min": 0,
+            # Harmonic mean of queue wait time in Milliseconds.
+            "queue_wait_avg": 0,
+            # Median queue wait time in Milliseconds.
+            "queue_wait_median": 0,
         }
 
     async def _handle_request(self, request: Request) -> None:
@@ -194,6 +211,11 @@ class Crawler(ABC):
                 self.stats["requests_successful"] += 1
             else:
                 self.stats["requests_failed"] += 1
+
+            if response.status_code in self.stats["status_codes"]:
+                self.stats["status_codes"][response.status_code] += 1
+            else:
+                self.stats["status_codes"][response.status_code] = 1
 
             self.request_content_length.append(response.content_length)
 
@@ -239,15 +261,11 @@ class Crawler(ABC):
             # This will happen recursively until the end of the recursion chain or max_callback_recursion is reached.
             elif inspect.isasyncgen(result):
                 async for value in result:
-                    self._request_queue.put_nowait(
-                        CallbackResult(value, callback_recursion + 1)
-                    )
+                    self._put_queue(CallbackResult(value, callback_recursion + 1))
             # For coroutines, await the result then put the value back on the queue for further processing.
             elif inspect.iscoroutine(result):
                 value = await result
-                self._request_queue.put_nowait(
-                    CallbackResult(value, callback_recursion + 1)
-                )
+                self._put_queue(CallbackResult(value, callback_recursion + 1))
             # Requests are checked for uniqueness and put onto the queue.
             elif isinstance(result, Request):
                 await self._process_request(result)
@@ -288,7 +306,7 @@ class Crawler(ABC):
         self.stats["requests_added"] += 1
         self.logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
-        self._request_queue.put_nowait(request)
+        self._put_queue(request)
 
     def follow(
         self, url: Union[str, URL], callback=None, response: Response = None, **kwargs
@@ -358,27 +376,44 @@ class Crawler(ABC):
         """
         raise NotImplementedError("Not Implemented")
 
-    async def _work(self):
+    def _put_queue(self, queueable: Queueable) -> None:
+        """
+        Put an object that inherits from Queueable on the Request Queue.
+
+        :param queueable: An object that inherits from Queueable.
+        """
+        queueable.set_queue_put_time()
+        self._request_queue.put_nowait(queueable)
+
+    async def _work(self, task_num):
         """
         Worker function for handling request queue items.
         """
-        while True:
-            item = await self._request_queue.get()
+        try:
+            while True:
+                item: Queueable = await self._request_queue.get()
+                if item.get_queue_wait_time():
+                    self.queue_wait_times.append(item.get_queue_wait_time())
 
-            try:
-                # Fetch Request and handle callbacks
-                if isinstance(item, Request):
-                    try:
+                if self._session.closed:
+                    self.logger.debug("Session is closed. Cannot run %s", item)
+                    continue
+
+                try:
+                    # Fetch Request and handle callbacks
+                    if isinstance(item, Request):
                         await self._handle_request(item)
-                    except asyncio.CancelledError:
-                        self.logger.debug("Cancelled Request: %s", item)
-                # Process Callback results
-                elif isinstance(item, CallbackResult):
-                    await self._process_request_callback_result(
-                        item.result, item.callback_recursion
-                    )
-            finally:
-                self._request_queue.task_done()
+                    # Process Callback results
+                    elif isinstance(item, CallbackResult):
+                        await self._process_request_callback_result(
+                            item.result, item.callback_recursion
+                        )
+                except Exception as e:
+                    self.logger.error("Error handling item: %s : %s", item, e)
+                finally:
+                    self._request_queue.task_done()
+        except asyncio.CancelledError:
+            self.logger.debug("Cancelled Worker: %s", task_num)
 
     async def _run_callback(self, callback, *args, **kwargs) -> None:
         """
@@ -446,7 +481,7 @@ class Crawler(ABC):
         # Create workers to process the Request Queue.
         # Create twice as many workers as potential concurrent requests, to handle request callbacks without delay.
         self._workers = [
-            asyncio.create_task(self._work()) for _ in range(self.concurrency * 2)
+            asyncio.create_task(self._work(i)) for i in range(self.concurrency * 2)
         ]
 
         try:
@@ -456,7 +491,7 @@ class Crawler(ABC):
                     self._request_queue.join(), timeout=self.total_timeout.total
                 )
         except asyncio.TimeoutError:
-            self.logger.debug("Timed out after %s seconds", self.total_timeout)
+            self.logger.debug("Timed out after %s seconds", self.total_timeout.total)
         finally:
             # Make sure all workers are cancelled.
             for w in self._workers:
@@ -476,17 +511,23 @@ class Crawler(ABC):
         self.stats["requests_duration_avg"] = int(harmonic_mean(self.request_durations))
         self.stats["requests_duration_max"] = int(max(self.request_durations))
         self.stats["requests_duration_min"] = int(min(self.request_durations))
+        self.stats["requests_duration_median"] = int(median(self.request_durations))
         self.stats["content_length_total"] = int(sum(self.request_content_length))
         self.stats["content_length_avg"] = int(
             harmonic_mean(self.request_content_length)
         )
         self.stats["content_length_max"] = int(max(self.request_content_length))
         self.stats["content_length_min"] = int(min(self.request_content_length))
+        self.stats["content_length_median"] = int(median(self.request_content_length))
         self.stats["urls_seen"] = len(self._duplicate_filter.fingerprints)
+        self.stats["queue_wait_avg"] = harmonic_mean(self.queue_wait_times)
+        self.stats["queue_wait_min"] = min(self.queue_wait_times)
+        self.stats["queue_wait_max"] = max(self.queue_wait_times)
+        self.stats["queue_wait_median"] = median(self.queue_wait_times)
 
         self.logger.info(
             "Crawl finished: requests=%s time=%dms",
-            (self.stats["requests_failed"] + self.stats["requests_successful"]),
+            self.stats["requests_added"],
             duration,
         )
         self.logger.debug("Stats: %s", self.stats)

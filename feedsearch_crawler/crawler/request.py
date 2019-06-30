@@ -3,17 +3,18 @@ import copy
 import json
 import logging
 import uuid
-from asyncio import Semaphore, IncompleteReadError, LimitOverrunError
+from asyncio import Semaphore, IncompleteReadError, LimitOverrunError, CancelledError
 from typing import List, Tuple, Any, Union, Optional
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
 from yarl import URL
 
+from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.response import Response
 
 
-class Request:
+class Request(Queueable):
     METHOD = ["GET", "POST"]
 
     def __init__(
@@ -177,6 +178,8 @@ class Request:
                 response = self._failed_response(e.status, history)
         except Exception as e:
             self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
+            if isinstance(e, CancelledError) and not response:
+                response = self._failed_response(499, history)
         finally:
             self.has_run = True
             # Make sure there is a valid Response object.
