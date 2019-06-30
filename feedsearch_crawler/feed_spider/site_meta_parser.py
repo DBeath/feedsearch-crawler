@@ -6,6 +6,7 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 
 class SiteMetaParser(ItemParser):
     async def parse_item(self, request: Request, response: Response, *args, **kwargs):
+        self.logger.info("Parsing: SiteMeta %s", response.url)
         url = response.url
         site_meta: SiteMeta = SiteMeta(url)
 
@@ -42,20 +43,23 @@ class SiteMetaParser(ItemParser):
         :param url: Current Url of site
         :return: str
         """
-        canonical = soup.find(name="link", rel="canonical")
         try:
+            canonical = soup.find(name="link", rel="canonical")
             site = canonical.get("href")
             if site:
                 return URL(site)
         except AttributeError:
             pass
 
-        meta = soup.find(name="meta", property="og:url")
         try:
+            meta = soup.find(name="meta", property="og:url")
             site = meta.get("content")
+            if site:
+                return URL(site)
         except AttributeError:
-            return url
-        return URL(site)
+            pass
+
+        return url
 
     @staticmethod
     def find_site_name(soup) -> str:

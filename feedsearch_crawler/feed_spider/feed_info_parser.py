@@ -17,7 +17,7 @@ class FeedInfoParser(ItemParser):
     async def parse_item(
         self, request: Request, response: Response, *args, **kwargs
     ) -> AsyncGeneratorType:
-        self.logger.info("Parsing feed %s", response.url)
+        self.logger.info("Parsing: Feed %s", response.url)
 
         content_type = response.headers.get("content-type", "")
 
