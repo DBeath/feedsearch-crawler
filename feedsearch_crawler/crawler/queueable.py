@@ -6,6 +6,7 @@ from asyncio import Queue
 class Queueable:
     queue_put_time = None
     queue_get_time = None
+    priority = 10
 
     def get_queue_wait_time(self) -> Union[float, None]:
         """
@@ -33,8 +34,20 @@ class Queueable:
     def add_to_queue(self, queue: Queue) -> None:
         """
         Add the Queueable to the queue and set the queue put time.
-        :param queue:
-        :return:
+
+        :param queue: An Queue instance
         """
         self.set_queue_put_time()
         queue.put_nowait(self)
+
+    def __lt__(self, other) -> bool:
+        """
+        Compare Queueable priority for Queue ordering.
+        Lower priority has precedence in the Queue.
+
+        :param other: Another Queueable object
+        :return: boolean
+        """
+        if not isinstance(other, Queueable):
+            return True
+        return self.priority < other.priority

@@ -12,6 +12,7 @@ class CallbackResult(Queueable):
 
     result: Any
     callback_recursion: int
+    priority = 5
 
 
 class Stats(Enum):

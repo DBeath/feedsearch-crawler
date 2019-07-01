@@ -112,10 +112,17 @@ class FeedsearchSpider(Crawler):
         # Find all links in the Response.
         links = soup.find_all(self.tag_has_href)
         for link in links:
+            href = link.get("href")
+            url = self.parse_href_to_url(href)
+            if not url:
+                continue
+
+            priority = 1 if self.is_feedlike_url(url, href) else 10
+
             # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
             # if they look like they might point to valid feeds.
-            if self.should_follow_url(link, response):
-                yield await self.follow(link.get("href"), self.parse, response)
+            if self.should_follow_url(url, link, response):
+                yield await self.follow(href, self.parse, response, priority=priority)
 
     async def parse_xml(self, response_text: str) -> Any:
         """
@@ -239,7 +246,7 @@ class FeedsearchSpider(Crawler):
 
         return urls
 
-    def should_follow_url(self, link: bs4.Tag, response: Response) -> bool:
+    def should_follow_url(self, url: URL, link: bs4.Tag, response: Response) -> bool:
         """
         Check that the link should be followed if it may contain feed information.
 

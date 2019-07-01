@@ -61,7 +61,7 @@ class Crawler(ABC):
     # ClientSession for requests. Created on Crawl start.
     _session: aiohttp.ClientSession
     # Task queue for Requests. Created on Crawl start.
-    _request_queue: asyncio.Queue
+    _request_queue: asyncio.PriorityQueue
     # Semaphore for controlling HTTP Request concurrency.
     _semaphore: asyncio.Semaphore
 
@@ -292,6 +292,22 @@ class Crawler(ABC):
         # Add the Request to the queue for processing.
         self._put_queue(request)
 
+    def parse_href_to_url(self, href: str) -> Union[URL, None]:
+        """
+        Parse an href string to a URL object.
+
+        :param href: An href string that may be a valid url.
+        :return: URL or None.
+        """
+        if not href:
+            return None
+
+        try:
+            return URL(href)
+        except UnicodeError as e:
+            self.logger.error("Failed to encode href: %s : %s", href, str(e))
+            return None
+
     async def follow(
         self,
         url: Union[str, URL],
@@ -299,6 +315,7 @@ class Crawler(ABC):
         response: Response = None,
         method: str = "GET",
         delay: Union[float, None] = None,
+        priority: int = 0,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -360,6 +377,9 @@ class Crawler(ABC):
             retries=self.max_retries,
             **kwargs,
         )
+
+        if priority:
+            request.priority = priority
 
         return request
 
@@ -545,7 +565,7 @@ class Crawler(ABC):
             raise ValueError("crawler.start_urls are required")
 
         # Create the Request Queue within the asyncio loop.
-        self._request_queue = asyncio.Queue()
+        self._request_queue = asyncio.PriorityQueue()
 
         # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
         self._semaphore = asyncio.Semaphore(self.concurrency)
