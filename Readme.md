@@ -1,7 +1,8 @@
 # Feedsearch Crawler
-![PyPI](https://img.shields.io/pypi/v/feedsearch-crawler.svg)
+[![PyPI](https://img.shields.io/pypi/v/feedsearch-crawler.svg)](https://pypi.org/project/feedsearch-crawler/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/feedsearch-crawler.svg)
 ![PyPI - License](https://img.shields.io/pypi/l/feedsearch-crawler.svg)
+[![Downloads](https://pepy.tech/badge/feedsearch-crawler/month)](https://pepy.tech/project/feedsearch-crawler/month)
 
 Feedsearch Crawler is a Python library for searching websites for [RSS](https://en.wikipedia.org/wiki/RSS), [Atom](https://en.wikipedia.org/wiki/Atom_(Web_standard)), and [JSON](https://jsonfeed.org/) feeds.
 
@@ -77,21 +78,23 @@ search(
     user_agent: str="Feedsearch Bot",
     max_content_length: int=1024 * 1024 * 10,
     max_depth: int=10,
-    headers: dict=None,
-    favicon_data_uri: bool=True
+    headers: dict={"X-Custom-Header": "Custom Header"},
+    favicon_data_uri: bool=True,
+    delay: float=0
 )
 ```
 
-- **url**: *str*: The intial URL at which to search for feeds.
-- **try_urls**: *Union[List[str], bool]*: An optional list of URL paths to query for feeds. Takes the origin of the *url* paramater and appends the provided paths. If no list is provided, but *try_urls* is **True**, then a list of common feed locations will be used.
-- **concurrency**: *int*: An optional argument to specify the maximum number of concurrent HTTP requests.
-- **total_timeout**: *float*: An optional argument to specify the time this function may run before timing out.
-- **request_timeout**: *float*: An optional argument that controls how long before each individual HTTP request times out.
+- **url**: *str*: The initial URL at which to search for feeds.
+- **try_urls**: *Union[List[str], bool]*: (default False): An optional list of URL paths to query for feeds. Takes the origin of the *url* paramater and appends the provided paths. If no list is provided, but *try_urls* is **True**, then a list of common feed locations will be used.
+- **concurrency**: *int*: (default 10): An optional argument to specify the maximum number of concurrent HTTP requests.
+- **total_timeout**: *float*: (default 30.0): An optional argument to specify the time this function may run before timing out.
+- **request_timeout**: *float*: (default 3.0): An optional argument that controls how long before each individual HTTP request times out.
 - **user_agent**: *str*: An optional argument to override the default User-Agent header.
-- **max_content_length**: *int*: An optional argument to specify the maximum size in bytes of each HTTP Response.
-- **max_depth**: *int*: An optional argument to limit the maximum depth of requests while following urls.
+- **max_content_length**: *int*: (default 10Mb): An optional argument to specify the maximum size in bytes of each HTTP Response.
+- **max_depth**: *int*: (default 10): An optional argument to limit the maximum depth of requests while following urls.
 - **headers**: *dict*: An optional dictionary of headers to pass to each HTTP request.
-- **favicon_data_uri**: *bool*: Optionally control whether to fetch found favicons and return them as a Data Uri.
+- **favicon_data_uri**: *bool*: (default True): Optionally control whether to fetch found favicons and return them as a Data Uri.
+- **delay**: *float*: (default 0.0): An optional argument to delay each HTTP request by the specified time in seconds. Used in conjunction with the concurrency setting to avoid overloading sites.
 
 ## FeedInfo Values
 In addition to the *url*, FeedInfo objects may have the following values:

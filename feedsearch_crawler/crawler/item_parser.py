@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 class ItemParser(ABC):
     def __init__(self, spider):
         self.spider = spider
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("feedsearch_crawler")
 
     @abstractmethod
     async def parse_item(

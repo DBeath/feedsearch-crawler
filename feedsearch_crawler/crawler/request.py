@@ -33,6 +33,7 @@ class Request(Queueable):
         xml_parser=None,
         failure_callback=None,
         max_content_length: int = 1024 * 1024 * 10,
+        delay: float = 0,
         **kwargs,
     ):
         """
@@ -53,6 +54,7 @@ class Request(Queueable):
         :param xml_parser: Function to parse Response XML
         :param failure_callback: Callback function to run if request is unsuccessful
         :param max_content_length: Maximum allowed size in bytes of Response content
+        :param delay: Time in seconds to delay Request
         :param kwargs: Optional keyword arguments
         """
         self.url = url
@@ -77,6 +79,7 @@ class Request(Queueable):
         self.data = data
         self.params = params
         self.has_run: bool = False
+        self.delay = delay
 
         for key, value in kwargs:
             if hasattr(self, key):
@@ -110,6 +113,9 @@ class Request(Queueable):
 
         :return: Response object
         """
+        if self.delay > 0:
+            await asyncio.sleep(self.delay)
+
         # Copy the Request history so that it isn't a pointer.
         history = copy.deepcopy(self.history)
 

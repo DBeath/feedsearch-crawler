@@ -115,7 +115,7 @@ class FeedsearchSpider(Crawler):
             # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
             # if they look like they might point to valid feeds.
             if self.should_follow_url(link, response):
-                yield self.follow(link.get("href"), self.parse, response)
+                yield await self.follow(link.get("href"), self.parse, response)
 
     async def parse_xml(self, response_text: str) -> Any:
         """
