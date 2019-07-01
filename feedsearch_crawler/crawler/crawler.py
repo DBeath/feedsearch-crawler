@@ -70,13 +70,13 @@ class Crawler(ABC):
         start_urls: List[str] = None,
         concurrency: int = 10,
         total_timeout: Union[float, ClientTimeout] = 30,
-        request_timeout: Union[float, ClientTimeout] = 3,
+        request_timeout: Union[float, ClientTimeout] = 5,
         user_agent: str = "",
         max_content_length: int = 1024 * 1024 * 10,
         max_depth: int = 10,
         headers: dict = None,
         allowed_schemes: List[str] = None,
-        delay: float = 0,
+        delay: float = 0.5,
         max_retries: int = 3,
         *args,
         **kwargs,
@@ -336,7 +336,8 @@ class Crawler(ABC):
         :param response: Previous Response that contained the Request URL.
         :param kwargs: Optional Request keyword arguments. See Request for details.
         :param method: HTTP method for Request.
-        :param delay: Override the default delay for the Request.
+        :param delay: Optionally override the default delay for the Request.
+        :param priority: Optionally override the default priority of the Request.
         :return: Request
         """
         if isinstance(url, str):
@@ -347,21 +348,23 @@ class Crawler(ABC):
             # Join the URL to the Response URL if it doesn't contain a domain.
             if not url.is_absolute():
                 url = response.url.origin().join(url)
-            # Copy the Response history so that it isn't a pointer.
-            history = copy.deepcopy(response.history)
 
-        # Check if URL is not already seen, and add it to the duplicate filter seen list.
-        if await self._duplicate_filter.url_seen(url, method):
-            return
+            # Restrict the depth of the Request chain to the maximum depth.
+            # This test happens before the URL duplicate check so that the URL might still be reachable by another path.
+            if self.max_depth and len(response.history) >= self.max_depth:
+                self.logger.debug("Max Depth of '%d' reached: %s", self.max_depth, url)
+                return
+
+            # Copy the Response history so that it isn't a reference to a mutable object.
+            history = copy.deepcopy(response.history)
 
         # The URL scheme must be in the list of allowed schemes.
         if self.allowed_schemes and url.scheme not in self.allowed_schemes:
             self.logger.debug("URI Scheme '%s' not allowed: %s", url.scheme, url)
             return
 
-        # Restrict the depth of the Request chain to the maximum depth.
-        if self.max_depth and len(history) >= self.max_depth:
-            self.logger.debug("Max Depth of '%d' reached: %s", self.max_depth, response)
+        # Check if URL is not already seen, and add it to the duplicate filter seen list.
+        if await self._duplicate_filter.url_seen(url, method):
             return
 
         request = Request(
@@ -378,6 +381,7 @@ class Crawler(ABC):
             **kwargs,
         )
 
+        # Override the Request priority only if the kwarg is provided.
         if priority:
             request.priority = priority
 

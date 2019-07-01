@@ -17,7 +17,9 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 # Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile("\\b(rss|feed|atom|json|xml|rdf|feeds)\\b", re.IGNORECASE)
+feedlike_regex = re.compile(
+    "\\b(rss|feed|atom|json|xml|rdf|feeds|authors?|journalist?s)\\b", re.IGNORECASE
+)
 
 # Regex to check URL string for invalid file types.
 file_regex = re.compile(
@@ -250,22 +252,13 @@ class FeedsearchSpider(Crawler):
         """
         Check that the link should be followed if it may contain feed information.
 
-        :param link: Link tag.
+        :param url: URL object parsed from link href
+        :param link: Link tag
         :param response: Response
         :return: boolean
         """
         href: str = link.get("href")
         link_type: str = link.get("type")
-
-        # No href value in link.
-        if not href:
-            return False
-
-        try:
-            url = URL(href)
-        except UnicodeError as e:
-            self.logger.error("Failed to encode href: %s : %s", href, str(e))
-            return False
 
         is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
 
