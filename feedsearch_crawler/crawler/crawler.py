@@ -298,6 +298,7 @@ class Crawler(ABC):
         callback=None,
         response: Response = None,
         method: str = "GET",
+        delay: Union[float, None] = None,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -318,6 +319,7 @@ class Crawler(ABC):
         :param response: Previous Response that contained the Request URL.
         :param kwargs: Optional Request keyword arguments. See Request for details.
         :param method: HTTP method for Request.
+        :param delay: Override the default delay for the Request.
         :return: Request
         """
         if isinstance(url, str):
@@ -354,7 +356,7 @@ class Crawler(ABC):
             max_content_length=self.max_content_length,
             timeout=self.request_timeout,
             method=method,
-            delay=self.delay,
+            delay=delay if isinstance(delay, float) else self.delay,
             retries=self.max_retries,
             **kwargs,
         )
@@ -555,7 +557,9 @@ class Crawler(ABC):
 
         # Create a Request for each start URL and add it to the Request Queue.
         for url in self.start_urls:
-            self._process_request(await self.follow(coerce_url(url), self.parse))
+            self._process_request(
+                await self.follow(coerce_url(url), self.parse, delay=0)
+            )
 
         # Create workers to process the Request Queue.
         # Create twice as many workers as potential concurrent requests, to handle request callbacks without delay.
