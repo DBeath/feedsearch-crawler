@@ -2,8 +2,10 @@ import asyncio
 import copy
 import json
 import logging
+import time
 import uuid
 from asyncio import Semaphore, IncompleteReadError, LimitOverrunError, CancelledError
+from random import random
 from typing import List, Tuple, Any, Union, Optional
 
 import aiohttp
@@ -34,6 +36,7 @@ class Request(Queueable):
         failure_callback=None,
         max_content_length: int = 1024 * 1024 * 10,
         delay: float = 0,
+        retries: int = 3,
         **kwargs,
     ):
         """
@@ -55,6 +58,7 @@ class Request(Queueable):
         :param failure_callback: Callback function to run if request is unsuccessful
         :param max_content_length: Maximum allowed size in bytes of Response content
         :param delay: Time in seconds to delay Request
+        :param retries: Number of times to retry a failed Request
         :param kwargs: Optional keyword arguments
         """
         self.url = url
@@ -81,6 +85,13 @@ class Request(Queueable):
         self.has_run: bool = False
         self.delay = delay
 
+        self._should_retry: bool = False
+        self._max_retries = retries
+        # Number of times this request has been retried.
+        self._num_retries: int = 0
+        # Time in Milliseconds for the HTTP Request to complete.
+        self.req_latency: int = 0
+
         for key, value in kwargs:
             if hasattr(self, key):
                 setattr(self, key, value)
@@ -95,6 +106,7 @@ class Request(Queueable):
         :returns: Tuple of Callback result and Response object
         """
         async with semaphore:
+
             response = await self._fetch()
 
         callback_result = None
@@ -113,13 +125,17 @@ class Request(Queueable):
 
         :return: Response object
         """
-        if self.delay > 0:
-            await asyncio.sleep(self.delay)
+        # Delay the request if self.delay is > 0
+        await self.delay_request()
 
         # Copy the Request history so that it isn't a pointer.
         history = copy.deepcopy(self.history)
 
+        # Make sure that retry is reset.
+        self._should_retry = False
         response = None
+        start = time.perf_counter()
+
         try:
             async with self._create_request() as resp:
                 history.append(resp.url)
@@ -187,10 +203,16 @@ class Request(Queueable):
             if isinstance(e, CancelledError) and not response:
                 response = self._failed_response(499, history)
         finally:
+            self.req_latency = int((time.perf_counter() - start) * 1000)
             self.has_run = True
             # Make sure there is a valid Response object.
             if not response:
                 response = self._failed_response(500, history)
+
+            # Tell the crawler to retry this Request
+            if response.status_code in [429, 503, 408]:
+                self._should_retry = True
+
             return response
 
     def _create_request(self):
@@ -238,8 +260,8 @@ class Request(Queueable):
         resp._body = body
         return True, len(body)
 
-    # noinspection PyProtectedMember
-    async def _read_json(self, resp_text: Union[str, None]) -> Optional[dict]:
+    @staticmethod
+    async def _read_json(resp_text: Union[str, None]) -> Optional[dict]:
         """
         Attempt to read Response content as JSON.
 
@@ -292,6 +314,25 @@ class Request(Queueable):
         except Exception as e:
             self.logger.error("Error parsing response xml: %s", e)
             return None
+
+    def should_retry(self) -> bool:
+        """
+        Check if the Request should be retried.
+
+        :return: boolean
+        """
+        if self._should_retry and self._num_retries < self._max_retries:
+            self._num_retries += 1
+            return True
+        return False
+
+    async def delay_request(self) -> None:
+        """
+        Delay the request by sleeping.
+        """
+        if self.delay > 0:
+            # Sleep for the delay plus up to one extra second of random time, to spread out requests.
+            await asyncio.sleep(self.delay + random())
 
     def __repr__(self):
         return f"{self.__class__.__name__}({str(self.url)})"

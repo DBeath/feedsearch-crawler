@@ -15,13 +15,13 @@ class CallbackResult(Queueable):
 
 
 class Stats(Enum):
-    # Number of HTTP Requests added and sent.
-    REQUESTS_ADDED = "requests_added"
+    # Number of Requests added to the queue.
+    REQUESTS_QUEUED = "requests_queued"
     # Number of HTTP Requests that were successful (HTTP Status code 200-299).
     REQUESTS_SUCCESSFUL = "requests_successful"
     # Number of HTTP Requests that were unsuccessful (HTTP Status code not in 200s).
     REQUESTS_FAILED = "requests_failed"
-    # Total size in bytes of all HTTP Requests.
+    # Total size in bytes of all HTTP Responses.
     CONTENT_LENGTH_TOTAL = "content_length_total"
     # Harmonic mean of total HTTP Response content length in bytes.
     CONTENT_LENGTH_AVG = "content_length_avg"
@@ -35,16 +35,26 @@ class Stats(Enum):
     ITEMS_PROCESSED = "items_processed"
     # Number of URls seen and added to duplicate filter.
     URLS_SEEN = "urls_seen"
-    # Harmonic mean of HTTP Request duration in Milliseconds.
+    # Harmonic mean of Request duration in Milliseconds.
     REQUESTS_DURATION_AVG = "requests_duration_avg"
-    # Highest HTTP request duration in Milliseconds.
+    # Highest Request duration in Milliseconds.
     REQUESTS_DURATION_MAX = "requests_duration_max"
-    # Lowest HTTP request duration in Milliseconds.
+    # Lowest Request duration in Milliseconds.
     REQUESTS_DURATION_MIN = "requests_duration_min"
-    # Total HTTP request duration in Milliseconds.
+    # Total Request duration in Milliseconds.
     REQUESTS_DURATION_TOTAL = "requests_duration_total"
-    # Median HTTP request duration in Milliseconds.
+    # Median Request duration in Milliseconds.
     REQUESTS_DURATION_MEDIAN = "requests_duration_med"
+    # Harmonic mean of HTTP request latency in Milliseconds.
+    REQUESTS_LATENCY_AVG = "requests_latency_avg"
+    # Highest HTTP Request latency in Milliseconds.
+    REQUESTS_LATENCY_MAX = "requests_latency_max"
+    # Lowest HTTP Request latency in Milliseconds.
+    REQUESTS_LATENCY_MIN = "requests_latency_min"
+    # Median HTTP Request latency in Milliseconds.
+    REQUESTS_LATENCY_MEDIAN = "requests_latency_med"
+    # Total HTTP Request latency in Milliseconds.
+    REQUESTS_LATENCY_TOTAL = "requests_latency_total"
     # Total duration of crawl in Milliseconds.
     TOTAL_DURATION = "total_duration"
     # Response status codes.
@@ -65,6 +75,8 @@ class Stats(Enum):
     QUEUE_SIZE_MEDIAN = "queue_size_med"
     # Total objects put on queue.
     QUEUED_TOTAL = "queued_total"
+    # Total number of retried Requests
+    REQUESTS_RETRIED = "requests_retried"
 
     def __repr__(self):
         return self._value_
