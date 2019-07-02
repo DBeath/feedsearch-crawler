@@ -72,5 +72,16 @@ class Response:
         self._xml = await self._xml_parser(self.text)
         return self._xml
 
+    def is_max_depth_reached(self, max_depth: int) -> bool:
+        """
+        Check if the max response depth has been reached.
+
+        :param max_depth: Max length of response history
+        :return: boolean
+        """
+        if max_depth and len(self.history) >= max_depth:
+            return True
+        return False
+
     def __repr__(self):
         return f"{self.__class__.__name__}({str(self.url)})"

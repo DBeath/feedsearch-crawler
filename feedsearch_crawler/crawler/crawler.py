@@ -230,8 +230,8 @@ class Crawler(ABC):
                 self.stats[Stats.REQUESTS_RETRIED] += 1
                 self._put_queue(request)
 
-        except asyncio.CancelledError:
-            self.logger.debug("Cancelled: %s", request)
+        except asyncio.CancelledError as e:
+            self.logger.debug("Cancelled: %s, %s", request, e)
         except Exception as e:
             self.logger.exception("Exception during %s: %s", request, e)
         finally:
@@ -437,7 +437,11 @@ class Crawler(ABC):
             while True:
                 self._stats_queue_sizes.append(self._request_queue.qsize())
                 item: Queueable = await self._request_queue.get()
+                # self.logger.debug("Priority: %s Item: %s", item.priority, item)
                 if item.get_queue_wait_time():
+                    # self.logger.debug(
+                    #     "Waited: %sms Item: %s", item.get_queue_wait_time(), item
+                    # )
                     self._stats_queue_wait_times.append(item.get_queue_wait_time())
 
                 if self._session.closed:
@@ -551,7 +555,7 @@ class Crawler(ABC):
             sum(self._stats_request_latencies)
         )
 
-    async def crawl(self, url: Union[URL, str] = ""):
+    async def crawl(self, url: Union[URL, str] = "") -> None:
         """
         Start the web crawler.
 
@@ -587,7 +591,8 @@ class Crawler(ABC):
             )
 
         # Create workers to process the Request Queue.
-        # Create twice as many workers as potential concurrent requests, to handle request callbacks without delay.
+        # Create twice as many workers as potential concurrent requests, to help handle request callbacks without
+        # delay while other workers may be locked by the Semaphore.
         self._workers = [
             asyncio.create_task(self._work(i)) for i in range(self.concurrency * 2)
         ]

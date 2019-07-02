@@ -2,7 +2,7 @@ import base64
 import re
 import pathlib
 from types import AsyncGeneratorType
-from typing import Union, Any, List
+from typing import Union, Any, List, Tuple
 from w3lib.url import url_query_cleaner
 
 import bs4
@@ -17,8 +17,11 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 # Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile(
-    "\\b(rss|feed|atom|json|xml|rdf|feeds|authors?|journalist?s)\\b", re.IGNORECASE
+feedlike_regex = re.compile("\\b(rss|feed|feeds|atom|json|xml|rdf)\\b", re.IGNORECASE)
+
+# Regex to check if the URL might contain author information.
+author_regex = re.compile(
+    "(authors?|journalists?|writers?|contributors?)", re.IGNORECASE
 )
 
 # Regex to check URL string for invalid file types.
@@ -106,6 +109,11 @@ class FeedsearchSpider(Crawler):
             yield self.feed_info_parser.parse_item(request, response, type="xml")
             return
 
+        # Don't waste time trying to parse and follow urls if the max depth is already reached.
+        if response.is_max_depth_reached(self.max_depth):
+            self.logger.debug("Max depth %d reached: %s", self.max_depth, response)
+            return
+
         # Make sure the Response XML has been parsed if it exists.
         soup = await response.xml
         if not soup:
@@ -119,11 +127,10 @@ class FeedsearchSpider(Crawler):
             if not url:
                 continue
 
-            priority = 1 if self.is_feedlike_url(url, href) else 10
-
             # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
             # if they look like they might point to valid feeds.
-            if self.should_follow_url(url, link, response):
+            should_follow, priority = self.should_follow_url(url, link, response)
+            if should_follow:
                 yield await self.follow(href, self.parse, response, priority=priority)
 
     async def parse_xml(self, response_text: str) -> Any:
@@ -248,7 +255,9 @@ class FeedsearchSpider(Crawler):
 
         return urls
 
-    def should_follow_url(self, url: URL, link: bs4.Tag, response: Response) -> bool:
+    def should_follow_url(
+        self, url: URL, link: bs4.Tag, response: Response
+    ) -> Tuple[bool, int]:
         """
         Check that the link should be followed if it may contain feed information.
 
@@ -262,6 +271,16 @@ class FeedsearchSpider(Crawler):
 
         is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
 
+        priority = Request.priority
+
+        has_author_info: bool = self.has_author_info(href)
+        if has_author_info:
+            priority = 4
+
+        is_feedlike_url: bool = self.is_feedlike_url(url, href)
+        if is_feedlike_url:
+            priority = 3
+
         # If the link may have a valid feed type then follow it regardless of the url text.
         if (
             link_type
@@ -271,7 +290,7 @@ class FeedsearchSpider(Crawler):
             and "json+oembed" not in link_type
             and is_one_jump
         ):
-            return True
+            return True, 2
         # Else validate the actual URL string for possible feed values.
 
         else:
@@ -281,10 +300,12 @@ class FeedsearchSpider(Crawler):
                 and self.is_valid_filetype(href)
                 and not self.has_comments_in_querystring(url)
             )
+            # If full_crawl then follow all URLs regardless of the feedlike quality of the URL.
             if self.full_crawl:
-                return follow
+                return follow, priority
+            # Else only follow URLs if they look like they might contain feed information.
             else:
-                return follow and self.is_feedlike_url(url, href)
+                return (follow and is_feedlike_url), priority
 
     @staticmethod
     def tag_has_href(tag: bs4.Tag) -> bool:
@@ -401,3 +422,15 @@ class FeedsearchSpider(Crawler):
                 ["wp-includes", "wp-content", "wp-json", "xmlrpc", "wp-admin", "/amp/"],
             )
         )
+
+    @staticmethod
+    def has_author_info(url_string: str) -> bool:
+        """
+        Check if the url may contain author information.
+
+        :param url_string: URL string
+        :return: boolean
+        """
+        if author_regex.search(url_query_cleaner(url_string)):
+            return True
+        return False

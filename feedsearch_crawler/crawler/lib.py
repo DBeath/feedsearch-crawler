@@ -24,7 +24,12 @@ class CallbackResult(Queueable):
 
     result: Any
     callback_recursion: int
-    priority = 5
+    # CallbackResult priority is high so that we clear Callbacks off the queue and process them as fast as possible.
+    # Otherwise the workers always process Requests and don't often process the Request results.
+    priority = 1
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.result.__class__.__name__})"
 
 
 class Stats(Enum):

@@ -106,7 +106,6 @@ class Request(Queueable):
         :returns: Tuple of Callback result and Response object
         """
         async with semaphore:
-
             response = await self._fetch()
 
         callback_result = None
