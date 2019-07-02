@@ -20,6 +20,7 @@ from feedsearch_crawler.crawler.lib import (
     ignore_aiohttp_ssl_eror,
     Stats,
     CallbackResult,
+    CrawlerPriorityQueue,
 )
 from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
@@ -61,7 +62,7 @@ class Crawler(ABC):
     # ClientSession for requests. Created on Crawl start.
     _session: aiohttp.ClientSession
     # Task queue for Requests. Created on Crawl start.
-    _request_queue: asyncio.PriorityQueue
+    _request_queue: CrawlerPriorityQueue
     # Semaphore for controlling HTTP Request concurrency.
     _semaphore: asyncio.Semaphore
 
@@ -569,7 +570,7 @@ class Crawler(ABC):
             raise ValueError("crawler.start_urls are required")
 
         # Create the Request Queue within the asyncio loop.
-        self._request_queue = asyncio.PriorityQueue()
+        self._request_queue = CrawlerPriorityQueue()
 
         # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
         self._semaphore = asyncio.Semaphore(self.concurrency)
@@ -599,10 +600,13 @@ class Crawler(ABC):
                 )
         except asyncio.TimeoutError:
             self.logger.debug("Timed out after %s seconds", self.total_timeout.total)
+            self._request_queue.clear()
         finally:
             # Make sure all workers are cancelled.
             for w in self._workers:
                 w.cancel()
+            # Wait until all worker tasks are cancelled.
+            await asyncio.gather(*self._workers, return_exceptions=True)
 
         # Run the post crawl callback if it exists.
         await self._run_callback(self.post_crawl_callback)

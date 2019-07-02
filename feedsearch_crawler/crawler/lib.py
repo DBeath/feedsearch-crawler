@@ -2,8 +2,20 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union, Dict
 from yarl import URL
+from asyncio import PriorityQueue
 
 from feedsearch_crawler.crawler.queueable import Queueable
+
+
+# noinspection PyUnresolvedReferences
+class CrawlerPriorityQueue(PriorityQueue):
+    def clear(self):
+        """
+        Clear the Queue of any unfinished tasks.
+        """
+        self._queue.clear()
+        self._unfinished_tasks = 0
+        self._finished.set()
 
 
 @dataclass
