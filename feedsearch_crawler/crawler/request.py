@@ -85,7 +85,7 @@ class Request(Queueable):
         self.has_run: bool = False
         self.delay = delay
 
-        self._should_retry: bool = False
+        self.should_retry: bool = False
         self._max_retries = retries
         # Number of times this request has been retried.
         self._num_retries: int = 0
@@ -134,7 +134,7 @@ class Request(Queueable):
         history = copy.deepcopy(self.history)
 
         # Make sure that retry is reset.
-        self._should_retry = False
+        self.should_retry = False
         response = None
         start = time.perf_counter()
 
@@ -213,7 +213,7 @@ class Request(Queueable):
 
             # Tell the crawler to retry this Request
             if response.status_code in [429, 503, 408]:
-                self._should_retry = True
+                self.set_retry()
 
             return response
 
@@ -317,16 +317,14 @@ class Request(Queueable):
             self.logger.error("Error parsing response xml: %s", e)
             return None
 
-    def should_retry(self) -> bool:
+    def set_retry(self) -> None:
         """
-        Check if the Request should be retried.
-
-        :return: boolean
+        Set the Request to retry.
         """
-        if self._should_retry and self._num_retries < self._max_retries:
+        if self._num_retries < self._max_retries:
+            self.should_retry = True
             self._num_retries += 1
-            return True
-        return False
+            self.delay = self._num_retries * 1
 
     async def delay_request(self) -> None:
         """

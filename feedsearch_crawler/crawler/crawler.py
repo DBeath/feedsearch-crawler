@@ -184,7 +184,7 @@ class Crawler(ABC):
         :return: None
         """
         try:
-            if request.has_run and not request.should_retry():
+            if request.has_run and not request.should_retry:
                 self.logger.warning("%s has already run", request)
                 return
 
@@ -227,7 +227,7 @@ class Crawler(ABC):
                 self._put_queue(CallbackResult(results, 0))
 
             # Add Request back to the queue for retrying.
-            if request.should_retry():
+            if request.should_retry:
                 self.stats[Stats.REQUESTS_RETRIED] += 1
                 self._put_queue(request)
 
