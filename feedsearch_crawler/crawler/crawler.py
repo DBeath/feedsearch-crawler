@@ -192,6 +192,7 @@ class Crawler(ABC):
 
             # Fetch the request and run its callback
             results, response = await request.fetch_callback(self._semaphore)
+            # results, response = await request.fetch_callback()
 
             dur = int((time.perf_counter() - start) * 1000)
             self._stats_request_durations.append(dur)

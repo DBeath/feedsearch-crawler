@@ -98,14 +98,17 @@ class Request(Queueable):
 
         self.logger = logging.getLogger("feedsearch_crawler")
 
-    async def fetch_callback(self, semaphore: Semaphore) -> Tuple[Any, Response]:
+    async def fetch_callback(self, semaphore: Semaphore = None) -> Tuple[Any, Response]:
         """
         Fetch HTTP Response and run Callbacks.
 
         :param semaphore: asyncio Semaphore
         :returns: Tuple of Callback result and Response object
         """
-        async with semaphore:
+        if semaphore:
+            async with semaphore:
+                response = await self._fetch()
+        else:
             response = await self._fetch()
 
         callback_result = None

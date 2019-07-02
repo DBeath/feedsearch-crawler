@@ -274,10 +274,16 @@ class FeedsearchSpider(Crawler):
         priority = Request.priority
 
         has_author_info: bool = self.has_author_info(href)
+        is_feedlike_url: bool = self.is_feedlike_url(url, href)
+        is_low_priority: bool = self.is_low_priority(href)
+
+        # A low priority url should be fetched last.
+        if is_low_priority:
+            priority = Request.priority + 2
+        # Potential author info has a medium priority.
         if has_author_info:
             priority = 4
-
-        is_feedlike_url: bool = self.is_feedlike_url(url, href)
+        # A feedlike url has high priority.
         if is_feedlike_url:
             priority = 3
 
@@ -290,9 +296,9 @@ class FeedsearchSpider(Crawler):
             and "json+oembed" not in link_type
             and is_one_jump
         ):
+            # A link with a possible feed type has the highest priority after callbacks.
             return True, 2
-        # Else validate the actual URL string for possible feed values.
-
+        # Validate the actual URL string.
         else:
             follow = (
                 is_one_jump
@@ -375,7 +381,7 @@ class FeedsearchSpider(Crawler):
         # if file_regex.search(url.strip()):
         #     return False
         # return True
-        suffix = pathlib.Path(url).suffix.strip(".").lower()
+        suffix = pathlib.Path(url_query_cleaner(url)).suffix.strip(".").lower()
         if suffix in invalid_filetypes:
             return False
         return True
@@ -419,7 +425,15 @@ class FeedsearchSpider(Crawler):
         return any(
             map(
                 string.lower().count,
-                ["wp-includes", "wp-content", "wp-json", "xmlrpc", "wp-admin", "/amp/"],
+                [
+                    "wp-includes",
+                    "wp-content",
+                    "wp-json",
+                    "xmlrpc",
+                    "wp-admin",
+                    # Theoretically there could be a feed at an AMP url, but not worth checking.
+                    "/amp/",
+                ],
             )
         )
 
@@ -434,3 +448,24 @@ class FeedsearchSpider(Crawler):
         if author_regex.search(url_query_cleaner(url_string)):
             return True
         return False
+
+    @staticmethod
+    def is_low_priority(url_string) -> bool:
+        """
+        Check if the url contains any strings that indicate the url should be low priority.
+
+        :param url_string: URL string
+        :return: boolean
+        """
+        return any(
+            map(
+                url_string.lower().count,
+                [
+                    "/archive/",
+                    "/page/",
+                    "forum",
+                    # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
+                    "//cdn.",
+                ],
+            )
+        )

@@ -97,7 +97,12 @@ class Stats(Enum):
     REQUESTS_RETRIED = "requests_retried"
 
     def __repr__(self):
-        return self._value_
+        return self.value
+
+    def __lt__(self, other):
+        if not isinstance(other, Stats):
+            return False
+        return self.value < other.value
 
 
 def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
