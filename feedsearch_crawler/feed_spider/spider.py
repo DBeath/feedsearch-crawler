@@ -30,6 +30,9 @@ file_regex = re.compile(
     re.IGNORECASE,
 )
 
+# Regex to match year and month in URLs, e.g. /2019/07/
+date_regex = re.compile("/(\\d{4}/\\d{2})/")
+
 invalid_filetypes = [
     "jpeg",
     "jpg",
@@ -127,8 +130,7 @@ class FeedsearchSpider(Crawler):
             if not url:
                 continue
 
-            # Follow all valid links if they are a valid "alternate" link (RSS Feed Discovery) or
-            # if they look like they might point to valid feeds.
+            # Check each href for validity and queue priority.
             should_follow, priority = self.should_follow_url(url, link, response)
             if should_follow:
                 yield await self.follow(href, self.parse, response, priority=priority)
@@ -457,15 +459,23 @@ class FeedsearchSpider(Crawler):
         :param url_string: URL string
         :return: boolean
         """
-        return any(
+        if any(
             map(
                 url_string.lower().count,
                 [
+                    # Archives and article pages are less likely to contain feeds.
                     "/archive/",
                     "/page/",
+                    # Forums are not likely to contain interesting feeds.
                     "forum",
                     # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
                     "//cdn.",
                 ],
             )
-        )
+        ):
+            return True
+
+        # Search for dates in url, this generally indicates an article page.
+        if date_regex.search(url_string):
+            return True
+        return False
