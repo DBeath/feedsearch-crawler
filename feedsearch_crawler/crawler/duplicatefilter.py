@@ -1,7 +1,6 @@
 import asyncio
 import hashlib
 
-from w3lib.url import canonicalize_url
 from yarl import URL
 
 from feedsearch_crawler.crawler.lib import to_bytes
@@ -53,7 +52,7 @@ class DuplicateFilter:
         :return: Hashed string
         """
         fp = hashlib.sha1()
-        fp.update(to_bytes(canonicalize_url(url)))
+        fp.update(to_bytes(url))
         if method:
             fp.update(to_bytes(method))
         return fp.hexdigest()
