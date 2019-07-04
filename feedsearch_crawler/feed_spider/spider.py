@@ -2,7 +2,7 @@ import base64
 import re
 import pathlib
 from types import AsyncGeneratorType
-from typing import Union, Any, List, Tuple
+from typing import Union, Any, List, Tuple, Set
 from w3lib.url import url_query_cleaner
 
 import bs4
@@ -220,7 +220,7 @@ class FeedsearchSpider(Crawler):
 
         origin = url.origin()
 
-        urls = [url, origin]
+        urls: Set[URL] = {url, origin}
 
         # Common paths for feeds.
         suffixes = {
@@ -251,11 +251,11 @@ class FeedsearchSpider(Crawler):
 
         if self.try_urls:
             if isinstance(self.try_urls, list):
-                urls.extend(origin.join(URL(suffix)) for suffix in self.try_urls)
+                urls.update(origin.join(URL(suffix)) for suffix in self.try_urls)
             else:
-                urls.extend(origin.join(URL(suffix)) for suffix in suffixes)
+                urls.update(origin.join(URL(suffix)) for suffix in suffixes)
 
-        return urls
+        return list(urls)
 
     def should_follow_url(
         self, url: URL, link: bs4.Tag, response: Response

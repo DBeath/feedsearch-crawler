@@ -292,6 +292,9 @@ class Crawler(ABC):
         :param request: HTTP Request
         :return: None
         """
+        if not request:
+            return
+
         self.stats[Stats.REQUESTS_QUEUED] += 1
         self.logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
@@ -593,9 +596,9 @@ class Crawler(ABC):
 
         # Create a Request for each start URL and add it to the Request Queue.
         for url in self.start_urls:
-            self._process_request(
-                await self.follow(coerce_url(url), self.parse, delay=0)
-            )
+            req = await self.follow(coerce_url(url), self.parse, delay=0)
+            if req:
+                self._process_request(req)
 
         # Create workers to process the Request Queue.
         # Create twice as many workers as potential concurrent requests, to help handle request callbacks without
