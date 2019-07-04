@@ -79,6 +79,7 @@ class Crawler(ABC):
         allowed_schemes: List[str] = None,
         delay: float = 0.5,
         max_retries: int = 3,
+        ssl: bool = False,
         *args,
         **kwargs,
     ):
@@ -97,6 +98,7 @@ class Crawler(ABC):
         :param headers: Default HTTP headers to be included in each request.
         :param delay: Time in seconds to delay each HTTP request.
         :param max_retries: Maximum number of retries for each failed HTTP request.
+        :param ssl: Enables strict SSL checking.
         :param args: Additional positional arguments for subclasses.
         :param kwargs: Additional keyword arguments for subclasses.
         """
@@ -126,6 +128,7 @@ class Crawler(ABC):
         self.allowed_schemes = allowed_schemes
         self.delay = delay
         self.max_retries = max_retries
+        self._ssl = ssl
 
         self.logger = logging.getLogger("feedsearch_crawler")
 
@@ -191,8 +194,8 @@ class Crawler(ABC):
             start = time.perf_counter()
 
             # Fetch the request and run its callback
-            results, response = await request.fetch_callback(self._semaphore)
-            # results, response = await request.fetch_callback()
+            # results, response = await request.fetch_callback(self._semaphore)
+            results, response = await request.fetch_callback()
 
             dur = int((time.perf_counter() - start) * 1000)
             self._stats_request_durations.append(dur)
@@ -580,9 +583,12 @@ class Crawler(ABC):
         # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
         self._semaphore = asyncio.Semaphore(self.concurrency)
 
+        conn = aiohttp.TCPConnector(
+            limit=0, ssl=self._ssl, ttl_dns_cache=self.total_timeout.total
+        )
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(
-            timeout=self.total_timeout, headers=self.headers
+            timeout=self.total_timeout, headers=self.headers, connector=conn
         )
 
         # Create a Request for each start URL and add it to the Request Queue.

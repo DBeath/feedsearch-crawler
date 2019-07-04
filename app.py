@@ -1,12 +1,16 @@
 import asyncio
 import logging
 import json
+import time
 from pprint import pprint
 from feedsearch_crawler import search, FeedsearchSpider, output_opml
+from memory_profiler import profile
+from datetime import datetime
+import collections
 
 urls = [
-    # "http://arstechnica.com",
-    "http://davidbeath.com",
+    "http://arstechnica.com",
+    # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
@@ -17,8 +21,10 @@ urls = [
     # "nytimes.com",
     # "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/",
     # "feedhandbook.com",
-    # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/"
-    # "localhost:8080"
+    # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/",
+    # "localhost:8080/test",
+    # "theatlantic.com",
+    # "nypost.com"
 ]
 
 
@@ -26,18 +32,9 @@ def get_pretty_print(json_object: object):
     return json.dumps(json_object, sort_keys=True, indent=2, separators=(",", ": "))
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger("feedsearch_crawler")
-    logger.setLevel(logging.DEBUG)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]"
-    )
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-    user_agent = "Mozilla/5.0 Feedsearch"
+# @profile()
+def run_crawl():
+    user_agent = "Mozilla/5.0 Compatible"
 
     # headers = {
     #     "User-Agent": "Feedsearch Bot",
@@ -45,14 +42,18 @@ if __name__ == "__main__":
     # }
 
     crawler = FeedsearchSpider(
-        concurrency=10,
-        timeout=100000,
+        concurrency=20,
+        total_timeout=60,
         user_agent=user_agent,
         favicon_data_uri=False,
+        max_depth=4,
+        # full_crawl=True,
+        delay=0,
         # headers=headers,
     )
-    # crawler.start_urls = urls
-    asyncio.run(crawler.crawl(urls[0]))
+    crawler.start_urls = urls
+    asyncio.run(crawler.crawl())
+    # asyncio.run(crawler.crawl(urls[0]))
 
     serialized = [item.serialize() for item in crawler.items]
 
@@ -61,7 +62,6 @@ if __name__ == "__main__":
 
     results = get_pretty_print(serialized)
     print(results)
-    pprint([result["url"] for result in serialized])
 
     site_metas = [item.serialize() for item in crawler.site_metas]
     metas = get_pretty_print(site_metas)
@@ -73,4 +73,33 @@ if __name__ == "__main__":
 
     print(output_opml(list(crawler.items)).decode())
 
-    pprint(crawler.stats)
+    pprint([result["url"] for result in serialized])
+    pprint(dict(collections.OrderedDict(sorted(crawler.stats.items())).items()))
+
+    print(f"Feeds found: {len(crawler.items)}")
+    print(f"SiteMetas: {len(crawler.site_metas)}")
+    print(f"Favicons fetched: {len(crawler.favicons)}")
+    # pprint(crawler.queue_wait_times)
+
+
+if __name__ == "__main__":
+    logger = logging.getLogger("feedsearch_crawler")
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]"
+    )
+    ch.setFormatter(formatter)
+    fl = logging.FileHandler(
+        f"/home/dbeath/code/feedsearch-crawler/logs/feedsearch_crawl_{datetime.utcnow().isoformat()}"
+    )
+    fl.setLevel((logging.DEBUG))
+    fl.setFormatter(formatter)
+    logger.addHandler(ch)
+    logger.addHandler(fl)
+
+    start = time.perf_counter()
+    run_crawl()
+    duration = int((time.perf_counter() - start) * 1000)
+    print(f"Entire process ran in {duration}ms")
