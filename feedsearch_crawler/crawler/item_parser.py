@@ -9,8 +9,9 @@ from abc import ABC, abstractmethod
 
 
 class ItemParser(ABC):
-    def __init__(self, spider):
-        self.spider = spider
+    def __init__(self, crawler):
+        self.crawler = crawler
+        self.follow = crawler.follow
         self.logger = logging.getLogger("feedsearch_crawler")
 
     @abstractmethod

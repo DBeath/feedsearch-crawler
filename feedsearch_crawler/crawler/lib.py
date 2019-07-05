@@ -99,6 +99,9 @@ class Stats(Enum):
     def __repr__(self):
         return self.value
 
+    def __str__(self):
+        return str(self.value)
+
     def __lt__(self, other):
         if not isinstance(other, Stats):
             return False

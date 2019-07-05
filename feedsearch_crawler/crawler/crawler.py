@@ -4,6 +4,7 @@ import inspect
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections import OrderedDict
 from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
 from typing import List, Any
@@ -561,6 +562,13 @@ class Crawler(ABC):
         self.stats[Stats.REQUESTS_LATENCY_TOTAL] = int(
             sum(self._stats_request_latencies)
         )
+
+    def get_stats(self) -> dict:
+        """
+        Return crawl statistics as a sorted dictionary.
+        """
+        stats = {str(k): v for k, v in self.stats.items()}
+        return dict(OrderedDict(sorted(stats.items())).items())
 
     async def crawl(self, url: Union[URL, str] = "") -> None:
         """

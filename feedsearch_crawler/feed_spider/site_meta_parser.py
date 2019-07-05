@@ -18,8 +18,8 @@ class SiteMetaParser(ItemParser):
         site_meta.site_name = self.find_site_name(xml)
         site_meta.icon_url = self.find_site_icon_url(xml, url)
 
-        if site_meta.icon_url and self.spider.favicon_data_uri:
-            yield self.spider.follow(site_meta.icon_url, self.spider.create_data_uri)
+        if site_meta.icon_url and self.crawler.favicon_data_uri:
+            yield self.follow(site_meta.icon_url, self.crawler.create_data_uri)
 
         yield site_meta
 

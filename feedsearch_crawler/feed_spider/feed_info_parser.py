@@ -43,8 +43,13 @@ class FeedInfoParser(ItemParser):
         except Exception as e:
             self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
 
-        if item.favicon and self.spider.favicon_data_uri:
-            yield self.spider.follow(item.favicon, self.spider.create_data_uri)
+        if item.favicon and self.crawler.favicon_data_uri:
+            yield self.follow(item.favicon, self.crawler.create_data_uri)
+
+        # Handle a case where the item url contains a trailing slash and the self url doesn't.
+        if item.self_url and item.self_url != item.url:
+            if str(item.url).strip("/") == item.self_url:
+                item.url = URL(str(item.url).strip("/"))
 
         item.content_length = response.content_length
         self.score_item(item, response.history[0])
@@ -227,7 +232,7 @@ class FeedInfoParser(ItemParser):
         :return: str
         """
         try:
-            title = BeautifulSoup(title, self.spider.htmlparser).get_text()
+            title = BeautifulSoup(title, self.crawler.htmlparser).get_text()
             if len(title) > 1024:
                 title = title[:1020] + "..."
             return title

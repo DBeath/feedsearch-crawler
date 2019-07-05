@@ -67,6 +67,7 @@ class FeedsearchSpider(Crawler):
         self.feed_info_parser = FeedInfoParser(self)
         self.site_metas = set()
         self.favicons = dict()
+        self.feeds_seen = dict()
         self.post_crawl_callback = self.populate_feed_site_meta
         if "try_urls" in kwargs:
             self.try_urls = kwargs["try_urls"]
@@ -306,7 +307,7 @@ class FeedsearchSpider(Crawler):
                 is_one_jump
                 and not self.has_invalid_contents(href)
                 and self.is_valid_filetype(href)
-                and not self.has_comments_in_querystring(url)
+                and not self.has_invalid_querystring(url)
             )
             # If full_crawl then follow all URLs regardless of the feedlike quality of the URL.
             if self.full_crawl:
@@ -389,14 +390,14 @@ class FeedsearchSpider(Crawler):
         return True
 
     @staticmethod
-    def has_comments_in_querystring(url: URL) -> bool:
+    def has_invalid_querystring(url: URL) -> bool:
         """
         Check if URL querystring contains comment keys.
 
         :param url: URL object
         :return: boolean
         """
-        return any(key in url.query for key in ["comment", "comments", "post"])
+        return any(key in url.query for key in ["comment", "comments", "post", "view"])
 
     @staticmethod
     def is_feedlike_url(url: URL, url_string: str) -> bool:

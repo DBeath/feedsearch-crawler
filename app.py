@@ -4,12 +4,11 @@ import json
 import time
 from pprint import pprint
 from feedsearch_crawler import search, FeedsearchSpider, output_opml
-from memory_profiler import profile
 from datetime import datetime
 import collections
 
 urls = [
-    "http://arstechnica.com",
+    "arstechnica.com",
     # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -42,8 +41,9 @@ def run_crawl():
     # }
 
     crawler = FeedsearchSpider(
-        concurrency=20,
-        total_timeout=60,
+        concurrency=10,
+        total_timeout=20,
+        request_timeout=5,
         user_agent=user_agent,
         favicon_data_uri=False,
         max_depth=4,
@@ -74,7 +74,7 @@ def run_crawl():
     print(output_opml(list(crawler.items)).decode())
 
     pprint([result["url"] for result in serialized])
-    pprint(dict(collections.OrderedDict(sorted(crawler.stats.items())).items()))
+    pprint(crawler.get_stats())
 
     print(f"Feeds found: {len(crawler.items)}")
     print(f"SiteMetas: {len(crawler.site_metas)}")
