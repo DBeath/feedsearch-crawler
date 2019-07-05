@@ -202,10 +202,11 @@ class Crawler(ABC):
             self._stats_request_durations.append(dur)
             self._stats_request_latencies.append(request.req_latency)
             self.logger.debug(
-                "Fetched: url=%s dur=%dms latency=%dms status=%s prev=%s",
+                "Fetched: url=%s dur=%dms latency=%dms read=%dms status=%s prev=%s",
                 response.url,
                 dur,
                 request.req_latency,
+                request.content_read,
                 response.status_code,
                 response.originator_url,
             )

@@ -89,8 +89,10 @@ class Request(Queueable):
         self._max_retries = retries
         # Number of times this request has been retried.
         self._num_retries: int = 0
-        # Time in Milliseconds for the HTTP Request to complete.
+        # Time in Milliseconds for the HTTP response to arrive.
         self.req_latency: int = 0
+        # Time in Milliseconds for the HTTP response content to be read.
+        self.content_read: int = 0
 
         for key, value in kwargs:
             if hasattr(self, key):
@@ -140,6 +142,8 @@ class Request(Queueable):
 
         try:
             async with self._create_request() as resp:
+                resp_recieved = time.perf_counter()
+                self.req_latency = int((resp_recieved - start) * 1000)
                 history.append(resp.url)
 
                 # Fail the response if the content length header is too large.
@@ -151,6 +155,14 @@ class Request(Queueable):
                 content_read, actual_content_length = await self._read_response(resp)
                 if not content_read:
                     return self._failed_response(413)
+
+                if content_length and content_length != actual_content_length:
+                    self.logger.debug(
+                        "Header Content-Length %d different from actual content-length %d: %s",
+                        content_length,
+                        actual_content_length,
+                        self,
+                    )
 
                 # Set encoding automatically from response if not specified.
                 if not self.encoding:
@@ -171,6 +183,8 @@ class Request(Queueable):
                 # Close the asyncio response
                 if not resp.closed:
                     resp.close()
+
+                self.content_read = int((time.perf_counter() - resp_recieved) * 1000)
 
                 response = Response(
                     url=resp.url,
@@ -205,7 +219,6 @@ class Request(Queueable):
             if isinstance(e, CancelledError) and not response:
                 response = self._failed_response(499, history)
         finally:
-            self.req_latency = int((time.perf_counter() - start) * 1000)
             self.has_run = True
             # Make sure there is a valid Response object.
             if not response:

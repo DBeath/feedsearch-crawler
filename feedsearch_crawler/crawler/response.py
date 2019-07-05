@@ -66,7 +66,7 @@ class Response:
         if not self._xml_parser:
             return None
 
-        if not self.text or not self.data or not self.encoding:
+        if not self.text and self.data and self.encoding:
             self.text = self.data.decode(self.encoding)
 
         self._xml = await self._xml_parser(self.text)

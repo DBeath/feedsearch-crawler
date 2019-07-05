@@ -392,12 +392,14 @@ class FeedsearchSpider(Crawler):
     @staticmethod
     def has_invalid_querystring(url: URL) -> bool:
         """
-        Check if URL querystring contains comment keys.
+        Check if URL querystring contains invalid keys.
 
         :param url: URL object
         :return: boolean
         """
-        return any(key in url.query for key in ["comment", "comments", "post", "view"])
+        return any(
+            key in url.query for key in ["comment", "comments", "post", "view", "theme"]
+        )
 
     @staticmethod
     def is_feedlike_url(url: URL, url_string: str) -> bool:
