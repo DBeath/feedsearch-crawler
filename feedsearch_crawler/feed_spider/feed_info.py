@@ -46,10 +46,13 @@ class FeedInfo(Item):
             last_updated=last_updated,
         )
 
-    def __init__(self, url: URL, content_type: str):
+    def __init__(self, url: URL, content_type: str, **kwargs):
         super().__init__()
         self.url = url
         self.content_type = content_type
+        for k in kwargs.keys():
+            if hasattr(self, k):
+                self.__setattr__(k, kwargs[k])
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.url == other.url

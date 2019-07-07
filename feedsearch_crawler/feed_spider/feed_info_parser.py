@@ -32,16 +32,23 @@ class FeedInfoParser(ItemParser):
             raise ValueError("type keyword argument is required")
 
         try:
+            valid_feed = False
             data_type = kwargs["type"]
             if data_type == "json":
                 item.content_type = "application/json"
-                self.parse_json(item, response.json)
+                valid_feed = self.parse_json(item, response.json)
             elif data_type == "xml":
-                self.parse_xml(item, response.data, response.encoding, response.headers)
+                valid_feed = self.parse_xml(
+                    item, response.data, response.encoding, response.headers
+                )
                 if not item.content_type:
                     item.content_type = "text/xml"
+
+            if not valid_feed:
+                return
         except Exception as e:
             self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
+            return
 
         if item.favicon and self.crawler.favicon_data_uri:
             yield self.follow(item.favicon, self.crawler.create_data_uri)
@@ -57,7 +64,7 @@ class FeedInfoParser(ItemParser):
 
     def parse_xml(
         self, item: FeedInfo, data: str, encoding: str, headers: Dict
-    ) -> None:
+    ) -> bool:
         """
         Get info from XML (RSS or ATOM) feed.
         """
@@ -71,11 +78,13 @@ class FeedInfoParser(ItemParser):
             ):
                 item.bozo = 1
                 self.logger.warning("No valid feed data for %s", item)
-                return
+                return False
 
         feed = parsed.get("feed")
         if not feed:
-            return
+            return False
+        if not parsed.get("entries"):
+            return False
 
         # Only search if no hubs already present from headers
         if not item.hubs:
@@ -112,7 +121,9 @@ class FeedInfoParser(ItemParser):
             self.logger.error("Unable to get feed published date: %s", e)
             pass
 
-    def parse_json(self, item: FeedInfo, data: dict) -> None:
+        return True
+
+    def parse_json(self, item: FeedInfo, data: dict) -> bool:
         """
         Get info from JSON feed.
 
@@ -123,7 +134,10 @@ class FeedInfoParser(ItemParser):
         item.version = data.get("version")
         if "https://jsonfeed.org/version/" not in item.version:
             item.bozo = 1
-            return
+            return False
+
+        if not data.get("items"):
+            return False
 
         item.title = data.get("title")
         item.description = data.get("description")
@@ -161,6 +175,8 @@ class FeedInfoParser(ItemParser):
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
+
+        return True
 
     def parse_raw_data(
         self, raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None
