@@ -9,6 +9,7 @@ from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
 from typing import List, Any
 from typing import Union
+from fnmatch import fnmatch
 
 import aiohttp
 from aiohttp import ClientTimeout
@@ -26,6 +27,7 @@ from feedsearch_crawler.crawler.lib import (
 from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
+from feedsearch_crawler.crawler.trace import add_trace_config
 
 try:
     import uvloop
@@ -45,6 +47,11 @@ class Crawler(ABC):
 
     # Callback to be run after all workers are finished.
     post_crawl_callback = None
+
+    # URLs to start the crawl.
+    start_urls = []
+    # Domain patterns that are allowed to be crawled.
+    allowed_domains = []
 
     # Max number of concurrent http requests.
     concurrency: int = 10
@@ -70,6 +77,7 @@ class Crawler(ABC):
     def __init__(
         self,
         start_urls: List[str] = None,
+        allowed_domains: List[str] = None,
         concurrency: int = 10,
         total_timeout: Union[float, ClientTimeout] = 30,
         request_timeout: Union[float, ClientTimeout] = 5,
@@ -81,6 +89,7 @@ class Crawler(ABC):
         delay: float = 0.5,
         max_retries: int = 3,
         ssl: bool = False,
+        trace: bool = False,
         *args,
         **kwargs,
     ):
@@ -89,6 +98,7 @@ class Crawler(ABC):
 
         :param allowed_schemes: List of strings of allowed Request URI schemes. e.g. ["http", "https"]
         :param start_urls: List of initial URLs to crawl.
+        :param allowed_domains: List of domain patterns that are allowed. Uses Unix shell-style wildcards.
         :param concurrency: Max number of workers and of concurrent HTTP requests.
         :param total_timeout: Total aiohttp ClientSession timeout in seconds.
             Crawl will end if this timeout is triggered.
@@ -100,10 +110,13 @@ class Crawler(ABC):
         :param delay: Time in seconds to delay each HTTP request.
         :param max_retries: Maximum number of retries for each failed HTTP request.
         :param ssl: Enables strict SSL checking.
+        :param trace: Enables aiohttp trace debugging.
         :param args: Additional positional arguments for subclasses.
         :param kwargs: Additional keyword arguments for subclasses.
         """
         self.start_urls = start_urls or []
+        self.allowed_domains = allowed_domains or []
+
         self.concurrency = concurrency
 
         if not isinstance(total_timeout, ClientTimeout):
@@ -130,6 +143,7 @@ class Crawler(ABC):
         self.delay = delay
         self.max_retries = max_retries
         self._ssl = ssl
+        self._trace = trace
 
         self.logger = logging.getLogger("feedsearch_crawler")
 
@@ -318,6 +332,27 @@ class Crawler(ABC):
             self.logger.error("Failed to encode href: %s : %s", href, str(e))
             return None
 
+    def is_allowed_domain(self, url: URL) -> bool:
+        """
+        Check that the URL host is in the list of allowed domain patterns.
+        Domain patterns are Unix shell-style wildcards.
+        https://docs.python.org/3/library/fnmatch.html
+
+        :param url: URL object
+        :return: boolean
+        """
+        if not self.allowed_domains:
+            return True
+
+        try:
+            host = url.host
+            for domain_pattern in self.allowed_domains:
+                if fnmatch(host, domain_pattern):
+                    return True
+        except ValueError as e:
+            self.logger.warning(e)
+        return False
+
     async def follow(
         self,
         url: Union[str, URL],
@@ -326,6 +361,7 @@ class Crawler(ABC):
         method: str = "GET",
         delay: Union[float, None] = None,
         priority: int = 0,
+        allow_domain: bool = False,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -348,6 +384,7 @@ class Crawler(ABC):
         :param method: HTTP method for Request.
         :param delay: Optionally override the default delay for the Request.
         :param priority: Optionally override the default priority of the Request.
+        :param allow_domain: Optionally override the allowed domains check.
         :return: Request
         """
         if isinstance(url, str):
@@ -371,6 +408,10 @@ class Crawler(ABC):
         # The URL scheme must be in the list of allowed schemes.
         if self.allowed_schemes and url.scheme not in self.allowed_schemes:
             self.logger.debug("URI Scheme '%s' not allowed: %s", url.scheme, url)
+            return
+
+        # The URL host must be in the list of allowed domains.
+        if not allow_domain and not self.is_allowed_domain(url):
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.
@@ -595,12 +636,19 @@ class Crawler(ABC):
         # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
         self._semaphore = asyncio.Semaphore(self.concurrency)
 
+        trace_configs = []
+        if self._trace:
+            trace_configs.append(add_trace_config())
+
         conn = aiohttp.TCPConnector(
             limit=0, ssl=self._ssl, ttl_dns_cache=self.total_timeout.total
         )
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(
-            timeout=self.total_timeout, headers=self.headers, connector=conn
+            timeout=self.total_timeout,
+            headers=self.headers,
+            connector=conn,
+            trace_configs=trace_configs,
         )
 
         # Create a Request for each start URL and add it to the Request Queue.

@@ -4,12 +4,13 @@ import json
 import time
 from pprint import pprint
 from feedsearch_crawler import search, FeedsearchSpider, output_opml
+from feedsearch_crawler.crawler import coerce_url
 from datetime import datetime
 import collections
 
 urls = [
-    "arstechnica.com",
-    # "http://davidbeath.com",
+    # "arstechnica.com",
+    "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
@@ -23,7 +24,12 @@ urls = [
     # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/",
     # "localhost:8080/test",
     # "theatlantic.com",
-    # "nypost.com"
+    # "nypost.com",
+    # "https://www.washingtonpost.com",
+    # "localhost:5000",
+    # "latimes.com",
+    # "http://feeds.washingtonpost.com/rss/rss_fact-checker?noredirect=on",
+    # "http://tabletopwhale.com/index.html"
 ]
 
 
@@ -33,25 +39,41 @@ def get_pretty_print(json_object: object):
 
 # @profile()
 def run_crawl():
-    user_agent = "Mozilla/5.0 Compatible"
+    # user_agent = "Mozilla/5.0 (Compatible; Bot)"
+    user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
+    # user_agent = "curl/7.58.0"
+    # user_agent = (
+    #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
+    # )
+    # user_agent = (
+    #     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    # )
 
-    # headers = {
-    #     "User-Agent": "Feedsearch Bot",
-    #     "X-Testing-Header": "Testing,testing,123",
-    # }
+    headers = {
+        "User-Agent": user_agent,
+        "DNT": "1",
+        "Upgrade-Insecure-Requests": "1",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        # "Referrer": "https://www.google.com/",
+    }
 
     crawler = FeedsearchSpider(
         concurrency=10,
-        total_timeout=20,
-        request_timeout=5,
+        total_timeout=360,
+        request_timeout=30,
         user_agent=user_agent,
         favicon_data_uri=False,
-        max_depth=4,
-        # full_crawl=True,
-        delay=0,
-        # headers=headers,
+        max_depth=5,
+        max_retries=3,
+        ssl=True,
+        full_crawl=True,
+        delay=2,
+        headers=headers,
     )
     crawler.start_urls = urls
+    crawler.allowed_domains = create_allowed_domains(urls)
     asyncio.run(crawler.crawl())
     # asyncio.run(crawler.crawl(urls[0]))
 
@@ -80,6 +102,17 @@ def run_crawl():
     print(f"SiteMetas: {len(crawler.site_metas)}")
     print(f"Favicons fetched: {len(crawler.favicons)}")
     # pprint(crawler.queue_wait_times)
+
+
+def create_allowed_domains(urls):
+    domain_patterns = []
+    for url in urls:
+        url = coerce_url(url)
+        host = url.host
+        pattern = f"*.{host}"
+        domain_patterns.append(host)
+        domain_patterns.append(pattern)
+    return domain_patterns
 
 
 if __name__ == "__main__":

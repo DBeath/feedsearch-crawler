@@ -15,6 +15,7 @@ uvloop = "*"
 w3lib = "*"
 feedparser = "*"
 udatetime = "*"
+brotlipy = "*"
 
 [requires]
 python_version = "3.7"

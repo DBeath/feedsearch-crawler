@@ -6,8 +6,8 @@ from asyncio import Queue
 class Queueable:
     queue_put_time = None
     queue_get_time = None
-    # Default lowest queue priority is 10 (higher number means lower priority)
-    priority = 10
+    # Default lowest queue priority is 100 (higher number means lower priority)
+    priority = 100
 
     def get_queue_wait_time(self) -> Union[float, None]:
         """

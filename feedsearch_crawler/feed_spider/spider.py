@@ -2,7 +2,7 @@ import base64
 import re
 import pathlib
 from types import AsyncGeneratorType
-from typing import Union, Any, List, Tuple, Set
+from typing import Union, Any, List, Tuple, Set, Optional
 from w3lib.url import url_query_cleaner
 
 import bs4
@@ -26,7 +26,7 @@ author_regex = re.compile(
 
 # Regex to check URL string for invalid file types.
 file_regex = re.compile(
-    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff?2|svg|ttf)/?$",
+    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff?2|svg|ttf|zip)/?$",
     re.IGNORECASE,
 )
 
@@ -126,15 +126,10 @@ class FeedsearchSpider(Crawler):
         # Find all links in the Response.
         links = soup.find_all(self.tag_has_href)
         for link in links:
-            href = link.get("href")
-            url = self.parse_href_to_url(href)
-            if not url:
-                continue
-
             # Check each href for validity and queue priority.
-            should_follow, priority = self.should_follow_url(url, link, response)
-            if should_follow:
-                yield await self.follow(href, self.parse, response, priority=priority)
+            new_request = await self.should_follow_link(link, response)
+            if new_request:
+                yield new_request
 
     async def parse_xml(self, response_text: str) -> Any:
         """
@@ -258,19 +253,22 @@ class FeedsearchSpider(Crawler):
 
         return list(urls)
 
-    def should_follow_url(
-        self, url: URL, link: bs4.Tag, response: Response
-    ) -> Tuple[bool, int]:
+    async def should_follow_link(
+        self, link: bs4.Tag, response: Response
+    ) -> Optional[Request]:
         """
         Check that the link should be followed if it may contain feed information.
 
-        :param url: URL object parsed from link href
         :param link: Link tag
         :param response: Response
         :return: boolean
         """
         href: str = link.get("href")
         link_type: str = link.get("type")
+
+        url = self.parse_href_to_url(href)
+        if not url:
+            return
 
         is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
 
@@ -300,7 +298,9 @@ class FeedsearchSpider(Crawler):
             and is_one_jump
         ):
             # A link with a possible feed type has the highest priority after callbacks.
-            return True, 2
+            return await self.follow(
+                url, self.parse, response, priority=2, allow_domain=True
+            )
         # Validate the actual URL string.
         else:
             follow = (
@@ -309,12 +309,10 @@ class FeedsearchSpider(Crawler):
                 and self.is_valid_filetype(href)
                 and not self.has_invalid_querystring(url)
             )
-            # If full_crawl then follow all URLs regardless of the feedlike quality of the URL.
-            if self.full_crawl:
-                return follow, priority
-            # Else only follow URLs if they look like they might contain feed information.
-            else:
-                return (follow and is_feedlike_url), priority
+            # If full_crawl then follow all valid URLs regardless of the feedlike quality of the URL.
+            # Otherwise only follow URLs if they look like they might contain feed information.
+            if follow and (self.full_crawl or is_feedlike_url):
+                return await self.follow(href, self.parse, response, priority=priority)
 
     @staticmethod
     def tag_has_href(tag: bs4.Tag) -> bool:
@@ -438,6 +436,8 @@ class FeedsearchSpider(Crawler):
                     "wp-admin",
                     # Theoretically there could be a feed at an AMP url, but not worth checking.
                     "/amp/",
+                    "mailto:",
+                    "//font.",
                 ],
             )
         )
@@ -473,6 +473,7 @@ class FeedsearchSpider(Crawler):
                     "forum",
                     # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
                     "//cdn.",
+                    "video",
                 ],
             )
         ):
