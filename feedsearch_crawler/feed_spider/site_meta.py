@@ -10,8 +10,8 @@ class SiteMeta(Item):
     icon_url: URL = ""
     icon_data_uri: str = ""
 
-    def __init__(self, url: URL) -> None:
-        super().__init__()
+    def __init__(self, url: URL, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.url = url
 
     def serialize(self):

@@ -47,7 +47,7 @@ class FeedInfo(Item):
         )
 
     def __init__(self, url: URL, content_type: str, **kwargs):
-        super().__init__()
+        super().__init__(**kwargs)
         self.url = url
         self.content_type = content_type
         for k in kwargs.keys():
