@@ -4,13 +4,15 @@ from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
-import udatetime
 from bs4 import BeautifulSoup
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
-from feedsearch_crawler.feed_spider.lib import parse_header_links
+from feedsearch_crawler.feed_spider.lib import (
+    parse_header_links,
+    datestring_to_utc_datetime,
+)
 
 
 class FeedInfoParser(ItemParser):
@@ -102,17 +104,13 @@ class FeedInfoParser(ItemParser):
             now_date = datetime.utcnow().date()
 
             for entry in parsed.get("entries", None):
-                if entry.get("published_parsed"):
-                    published = datetime.fromtimestamp(
-                        time.mktime(entry.get("published_parsed", ""))
-                    )
+                if entry.get("published"):
+                    published = datestring_to_utc_datetime(entry.get("published"))
                     if published.date() <= now_date:
                         dates.append(published)
 
-                if entry.get("updated_parsed"):
-                    updated = datetime.fromtimestamp(
-                        time.mktime(entry.get("updated_parsed", ""))
-                    )
+                if entry.get("updated"):
+                    updated = datestring_to_utc_datetime(entry.get("updated"))
                     if updated.date() <= now_date:
                         dates.append(updated)
 
@@ -162,12 +160,16 @@ class FeedInfoParser(ItemParser):
 
             for entry in data.get("items"):
                 if entry.get("date_published"):
-                    published: datetime = udatetime.from_string(entry["date_published"])
+                    published: datetime = datestring_to_utc_datetime(
+                        entry["date_published"]
+                    )
                     if published.date() <= now_date:
                         dates.append(published)
 
                 if entry.get("date_modified"):
-                    modified: datetime = udatetime.from_string(entry["date_modified"])
+                    modified: datetime = datestring_to_utc_datetime(
+                        entry["date_modified"]
+                    )
                     if modified.date() <= now_date:
                         dates.append(modified)
 
