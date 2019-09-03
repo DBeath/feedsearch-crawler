@@ -47,7 +47,7 @@ class SiteMetaParser(ItemParser):
             canonical = soup.find(name="link", rel="canonical")
             site = canonical.get("href")
             if site:
-                return URL(site)
+                return URL(site).origin()
         except AttributeError:
             pass
 
@@ -55,11 +55,11 @@ class SiteMetaParser(ItemParser):
             meta = soup.find(name="meta", property="og:url")
             site = meta.get("content")
             if site:
-                return URL(site)
+                return URL(site).origin()
         except AttributeError:
             pass
 
-        return url
+        return url.origin()
 
     @staticmethod
     def find_site_name(soup) -> str:
