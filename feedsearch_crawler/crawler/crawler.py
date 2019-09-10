@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
-from typing import List, Any
+from typing import List, Any, Dict
 from typing import Union
 from fnmatch import fnmatch
 
@@ -362,6 +362,7 @@ class Crawler(ABC):
         delay: Union[float, None] = None,
         priority: int = 0,
         allow_domain: bool = False,
+        meta: Dict = None,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -385,6 +386,7 @@ class Crawler(ABC):
         :param delay: Optionally override the default delay for the Request.
         :param priority: Optionally override the default priority of the Request.
         :param allow_domain: Optionally override the allowed domains check.
+        :param meta: Optional Dictionary of meta values for this Request. Can be accessed in the response.meta attribute.
         :return: Request
         """
         if isinstance(url, str):
@@ -429,6 +431,7 @@ class Crawler(ABC):
             method=method,
             delay=delay if isinstance(delay, float) else self.delay,
             retries=self.max_retries,
+            meta=meta,
             **kwargs,
         )
 

@@ -21,7 +21,7 @@ class FeedInfoParser(ItemParser):
 
         content_type = response.headers.get("content-type", "")
 
-        item = FeedInfo(response.url, content_type)
+        item = FeedInfo(url=response.url, content_type=content_type)
 
         # Check link headers first for WebSub content discovery
         # https://www.w3.org/TR/websub/#discovery
@@ -103,14 +103,14 @@ class FeedInfoParser(ItemParser):
 
             for entry in parsed.get("entries", None):
                 if entry.get("published_parsed"):
-                    published = datetime.fromtimestamp(
+                    published = datetime.utcfromtimestamp(
                         time.mktime(entry.get("published_parsed", ""))
                     )
                     if published.date() <= now_date:
                         dates.append(published)
 
                 if entry.get("updated_parsed"):
-                    updated = datetime.fromtimestamp(
+                    updated = datetime.utcfromtimestamp(
                         time.mktime(entry.get("updated_parsed", ""))
                     )
                     if updated.date() <= now_date:

@@ -6,7 +6,7 @@ import time
 import uuid
 from asyncio import Semaphore, IncompleteReadError, LimitOverrunError, CancelledError
 from random import random
-from typing import List, Tuple, Any, Union, Optional
+from typing import List, Tuple, Any, Union, Optional, Dict
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
@@ -23,12 +23,12 @@ class Request(Queueable):
         self,
         url: URL,
         request_session: ClientSession,
-        params: dict = None,
+        params: Dict = None,
         data: Union[dict, bytes] = None,
-        json_data: dict = None,
+        json_data: Dict = None,
         encoding: str = None,
         method: str = "GET",
-        headers: dict = None,
+        headers: Dict = None,
         timeout: Union[float, ClientTimeout] = 5.0,
         history: List = None,
         callback=None,
@@ -37,6 +37,7 @@ class Request(Queueable):
         max_content_length: int = 1024 * 1024 * 10,
         delay: float = 0,
         retries: int = 3,
+        meta: Dict = None,
         **kwargs,
     ):
         """
@@ -59,6 +60,7 @@ class Request(Queueable):
         :param max_content_length: Maximum allowed size in bytes of Response content
         :param delay: Time in seconds to delay Request
         :param retries: Number of times to retry a failed Request
+        :param meta: Optional Dictionary of meta values for this Request. Can be accessed in the response.meta attribute
         :param kwargs: Optional keyword arguments
         """
         self.url = url
@@ -84,6 +86,7 @@ class Request(Queueable):
         self.params = params
         self.has_run: bool = False
         self.delay = delay
+        self.meta = meta
 
         self.should_retry: bool = False
         self._max_retries = retries
@@ -200,6 +203,7 @@ class Request(Queueable):
                     cookies=resp.cookies,
                     redirect_history=resp.history,
                     content_length=actual_content_length,
+                    meta=copy.copy(self.meta),
                 )
 
                 # Raise exception after the Response object is created, because we only catch TimeoutErrors and

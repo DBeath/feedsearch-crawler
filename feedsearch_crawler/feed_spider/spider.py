@@ -179,7 +179,10 @@ class FeedsearchSpider(Crawler):
 
             # Populate favicon data uri if available
             if feed.favicon:
-                feed.favicon_data_uri = self.favicons.get(feed.favicon, "")
+                favicon = self.favicons.get(feed.favicon)
+                if favicon:
+                    feed.favicon_data_uri = favicon.get("uri")
+                    feed.favicon = favicon.get("resp_url")
 
     async def create_data_uri(self, request: Request, response: Response) -> None:
         """
@@ -195,7 +198,14 @@ class FeedsearchSpider(Crawler):
         try:
             encoded = base64.b64encode(response.data)
             uri = "data:image/png;base64," + encoded.decode(response.encoding)
-            self.favicons[request.url] = uri
+            icon_dict = {
+                "uri": uri,
+                "resp_url": response.url,
+                "icon_url": response.meta.get("icon_url"),
+                "icon_priority": response.meta.get("icon_priority"),
+                "icon_rel": response.meta.get("icon_rel"),
+            }
+            self.favicons[request.url] = icon_dict
         except Exception as e:
             self.logger.warning("Failure encoding image: %s", e)
 

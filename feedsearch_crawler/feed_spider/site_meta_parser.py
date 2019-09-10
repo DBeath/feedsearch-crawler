@@ -1,3 +1,5 @@
+from typing import List, Dict
+
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response
@@ -16,23 +18,38 @@ class SiteMetaParser(ItemParser):
 
         site_meta.url = self.find_site_url(xml, url)
         site_meta.site_name = self.find_site_name(xml)
-        site_meta.icon_url = self.find_site_icon_url(xml, url)
+        site_meta.icon_urls = self.find_site_icon_urls(xml, url)
 
-        if site_meta.icon_url and self.crawler.favicon_data_uri:
-            yield self.follow(site_meta.icon_url, self.crawler.create_data_uri)
+        if self.crawler.favicon_data_uri:
+            for icon in site_meta.icon_urls:
+                if icon.get("icon_url"):
+                    yield self.follow(
+                        icon["icon_url"], self.crawler.create_data_uri, meta=icon
+                    )
 
         yield site_meta
 
     @staticmethod
-    def find_site_icon_url(soup, url) -> URL:
-        icon_rel = ["apple-touch-icon", "shortcut icon", "icon"]
+    def find_site_icon_urls(soup, url) -> Dict[Dict]:
+        possible_icons = [
+            {
+                "icon_priority": 1,
+                "icon_rel": "favicon",
+                "icon_url": url.join(URL("favicon.ico")),
+            },
+            {"icon_priority": 2, "icon_rel": "shortcut icon", "icon_url": ""},
+            {"icon_priority": 3, "icon_rel": "icon", "icon_url": ""},
+        ]
 
-        for rel in icon_rel:
-            link = soup.find(name="link", rel=rel)
+        links = {}
+        for icon in possible_icons:
+            link = soup.find(name="link", rel=icon["icon_rel"])
             if link:
-                icon = link.get("href", None)
-                return url.join(URL(icon))
-        return URL()
+                href = link.get("href", None)
+                if href:
+                    icon["icon_url"] = url.join(URL(href))
+                    links[icon["icon_url"]] = icon
+        return links
 
     @staticmethod
     def find_site_url(soup, url: URL) -> URL:

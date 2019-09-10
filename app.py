@@ -10,8 +10,8 @@ import collections
 
 urls = [
     # "arstechnica.com",
-    "http://davidbeath.com",
-    # "http://xkcd.com",
+    # "http://davidbeath.com",
+    "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
     # "scientificamerican.com",
@@ -30,6 +30,7 @@ urls = [
     # "latimes.com",
     # "http://feeds.washingtonpost.com/rss/rss_fact-checker?noredirect=on",
     # "http://tabletopwhale.com/index.html"
+    # "www.vanityfair.com"
 ]
 
 
@@ -40,11 +41,11 @@ def get_pretty_print(json_object: object):
 # @profile()
 def run_crawl():
     # user_agent = "Mozilla/5.0 (Compatible; Bot)"
-    user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
+    # user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
     # user_agent = "curl/7.58.0"
-    # user_agent = (
-    #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
-    # )
+    user_agent = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
+    )
     # user_agent = (
     #     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
     # )
@@ -56,7 +57,7 @@ def run_crawl():
         "Accept-Language": "en-US,en;q=0.5",
         "Accept-Encoding": "gzip, deflate, br",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        # "Referrer": "https://www.google.com/",
+        "Referrer": "https://www.google.com/",
     }
 
     crawler = FeedsearchSpider(
@@ -68,8 +69,8 @@ def run_crawl():
         max_depth=5,
         max_retries=3,
         ssl=True,
-        full_crawl=True,
-        delay=2,
+        full_crawl=False,
+        delay=0,
         headers=headers,
     )
     crawler.start_urls = urls

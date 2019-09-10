@@ -22,6 +22,7 @@ class Response:
         xml_parser=None,
         redirect_history=None,
         content_length: int = 0,
+        meta: Dict = None,
     ):
         self.url = url
         self.encoding = encoding
@@ -37,6 +38,7 @@ class Response:
         self._xml_parser = xml_parser
         self.redirect_history = redirect_history
         self.content_length = content_length
+        self.meta = meta
 
     @property
     def ok(self) -> bool:
