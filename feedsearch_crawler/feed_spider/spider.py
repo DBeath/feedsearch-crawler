@@ -1,16 +1,16 @@
 import base64
-import re
 import pathlib
+import re
 from types import AsyncGeneratorType
-from typing import Union, Any, List, Tuple, Set, Optional
-from w3lib.url import url_query_cleaner
+from typing import Union, Any, List, Set, Optional
 
 import bs4
+from w3lib.url import url_query_cleaner
 from yarl import URL
 
 from feedsearch_crawler.crawler import Crawler, Item, Request, Response
-
 from feedsearch_crawler.feed_spider.dupefilter import NoQueryDupeFilter
+from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
@@ -143,7 +143,7 @@ class FeedsearchSpider(Crawler):
 
     async def process_item(self, item: Item) -> None:
         """
-        Process parsed FeedInfo or SiteMeta items.
+        Process parsed items.
 
         :param item: Item object
         :return: None
@@ -152,6 +152,19 @@ class FeedsearchSpider(Crawler):
             self.items.add(item)
         elif isinstance(item, SiteMeta):
             self.site_metas.add(item)
+        elif isinstance(item, Favicon):
+            self.add_favicon(item)
+
+    def add_favicon(self, favicon: Favicon) -> None:
+        """
+        Add a favicon to the spider's favicon dictionary.
+
+        :param favicon: Favicon object
+        """
+        existing: Favicon = self.favicons.get(favicon.url)
+        if existing and existing.data_uri and not favicon.data_uri:
+            return
+        self.favicons[favicon.url] = favicon
 
     # noinspection PyPep8
     async def populate_feed_site_meta(self) -> None:
@@ -166,30 +179,32 @@ class FeedsearchSpider(Crawler):
                 host = meta.url.host
                 if not host:
                     self.logger.warning("No host in SiteMeta %s", meta)
-                    return
-                if host.startswith("www."):
-                    host = host[4:]
+                    continue
+                host.strip("www.")
 
                 # If the meta url host is in the feed url host then we can assume that the feed belongs to that site
                 if host in feed.url.host:
                     feed.site_url = meta.url
                     feed.site_name = meta.site_name
-                    if not feed.favicon:
-                        feed.favicon = meta.icon_url
+                    if not feed.favicon and meta.possible_icons:
+                        feed.favicon = meta.possible_icons[0].url
 
             # Populate favicon data uri if available
             if feed.favicon:
                 favicon = self.favicons.get(feed.favicon)
                 if favicon:
-                    feed.favicon_data_uri = favicon.get("uri")
-                    feed.favicon = favicon.get("resp_url")
+                    feed.favicon_data_uri = favicon.data_uri
+                    feed.favicon = favicon.resp_url
 
-    async def create_data_uri(self, request: Request, response: Response) -> None:
+    async def create_data_uri(
+        self, request: Request, response: Response, favicon: Favicon
+    ) -> None:
         """
         Create a data uri from a favicon image.
 
         :param request: Request
         :param response: Response
+        :param favicon: Favicon object
         :return: None
         """
         if not response.ok or not isinstance(response.data, bytes):
@@ -198,14 +213,9 @@ class FeedsearchSpider(Crawler):
         try:
             encoded = base64.b64encode(response.data)
             uri = "data:image/png;base64," + encoded.decode(response.encoding)
-            icon_dict = {
-                "uri": uri,
-                "resp_url": response.url,
-                "icon_url": response.meta.get("icon_url"),
-                "icon_priority": response.meta.get("icon_priority"),
-                "icon_rel": response.meta.get("icon_rel"),
-            }
-            self.favicons[request.url] = icon_dict
+            favicon.resp_url = response.url
+            favicon.data_uri = uri
+            self.add_favicon(favicon)
         except Exception as e:
             self.logger.warning("Failure encoding image: %s", e)
 

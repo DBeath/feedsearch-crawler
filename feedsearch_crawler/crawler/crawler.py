@@ -362,7 +362,7 @@ class Crawler(ABC):
         delay: Union[float, None] = None,
         priority: int = 0,
         allow_domain: bool = False,
-        meta: Dict = None,
+        cb_kwargs: Dict = None,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -386,7 +386,7 @@ class Crawler(ABC):
         :param delay: Optionally override the default delay for the Request.
         :param priority: Optionally override the default priority of the Request.
         :param allow_domain: Optionally override the allowed domains check.
-        :param meta: Optional Dictionary of meta values for this Request. Can be accessed in the response.meta attribute.
+        :param cb_kwargs: Optional Dictionary of keyword arguments to be passed to the callback function.
         :return: Request
         """
         if isinstance(url, str):
@@ -431,7 +431,7 @@ class Crawler(ABC):
             method=method,
             delay=delay if isinstance(delay, float) else self.delay,
             retries=self.max_retries,
-            meta=meta,
+            cb_kwargs=cb_kwargs,
             **kwargs,
         )
 

@@ -46,12 +46,6 @@ class FeedInfo(Item):
             last_updated=last_updated,
         )
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        for k in kwargs.keys():
-            if hasattr(self, k):
-                self.__setattr__(k, kwargs[k])
-
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.url == other.url
 

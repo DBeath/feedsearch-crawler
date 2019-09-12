@@ -1,14 +1,18 @@
+from typing import List
+
 from yarl import URL
 
 from feedsearch_crawler.crawler import Item
 
 
 class SiteMeta(Item):
-    url: URL = ""
+    url: URL = None
     site_url: str = ""
     site_name: str = ""
-    icon_url: URL = ""
+    icon_url: URL = None
     icon_data_uri: str = ""
+    possible_icons: List = []
+    host: str = ""
 
     def __init__(self, url: URL, **kwargs) -> None:
         super().__init__(**kwargs)

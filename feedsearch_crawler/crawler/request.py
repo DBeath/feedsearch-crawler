@@ -37,7 +37,7 @@ class Request(Queueable):
         max_content_length: int = 1024 * 1024 * 10,
         delay: float = 0,
         retries: int = 3,
-        meta: Dict = None,
+        cb_kwargs: Dict = None,
         **kwargs,
     ):
         """
@@ -60,7 +60,7 @@ class Request(Queueable):
         :param max_content_length: Maximum allowed size in bytes of Response content
         :param delay: Time in seconds to delay Request
         :param retries: Number of times to retry a failed Request
-        :param meta: Optional Dictionary of meta values for this Request. Can be accessed in the response.meta attribute
+        :param cb_kwargs: Optional Dictionary of keyword arguments to be passed to the callback function.
         :param kwargs: Optional keyword arguments
         """
         self.url = url
@@ -86,7 +86,7 @@ class Request(Queueable):
         self.params = params
         self.has_run: bool = False
         self.delay = delay
-        self.meta = meta
+        self.cb_kwargs = cb_kwargs or {}
 
         self.should_retry: bool = False
         self._max_retries = retries
@@ -119,9 +119,13 @@ class Request(Queueable):
         callback_result = None
 
         if response.ok and self._callback:
-            callback_result = self._callback(self, response)
+            callback_result = self._callback(
+                request=self, response=response, **self.cb_kwargs
+            )
         elif not response.ok and self._failure_callback:
-            callback_result = self._failure_callback(self, response)
+            callback_result = self._failure_callback(
+                request=self, response=response, **self.cb_kwargs
+            )
 
         return callback_result, response
 
@@ -203,7 +207,7 @@ class Request(Queueable):
                     cookies=resp.cookies,
                     redirect_history=resp.history,
                     content_length=actual_content_length,
-                    meta=copy.copy(self.meta),
+                    meta=copy.copy(self.cb_kwargs),
                 )
 
                 # Raise exception after the Response object is created, because we only catch TimeoutErrors and

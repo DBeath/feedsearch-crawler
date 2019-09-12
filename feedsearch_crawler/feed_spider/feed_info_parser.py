@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
+from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.lib import parse_header_links
 
@@ -51,7 +52,12 @@ class FeedInfoParser(ItemParser):
             return
 
         if item.favicon and self.crawler.favicon_data_uri:
-            yield self.follow(item.favicon, self.crawler.create_data_uri)
+            favicon = Favicon(url=item.favicon)
+            yield self.follow(
+                item.favicon,
+                self.crawler.create_data_uri,
+                cb_kwargs=dict(favicon=favicon),
+            )
 
         # Handle a case where the item url contains a trailing slash and the self url doesn't.
         if item.self_url and item.self_url != item.url:
