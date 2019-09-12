@@ -194,7 +194,7 @@ class FeedsearchSpider(Crawler):
                 favicon = self.favicons.get(feed.favicon)
                 if favicon:
                     feed.favicon_data_uri = favicon.data_uri
-                    feed.favicon = favicon.resp_url
+                    feed.favicon = favicon.resp_url if favicon.resp_url else favicon.url
 
     async def create_data_uri(
         self, request: Request, response: Response, favicon: Favicon
