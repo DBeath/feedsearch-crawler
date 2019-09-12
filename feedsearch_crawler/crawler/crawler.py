@@ -627,8 +627,13 @@ class Crawler(ABC):
 
         start = time.perf_counter()
 
+        # Create start urls from the initial URL if provided.
         if url:
-            self.start_urls = self.create_start_urls(url)
+            start_urls = self.create_start_urls(url)
+            if self.start_urls:
+                self.start_urls.extend(start_urls)
+            else:
+                self.start_urls = start_urls
 
         if not self.start_urls:
             raise ValueError("crawler.start_urls are required")

@@ -1,6 +1,8 @@
 from typing import Union, List
 
 from yarl import URL
+from datetime import datetime
+from dateutil import tz, parser
 
 
 def get_site_root(url: Union[str, URL]) -> str:
@@ -51,3 +53,26 @@ def parse_header_links(value):
         links.append(link)
 
     return links
+
+
+def force_utc(dt: datetime) -> datetime:
+    """
+    Change a datetime to UTC, and convert naive datetimes to tz-aware UTC.
+
+    :param dt: datetime to change to UTC
+    :return: tz-aware UTC datetime
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=tz.tzutc())
+    return dt.astimezone(tz.tzutc())
+
+
+def datestring_to_utc_datetime(date_string: str) -> datetime:
+    """
+    Convert a date string to a tz-aware UTC datetime.
+
+    :param date_string: A datetime as a string in almost any format.
+    :return: tz-aware UTC datetime
+    """
+    dt = parser.parse(date_string)
+    return force_utc(dt)

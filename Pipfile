@@ -14,8 +14,8 @@ aiodns = "*"
 uvloop = "*"
 w3lib = "*"
 feedparser = "*"
-udatetime = "*"
 brotlipy = "*"
+python-dateutil = "*"
 
 [requires]
 python_version = "3.7"

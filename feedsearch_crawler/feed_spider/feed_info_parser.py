@@ -4,14 +4,16 @@ from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
-import udatetime
 from bs4 import BeautifulSoup
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
-from feedsearch_crawler.feed_spider.lib import parse_header_links
+from feedsearch_crawler.feed_spider.lib import (
+    parse_header_links,
+    datestring_to_utc_datetime,
+)
 
 
 class FeedInfoParser(ItemParser):
@@ -107,20 +109,11 @@ class FeedInfoParser(ItemParser):
             dates = []
             now_date = datetime.utcnow().date()
 
-            for entry in parsed.get("entries", None):
-                if entry.get("published_parsed"):
-                    published = datetime.utcfromtimestamp(
-                        time.mktime(entry.get("published_parsed", ""))
-                    )
-                    if published.date() <= now_date:
-                        dates.append(published)
-
-                if entry.get("updated_parsed"):
-                    updated = datetime.utcfromtimestamp(
-                        time.mktime(entry.get("updated_parsed", ""))
-                    )
-                    if updated.date() <= now_date:
-                        dates.append(updated)
+            dates.extend(
+                FeedInfoParser.entry_dates(
+                    parsed.get("entries", None), ["published", "updated"], now_date
+                )
+            )
 
             item.last_updated = sorted(dates, reverse=True)[0]
         except Exception as e:
@@ -166,16 +159,13 @@ class FeedInfoParser(ItemParser):
             dates = []
             now_date: date = datetime.utcnow().date()
 
-            for entry in data.get("items"):
-                if entry.get("date_published"):
-                    published: datetime = udatetime.from_string(entry["date_published"])
-                    if published.date() <= now_date:
-                        dates.append(published)
-
-                if entry.get("date_modified"):
-                    modified: datetime = udatetime.from_string(entry["date_modified"])
-                    if modified.date() <= now_date:
-                        dates.append(modified)
+            dates.extend(
+                FeedInfoParser.entry_dates(
+                    data.get("items", None),
+                    ["date_published", "date_modified"],
+                    now_date,
+                )
+            )
 
             item.last_updated = sorted(dates, reverse=True)[0]
         except Exception as e:
@@ -376,3 +366,22 @@ class FeedInfoParser(ItemParser):
                 score += p
 
         item.score = score
+
+    @staticmethod
+    def entry_dates(entries: List[Dict], date_names: List[str], current_date: date):
+        """
+        Return published or updated dates from feed entries.
+
+        :param entries: List of feed entries as dicts.
+        :param date_names: List of key names of entry published or updated values.
+        :param current_date: The current date.
+        :return: generator that returns datetimes.
+        """
+        for entry in entries:
+            for name in date_names:
+                try:
+                    entry_date: datetime = datestring_to_utc_datetime(entry[name])
+                    if entry_date.date() <= current_date:
+                        yield entry_date
+                except (KeyError, ValueError):
+                    pass
