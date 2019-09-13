@@ -173,28 +173,42 @@ class FeedsearchSpider(Crawler):
         """
         for feed in self.items:
             # Check each SiteMeta for a url host match
-            for meta in self.site_metas:
-                # If the meta url host begins with www, then we remove it because the feed may be on
-                # a different subdomain
-                host = meta.url.host
-                if not host:
-                    self.logger.warning("No host in SiteMeta %s", meta)
-                    continue
-                host.strip("www.")
+            site_meta = next(x for x in self.site_metas if x.host in feed.url.host)
+            if site_meta:
+                feed.site_url = site_meta.url
+                feed.site_name = site_meta.site_name
 
-                # If the meta url host is in the feed url host then we can assume that the feed belongs to that site
-                if host in feed.url.host:
-                    feed.site_url = meta.url
-                    feed.site_name = meta.site_name
-                    if not feed.favicon and meta.possible_icons:
-                        feed.favicon = meta.possible_icons[0].url
-
-            # Populate favicon data uri if available
+            # Populate favicon directly if available
             if feed.favicon:
                 favicon = self.favicons.get(feed.favicon)
                 if favicon:
                     feed.favicon_data_uri = favicon.data_uri
                     feed.favicon = favicon.resp_url if favicon.resp_url else favicon.url
+
+            # If a favicon hasn't been found yet or there is no data_uri then try and find a suitable favicon
+            if not feed.favicon or (
+                self.favicon_data_uri and not feed.favicon_data_uri
+            ):
+                if self.favicon_data_uri:
+                    favicons = list(
+                        x
+                        for x in list(self.favicons.values())
+                        if (x.url and x.site_host in feed.url.host and x.data_uri)
+                    )
+                else:
+                    favicons = list(
+                        x
+                        for x in list(self.favicons.values())
+                        if (x.url and x.site_host in feed.url.host)
+                    )
+
+                if favicons:
+                    favicon = min(favicons, key=lambda x: x.priority)
+                    if favicon:
+                        feed.favicon_data_uri = favicon.data_uri
+                        feed.favicon = (
+                            favicon.resp_url if favicon.resp_url else favicon.url
+                        )
 
     async def create_data_uri(
         self, request: Request, response: Response, favicon: Favicon
@@ -207,7 +221,7 @@ class FeedsearchSpider(Crawler):
         :param favicon: Favicon object
         :return: None
         """
-        if not response.ok or not isinstance(response.data, bytes):
+        if not response.ok or not response.data or not isinstance(response.data, bytes):
             return
 
         try:

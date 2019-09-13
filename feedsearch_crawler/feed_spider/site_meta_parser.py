@@ -24,15 +24,16 @@ class SiteMetaParser(ItemParser):
 
         for icon in site_meta.possible_icons:
             if icon.url:
-                # Always yield valid favicon urls
-                yield icon
                 # Only follow favicon urls if we want to create a data uri
                 if self.crawler.favicon_data_uri:
                     yield self.follow(
                         icon.url,
                         self.crawler.create_data_uri,
                         cb_kwargs=dict(favicon=icon),
+                        allow_domain=True,
                     )
+                else:
+                    yield icon
 
         yield site_meta
 
@@ -40,10 +41,10 @@ class SiteMetaParser(ItemParser):
     def find_site_icon_urls(soup, url, host) -> List[Favicon]:
         search_icons = [
             Favicon(
-                url=url.join(URL("favicon.ico")), rel="favicon", priority=1, host=host
+                url=url.join(URL("favicon.ico")), rel="favicon", priority=3, host=host
             ),
-            Favicon(url="", rel="shortcut icon", priority=2, host=host),
-            Favicon(url="", rel="icon", priority=3, host=host),
+            Favicon(url="", rel="shortcut icon", priority=1, host=host),
+            Favicon(url="", rel="icon", priority=2, host=host),
         ]
 
         possible_icons = []
