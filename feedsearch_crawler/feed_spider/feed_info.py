@@ -7,7 +7,7 @@ from feedsearch_crawler.crawler import Item, to_string
 
 
 class FeedInfo(Item):
-    score: int = ""
+    score: int = 0
     url: URL = ""
     content_type: str = ""
     version: str = ""
