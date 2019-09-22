@@ -76,3 +76,15 @@ def datestring_to_utc_datetime(date_string: str) -> datetime:
     """
     dt = parser.parse(date_string)
     return force_utc(dt)
+
+
+def remove_www(host: str) -> str:
+    """
+    Remove www. subdomain from URL host strings.
+
+    :param host: URL host without scheme or path. e.g. www.test.com
+    :return: URL host string.
+    """
+    if host.startswith("www."):
+        return host[4:]
+    return host

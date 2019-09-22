@@ -3,7 +3,7 @@ import logging
 import json
 import time
 from pprint import pprint
-from feedsearch_crawler import search, FeedsearchSpider, output_opml
+from feedsearch_crawler import search, FeedsearchSpider, output_opml, sort_urls
 from feedsearch_crawler.crawler import coerce_url
 from datetime import datetime
 import collections
@@ -11,14 +11,14 @@ import collections
 urls = [
     # "arstechnica.com",
     # "http://davidbeath.com",
-    "http://xkcd.com",
+    # "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
     # "scientificamerican.com",
     # "newyorktimes.com",
     # "https://www.dancarlin.com",
     # "https://www.hanselminutes.com/",
-    # "nytimes.com",
+    "nytimes.com",
     # "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/",
     # "feedhandbook.com",
     # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/",
@@ -65,7 +65,7 @@ def run_crawl():
         total_timeout=360,
         request_timeout=30,
         user_agent=user_agent,
-        favicon_data_uri=False,
+        favicon_data_uri=True,
         max_depth=5,
         max_retries=3,
         ssl=True,
@@ -78,7 +78,9 @@ def run_crawl():
     asyncio.run(crawler.crawl())
     # asyncio.run(crawler.crawl(urls[0]))
 
-    serialized = [item.serialize() for item in crawler.items]
+    items = sort_urls(list(crawler.items))
+
+    serialized = [item.serialize() for item in items]
 
     # items = search(urls[0], concurrency=40, try_urls=False, favicon_data_uri=False)
     # serialized = [item.serialize() for item in items]
@@ -94,15 +96,16 @@ def run_crawl():
     pprint(crawler.favicons)
     pprint(crawler._duplicate_filter.fingerprints)
 
-    print(output_opml(list(crawler.items)).decode())
+    print(output_opml(items).decode())
 
     pprint([result["url"] for result in serialized])
     pprint(crawler.get_stats())
 
-    print(f"Feeds found: {len(crawler.items)}")
+    print(f"Feeds found: {len(items)}")
     print(f"SiteMetas: {len(crawler.site_metas)}")
     print(f"Favicons fetched: {len(crawler.favicons)}")
     # pprint(crawler.queue_wait_times)
+    pprint(list((x.score, x.url) for x in items))
 
 
 def create_allowed_domains(urls):

@@ -4,6 +4,7 @@ from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response
 from feedsearch_crawler.feed_spider.favicon import Favicon
+from feedsearch_crawler.feed_spider.lib import remove_www
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 
 
@@ -18,7 +19,7 @@ class SiteMetaParser(ItemParser):
             return
 
         site_meta.url = self.find_site_url(xml, url)
-        site_meta.host = site_meta.url.host.strip("www.")
+        site_meta.host = remove_www(site_meta.url.host)
         site_meta.site_name = self.find_site_name(xml)
         site_meta.possible_icons = self.find_site_icon_urls(xml, url, site_meta.host)
 

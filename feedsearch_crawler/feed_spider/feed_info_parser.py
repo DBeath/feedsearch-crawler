@@ -1,5 +1,6 @@
 import time
 from datetime import datetime, date
+from statistics import mean
 from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
@@ -13,6 +14,7 @@ from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.lib import (
     parse_header_links,
     datestring_to_utc_datetime,
+    remove_www,
 )
 
 
@@ -111,11 +113,12 @@ class FeedInfoParser(ItemParser):
 
             dates.extend(
                 FeedInfoParser.entry_dates(
-                    parsed.get("entries", None), ["published", "updated"], now_date
+                    parsed.get("entries", None), ["updated", "published"], now_date
                 )
             )
 
             item.last_updated = sorted(dates, reverse=True)[0]
+            item.velocity = self.entry_velocity(dates)
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
@@ -162,12 +165,13 @@ class FeedInfoParser(ItemParser):
             dates.extend(
                 FeedInfoParser.entry_dates(
                     data.get("items", None),
-                    ["date_published", "date_modified"],
+                    ["date_modified", "date_published"],
                     now_date,
                 )
             )
 
             item.last_updated = sorted(dates, reverse=True)[0]
+            item.velocity = self.entry_velocity(dates)
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
@@ -324,14 +328,12 @@ class FeedInfoParser(ItemParser):
     def score_item(item: FeedInfo, original_url: URL):
         score = 0
 
-        url_str = str(item.url)
+        url_str = str(item.url).lower()
 
         # -- Score Decrement --
 
         if original_url:
-            host = original_url.host
-            if host.startswith("www."):
-                host = host[len("www.") :]
+            host = remove_www(original_url.host)
 
             if host not in item.url.host:
                 score -= 20
@@ -351,6 +353,8 @@ class FeedInfoParser(ItemParser):
             score -= 7
         if "comments" in url_str or "comments" in item.title.lower():
             score -= 15
+        if "feedburner" in url_str:
+            score -= 10
 
         # -- Score Increment --
         if item.url.scheme == "https":
@@ -358,7 +362,12 @@ class FeedInfoParser(ItemParser):
         if item.is_push:
             score += 10
         if "index" in url_str:
-            score += 15
+            score += 30
+
+        score += int(item.velocity)
+
+        if any(map(url_str.count, ["/home", "/top", "/most", "/magazine"])):
+            score += 10
 
         kw = ["atom", "rss", ".xml", "feed", "rdf"]
         for p, t in zip(range(len(kw) * 2, 0, -2), kw):
@@ -385,3 +394,30 @@ class FeedInfoParser(ItemParser):
                         yield entry_date
                 except (KeyError, ValueError):
                     pass
+
+    @staticmethod
+    def entry_velocity(dates: List[datetime]) -> float:
+        """
+        Calculate velocity of posted entries, returns a float of the average number of entries posted per day.
+
+        :param dates: List of entry dates
+        :return: Average entries per day
+        """
+        if not dates or len(dates) < 3:
+            return 0
+
+        dates = sorted(dates)
+        deltas = []
+        previous_date: datetime = dates[0]
+
+        for current_date in dates[1:]:
+            if current_date == previous_date:
+                continue
+            delta = current_date - previous_date
+            deltas.append(delta.total_seconds())
+            previous_date = current_date
+
+        mean_seconds_delta = mean(deltas)
+
+        result = round(86400 / mean_seconds_delta, 3)
+        return result

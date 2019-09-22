@@ -114,5 +114,6 @@ In addition to the *url*, FeedInfo objects may have the following values:
 - **site_url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed's website.
 - **title**: *str*: Feed Title.
 - **url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) location of feed.
+- **velocity**: *float*: Mean number of entries per day in the feed at the current time.
 - **version**: *str*: Feed version [XML values](https://pythonhosted.org/feedparser/version-detection.html),
   or [JSON feed](https://jsonfeed.org/version/1).
