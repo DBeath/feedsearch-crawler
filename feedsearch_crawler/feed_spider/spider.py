@@ -302,17 +302,20 @@ class FeedsearchSpider(Crawler):
         href: str = link.get("href")
         link_type: str = link.get("type")
 
-        url = self.parse_href_to_url(href)
+        url: URL = self.parse_href_to_url(href)
         if not url:
             return
 
         is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
 
-        priority = Request.priority
+        priority: int = Request.priority
 
         has_author_info: bool = self.has_author_info(href)
-        is_feedlike_url: bool = self.is_feedlike_url(url, href)
+        is_feedlike_href: bool = self.is_feedlike_href(href)
+        is_feedlike_querystring: bool = self.is_feedlike_querystring(url)
         is_low_priority: bool = self.is_low_priority(href)
+
+        is_feedlike_url = is_feedlike_querystring or is_feedlike_href
 
         # A low priority url should be fetched last.
         if is_low_priority:
@@ -348,7 +351,12 @@ class FeedsearchSpider(Crawler):
             # If full_crawl then follow all valid URLs regardless of the feedlike quality of the URL.
             # Otherwise only follow URLs if they look like they might contain feed information.
             if follow and (self.full_crawl or is_feedlike_url):
-                return await self.follow(href, self.parse, response, priority=priority)
+
+                # Remove the querystring unless it may point to a feed.
+                if not is_feedlike_querystring:
+                    url = url.with_query(None)
+
+                return await self.follow(url, self.parse, response, priority=priority)
 
     @staticmethod
     def tag_has_href(tag: bs4.Tag) -> bool:
@@ -436,18 +444,26 @@ class FeedsearchSpider(Crawler):
         )
 
     @staticmethod
-    def is_feedlike_url(url: URL, url_string: str) -> bool:
+    def is_feedlike_href(url_string: str) -> bool:
         """
         Check if url looks like it may point to something resembling a feed.
 
-        :param url: URL object
         :param url_string: URL string
         :return: boolean
         """
         # Check url string without query parameters
         if feedlike_regex.search(url_query_cleaner(url_string)):
             return True
-        # Check querystring keys
+        return False
+
+    @staticmethod
+    def is_feedlike_querystring(url: URL) -> bool:
+        """
+        Check if the url querystring looks like it may point to a feed.
+
+        :param url: URL object
+        :return: boolean
+        """
         for key in url.query:
             if feedlike_regex.search(key):
                 return True
