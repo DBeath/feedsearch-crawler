@@ -117,7 +117,7 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
     :return: str
     """
     if isinstance(url, str):
-        url = URL(url)
+        url = URL(url.strip())
 
     scheme = "https" if https else "http"
 
@@ -127,6 +127,8 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
         url = URL.build(scheme=scheme, host=split[0])
         if len(split) > 1:
             url = url.with_path(split[1])
+    elif url.scheme == "http" and https:
+        url = url.with_scheme(scheme)
 
     return url
 

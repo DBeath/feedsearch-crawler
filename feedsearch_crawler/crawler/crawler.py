@@ -345,11 +345,13 @@ class Crawler(ABC):
             return True
 
         try:
+            if not url or not url.host:
+                return False
             host = url.host
             for domain_pattern in self.allowed_domains:
                 if fnmatch(host, domain_pattern):
                     return True
-        except ValueError as e:
+        except Exception as e:
             self.logger.warning(e)
         return False
 

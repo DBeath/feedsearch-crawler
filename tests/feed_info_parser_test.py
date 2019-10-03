@@ -1,7 +1,7 @@
-from feedsearch_crawler.feed_spider.feed_info import FeedInfo
-from yarl import URL
 from datetime import datetime
+
 from dateutil.tz import tzutc
+
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 
 
