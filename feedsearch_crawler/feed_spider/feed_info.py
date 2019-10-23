@@ -14,6 +14,7 @@ class FeedInfo(Item):
     favicon: URL = ""
     favicon_data_uri: str = ""
     hubs: List[str] = []
+    is_podcast: bool = False
     is_push: bool = False
     last_updated: datetime = None
     score: int = 0
@@ -36,6 +37,7 @@ class FeedInfo(Item):
             favicon=to_string(self.favicon),
             favicon_data_uri=self.favicon_data_uri,
             hubs=self.hubs,
+            is_podcast=self.is_podcast,
             is_push=self.is_push,
             last_updated=last_updated,
             score=self.score,

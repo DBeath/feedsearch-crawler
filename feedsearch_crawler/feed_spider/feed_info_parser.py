@@ -106,6 +106,7 @@ class FeedInfoParser(ItemParser):
         item.version = parsed.get("version")
         item.title = self.feed_title(feed)
         item.description = self.feed_description(feed)
+        item.is_podcast = self.is_podcast(parsed)
 
         try:
             dates = []
@@ -255,6 +256,20 @@ class FeedInfoParser(ItemParser):
         except Exception as ex:
             self.logger.exception("Failed to clean title: %s", ex)
             return ""
+
+    @staticmethod
+    def is_podcast(parsed: dict) -> bool:
+        """
+        Check if the feed is a Podcast.
+
+        :param parsed: Feedparser dict
+        :return: bool
+        """
+        has_itunes: bool = "itunes" in parsed.get("namespaces")
+        has_enclosures: bool = any(
+            [len(x.get("enclosures")) >= 1 for x in parsed.get("entries")]
+        )
+        return has_itunes and has_enclosures
 
     @staticmethod
     def feed_description(feed: dict) -> str:

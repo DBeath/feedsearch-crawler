@@ -416,6 +416,7 @@ class Crawler(ABC):
 
         # The URL host must be in the list of allowed domains.
         if not allow_domain and not self.is_allowed_domain(url):
+            self.logger.debug("Domain '%s' not allowed: %s", url.host, url)
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.

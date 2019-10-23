@@ -17,7 +17,9 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 # Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile("\\b(rss|feed|feeds|atom|json|xml|rdf)\\b", re.IGNORECASE)
+feedlike_regex = re.compile(
+    "\\b(rss|feeds?|atom|json|xml|rdf|podcasts?)\\b", re.IGNORECASE
+)
 
 # Regex to check if the URL might contain author information.
 author_regex = re.compile(
@@ -356,7 +358,9 @@ class FeedsearchSpider(Crawler):
                 if not is_feedlike_querystring:
                     url = url.with_query(None)
 
-                return await self.follow(url, self.parse, response, priority=priority)
+                return await self.follow(
+                    url, self.parse, response, priority=priority, allow_domain=True
+                )
 
     @staticmethod
     def tag_has_href(tag: bs4.Tag) -> bool:
