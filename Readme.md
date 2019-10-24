@@ -106,6 +106,7 @@ In addition to the *url*, FeedInfo objects may have the following values:
 - **favicon**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed or site [Favicon](https://en.wikipedia.org/wiki/Favicon).
 - **favicon_data_uri**: *str*: [Data Uri](https://en.wikipedia.org/wiki/Data_URI_scheme) of Favicon.
 - **hubs**: *List[str]*: List of [Websub](https://en.wikipedia.org/wiki/WebSub) hubs of feed if available.
+- **is_podcast**: *bool*: True if the feed contains valid podcast elements and enclosures.
 - **is_push**: *bool*: True if feed contains valid Websub data.
 - **last_updated**: *datetime*: Date of the latest published entry.
 - **score**: *int*: Computed relevance of feed url value to provided URL. May be safely ignored.
