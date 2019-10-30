@@ -9,7 +9,7 @@ from datetime import datetime
 import collections
 
 urls = [
-    # "arstechnica.com",
+    "arstechnica.com",
     # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -18,7 +18,7 @@ urls = [
     # "newyorktimes.com",
     # "https://www.dancarlin.com",
     # "https://www.hanselminutes.com/",
-    "nytimes.com",
+    # "nytimes.com",
     # "https://www.jeremydaly.com/serverless-microservice-patterns-for-aws/",
     # "feedhandbook.com",
     # "https://americanaffairsjournal.org/2019/05/ubers-path-of-destruction/",
@@ -30,7 +30,12 @@ urls = [
     # "latimes.com",
     # "http://feeds.washingtonpost.com/rss/rss_fact-checker?noredirect=on",
     # "http://tabletopwhale.com/index.html"
-    # "www.vanityfair.com"
+    # "www.vanityfair.com",
+    # "bloomberg.com",
+    # "http://www.bloomberg.com/politics/feeds/site.xml",
+    # "propublica.org"
+    # "npr.org",
+    # "rifters.com"
 ]
 
 
@@ -43,12 +48,12 @@ def run_crawl():
     # user_agent = "Mozilla/5.0 (Compatible; Bot)"
     # user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
     # user_agent = "curl/7.58.0"
-    user_agent = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
-    )
     # user_agent = (
-    #     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
     # )
+    user_agent = (
+        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    )
 
     headers = {
         "User-Agent": user_agent,

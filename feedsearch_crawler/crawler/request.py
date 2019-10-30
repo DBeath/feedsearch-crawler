@@ -156,6 +156,12 @@ class Request(Queueable):
                 # Fail the response if the content length header is too large.
                 content_length: int = int(resp.headers.get("Content-Length", "0"))
                 if content_length > self.max_content_length:
+                    self.logger.debug(
+                        "Content-Length of Response header %d greater than max %d: %s",
+                        content_length,
+                        self.max_content_length,
+                        self,
+                    )
                     return self._failed_response(413)
 
                 # Read the response content, and fail the response if the actual content size is too large.
@@ -276,9 +282,14 @@ class Request(Queueable):
                     break
                 body += chunk
                 if len(body) > self.max_content_length:
+                    self.logger.debug(
+                        "Content Length of Response body greater than max %d: %s",
+                        self.max_content_length,
+                        self,
+                    )
                     return False, 0
         except (IncompleteReadError, LimitOverrunError) as e:
-            self.logger.exception("Failed to read Response content: %s", e)
+            self.logger.exception("Failed to read Response content: %s: %s", self, e)
             return False, 0
         resp._body = body
         return True, len(body)

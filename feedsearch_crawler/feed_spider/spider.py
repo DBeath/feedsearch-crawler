@@ -228,6 +228,21 @@ class FeedsearchSpider(Crawler):
         if not response.ok or not response.data or not isinstance(response.data, bytes):
             return
 
+        def is_png(data: bytes) -> bool:
+            return data[:8] in bytes.fromhex("89 50 4E 47 0D 0A 1A 0A")
+
+        def is_ico(data: bytes) -> bool:
+            return data[:4] in bytes.fromhex("00 00 01 00")
+
+        try:
+            if not is_png(response.data) and not is_ico(response.data):
+                self.logger.debug(
+                    "Response data is not a valid image type: %s", response
+                )
+                return
+        except Exception as e:
+            self.logger.error("Failure validation image type: %s: %s", response, e)
+
         try:
             encoded = base64.b64encode(response.data)
             uri = "data:image/png;base64," + encoded.decode(response.encoding)
@@ -235,7 +250,7 @@ class FeedsearchSpider(Crawler):
             favicon.data_uri = uri
             self.add_favicon(favicon)
         except Exception as e:
-            self.logger.warning("Failure encoding image: %s", e)
+            self.logger.error("Failure encoding image: %s: %s", response, e)
 
     def create_start_urls(self, url: Union[str, URL]) -> List[URL]:
         """

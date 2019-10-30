@@ -365,6 +365,9 @@ class Crawler(ABC):
         priority: int = 0,
         allow_domain: bool = False,
         cb_kwargs: Dict = None,
+        max_content_length: int = None,
+        timeout: float = None,
+        retries: int = None,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -429,11 +432,11 @@ class Crawler(ABC):
             history=history,
             callback=callback,
             xml_parser=self.parse_xml,
-            max_content_length=self.max_content_length,
-            timeout=self.request_timeout,
+            max_content_length=max_content_length or self.max_content_length,
+            timeout=timeout or self.request_timeout,
             method=method,
             delay=delay if isinstance(delay, float) else self.delay,
-            retries=self.max_retries,
+            retries=retries or self.max_retries,
             cb_kwargs=cb_kwargs,
             **kwargs,
         )

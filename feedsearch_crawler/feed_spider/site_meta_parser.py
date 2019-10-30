@@ -32,6 +32,7 @@ class SiteMetaParser(ItemParser):
                         self.crawler.create_data_uri,
                         cb_kwargs=dict(favicon=icon),
                         allow_domain=True,
+                        max_content_length=51200,
                     )
                 else:
                     yield icon
