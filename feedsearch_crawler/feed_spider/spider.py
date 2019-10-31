@@ -252,59 +252,66 @@ class FeedsearchSpider(Crawler):
         except Exception as e:
             self.logger.error("Failure encoding image: %s: %s", response, e)
 
-    def create_start_urls(self, url: Union[str, URL]) -> List[URL]:
+    def create_start_urls(self, urls: List[Union[URL, str]]) -> List[URL]:
         """
-        Create URLs for the initial Requests.
+        Create the start URLs for the crawl from an initial URL. May be overridden.
 
-        :param url: Original query URL
-        :return: List of URLs to search
+        :param urls: Initial URLs
         """
-        if isinstance(url, str):
-            if "//" not in url:
-                url = f"//{url}"
-            url = URL(url)
+        crawl_start_urls: Set[URL] = set()
 
-        if url.scheme not in ["http", "https"]:
-            url = url.with_scheme("http")
+        for url in urls + self.start_urls:
+            if isinstance(url, str):
+                if "//" not in url:
+                    url = f"//{url}"
+                url = URL(url)
 
-        origin = url.origin()
+            if url.scheme.lower() not in ["http", "https"]:
+                url = url.with_scheme("http")
 
-        urls: Set[URL] = {url, origin}
-
-        # Common paths for feeds.
-        suffixes = {
-            "index.xml",
-            "atom.xml",
-            "feeds",
-            "feeds/default",
-            "feed",
-            "feed/default",
-            "feeds/posts/default",
-            "?feed=rss",
-            "?feed=atom",
-            "?feed=rss2",
-            "?feed=rdf",
-            "rss",
-            "atom",
-            "rdf",
-            "index.rss",
-            "index.rdf",
-            "index.atom",
-            "data/rss",
-            "rss.xml",
-            "index.json",
-            "about",
-            "about/feeds",
-            "rss-feeds",
-        }
+            crawl_start_urls.add(url)
 
         if self.try_urls:
-            if isinstance(self.try_urls, list):
-                urls.update(origin.join(URL(suffix)) for suffix in self.try_urls)
-            else:
-                urls.update(origin.join(URL(suffix)) for suffix in suffixes)
+            origins = set(url.origin() for url in crawl_start_urls)
 
-        return list(urls)
+            # Common paths for feeds.
+            suffixes = {
+                "index.xml",
+                "atom.xml",
+                "feeds",
+                "feeds/default",
+                "feed",
+                "feed/default",
+                "feeds/posts/default",
+                "?feed=rss",
+                "?feed=atom",
+                "?feed=rss2",
+                "?feed=rdf",
+                "rss",
+                "atom",
+                "rdf",
+                "index.rss",
+                "index.rdf",
+                "index.atom",
+                "data/rss",
+                "rss.xml",
+                "index.json",
+                "about",
+                "about/feeds",
+                "rss-feeds",
+            }
+
+            for origin in origins:
+                if isinstance(self.try_urls, list):
+                    crawl_start_urls.update(
+                        origin.join(URL(suffix)) for suffix in self.try_urls
+                    )
+                else:
+                    crawl_start_urls.update(
+                        origin.join(URL(suffix)) for suffix in suffixes
+                    )
+
+        return list(crawl_start_urls)
 
     async def should_follow_link(
         self, link: bs4.Tag, response: Response

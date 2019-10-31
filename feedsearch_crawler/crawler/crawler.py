@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Set
 from typing import Union
 from fnmatch import fnmatch
 
@@ -391,6 +391,9 @@ class Crawler(ABC):
         :param delay: Optionally override the default delay for the Request.
         :param priority: Optionally override the default priority of the Request.
         :param allow_domain: Optionally override the allowed domains check.
+        :param max_content_length: Optionally override the maximum allowed size in bytes of Response body.
+        :param retries: Optionally override the number of Request retries.
+        :param timeout: Optionally override the Request timeout.
         :param cb_kwargs: Optional Dictionary of keyword arguments to be passed to the callback function.
         :return: Request
         """
@@ -541,19 +544,26 @@ class Crawler(ABC):
         else:
             self.logger.warning("Callback %s must be a coroutine or function", callback)
 
-    def create_start_urls(self, url: Union[str, URL]) -> List[URL]:
+    def create_start_urls(self, urls: List[Union[URL, str]]) -> List[URL]:
         """
         Create the start URLs for the crawl from an initial URL. May be overridden.
 
-        :param url: Initial URL
+        :param urls: Initial URLs
         """
-        if isinstance(url, str):
-            url = URL(url)
+        crawl_start_urls: Set[URL] = set()
 
-        if url.scheme.lower() not in ["http", "https"]:
-            url = url.with_scheme("http")
+        for url in urls + self.start_urls:
+            if isinstance(url, str):
+                if "//" not in url:
+                    url = f"//{url}"
+                url = URL(url)
 
-        return [url]
+            if url.scheme.lower() not in ["http", "https"]:
+                url = url.with_scheme("http")
+
+            crawl_start_urls.add(url)
+
+        return list(crawl_start_urls)
 
     def record_statistics(self) -> None:
         """
@@ -621,11 +631,11 @@ class Crawler(ABC):
         stats = {str(k): v for k, v in self.stats.items()}
         return dict(OrderedDict(sorted(stats.items())).items())
 
-    async def crawl(self, url: Union[URL, str] = "") -> None:
+    async def crawl(self, urls: Union[URL, str, List[Union[URL, str]]] = None) -> None:
         """
         Start the web crawler.
 
-        :param url: An optional URL to start the crawl. If not provided then start_urls are used.
+        :param urls: An optional URL or List of URLS to start the crawl, in addition to start_urls.
         """
 
         # Fix for ssl errors
@@ -634,12 +644,11 @@ class Crawler(ABC):
         start = time.perf_counter()
 
         # Create start urls from the initial URL if provided.
-        if url:
-            start_urls = self.create_start_urls(url)
-            if self.start_urls:
-                self.start_urls.extend(start_urls)
-            else:
-                self.start_urls = start_urls
+        if not urls:
+            urls = []
+        if isinstance(urls, (URL, str)):
+            urls = [urls]
+        self.start_urls = self.create_start_urls(urls)
 
         if not self.start_urls:
             raise ValueError("crawler.start_urls are required")
