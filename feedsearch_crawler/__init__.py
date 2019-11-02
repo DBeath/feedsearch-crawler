@@ -3,6 +3,8 @@ import logging
 from xml.etree import ElementTree
 from typing import List, Union
 
+from yarl import URL
+
 from feedsearch_crawler.feed_spider import FeedsearchSpider, FeedInfo
 
 logging.getLogger("feedsearch_crawler").addHandler(logging.NullHandler())
@@ -11,12 +13,15 @@ name = "Feedsearch Crawler"
 
 
 def search(
-    url: str, try_urls: Union[List[str], bool] = False, *args, **kwargs
+    url: Union[URL, str, List[Union[URL, str]]],
+    try_urls: Union[List[str], bool] = False,
+    *args,
+    **kwargs
 ) -> List[FeedInfo]:
     """
     Search for feeds at a URL.
 
-    :param url: URL to search
+    :param url: URL or list of URLs to search
     :param try_urls: Tries different paths that may contain feeds.
     :return: List of FeedInfo objects
     """
@@ -25,12 +30,15 @@ def search(
 
 
 async def search_async(
-    url: str, try_urls: Union[List[str], bool] = False, *args, **kwargs
+    url: Union[URL, str, List[Union[URL, str]]],
+    try_urls: Union[List[str], bool] = False,
+    *args,
+    **kwargs
 ) -> List[FeedInfo]:
     """
     Search asynchronously for feeds at a URL.
 
-    :param url: URL to search
+    :param url: URL or list of URLs to search
     :param try_urls: Tries different paths that may contain feeds.
     :return: List of FeedInfo objects
     """

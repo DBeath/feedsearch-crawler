@@ -9,7 +9,7 @@ from datetime import datetime
 import collections
 
 urls = [
-    "arstechnica.com",
+    # "arstechnica.com",
     # "http://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -35,7 +35,12 @@ urls = [
     # "http://www.bloomberg.com/politics/feeds/site.xml",
     # "propublica.org"
     # "npr.org",
-    # "rifters.com"
+    # "rifters.com",
+    # "https://www.bbc.co.uk/podcasts"
+    # "https://www.bbc.co.uk/programmes/p02nrsln/episodes/downloads",
+    # "https://breebird33.tumblr.com/",
+    # "https://neurocorp.tumblr.com/",
+    "https://breebird33.tumblr.com/rss"
 ]
 
 
@@ -51,39 +56,40 @@ def run_crawl():
     # user_agent = (
     #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
     # )
-    user_agent = (
-        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
-    )
+    # user_agent = (
+    #     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+    # )
 
-    headers = {
-        "User-Agent": user_agent,
-        "DNT": "1",
-        "Upgrade-Insecure-Requests": "1",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Referrer": "https://www.google.com/",
-    }
+    # headers = {
+    #     "User-Agent": user_agent,
+    #     "DNT": "1",
+    #     "Upgrade-Insecure-Requests": "1",
+    #     "Accept-Language": "en-US,en;q=0.5",
+    #     "Accept-Encoding": "gzip, deflate, br",
+    #     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    #     "Referrer": "https://www.google.com/",
+    # }
 
     crawler = FeedsearchSpider(
         concurrency=10,
         total_timeout=360,
         request_timeout=30,
-        user_agent=user_agent,
+        # user_agent=user_agent,
+        # headers=headers,
         favicon_data_uri=True,
         max_depth=5,
         max_retries=3,
         ssl=True,
         full_crawl=False,
         delay=0,
-        headers=headers,
     )
-    crawler.start_urls = urls
-    crawler.allowed_domains = create_allowed_domains(urls)
-    asyncio.run(crawler.crawl())
+    # crawler.start_urls = urls
+    # crawler.allowed_domains = create_allowed_domains(urls)
+    # asyncio.run(crawler.crawl())
     # asyncio.run(crawler.crawl(urls[0]))
+    items = search(urls, crawl_hosts=True)
 
-    items = sort_urls(list(crawler.items))
+    # items = sort_urls(list(crawler.items))
 
     serialized = [item.serialize() for item in items]
 

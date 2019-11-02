@@ -62,6 +62,7 @@ class FeedsearchSpider(Crawler):
     favicon_data_uri = True
     try_urls: Union[List[str], bool] = False
     full_crawl: bool = False
+    crawl_hosts: bool = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -77,6 +78,8 @@ class FeedsearchSpider(Crawler):
             self.favicon_data_uri = kwargs["favicon_data_uri"]
         if "full_crawl" in kwargs:
             self.full_crawl = kwargs["full_crawl"]
+        if "crawl_hosts" in kwargs:
+            self.crawl_hosts = kwargs["crawl_hosts"]
 
     async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
         """
@@ -271,9 +274,9 @@ class FeedsearchSpider(Crawler):
 
             crawl_start_urls.add(url)
 
-        if self.try_urls:
-            origins = set(url.origin() for url in crawl_start_urls)
+        origins = set(url.origin() for url in crawl_start_urls)
 
+        if self.try_urls:
             # Common paths for feeds.
             suffixes = {
                 "index.xml",
@@ -310,6 +313,10 @@ class FeedsearchSpider(Crawler):
                     crawl_start_urls.update(
                         origin.join(URL(suffix)) for suffix in suffixes
                     )
+
+        # Crawl the origin urls of the start urls for Site metadata.
+        if self.crawl_hosts:
+            crawl_start_urls.update(origins)
 
         return list(crawl_start_urls)
 

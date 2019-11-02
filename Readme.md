@@ -85,6 +85,7 @@ search(
 ```
 
 - **url**: *str*: The initial URL at which to search for feeds.
+- **crawl_hosts**: *bool*: (default False): An optional argument to add the site host origin URL (e.g. http://example.com) to the list of initial crawl URLs.
 - **try_urls**: *Union[List[str], bool]*: (default False): An optional list of URL paths to query for feeds. Takes the origin of the *url* paramater and appends the provided paths. If no list is provided, but *try_urls* is **True**, then a list of common feed locations will be used.
 - **concurrency**: *int*: (default 10): An optional argument to specify the maximum number of concurrent HTTP requests.
 - **total_timeout**: *float*: (default 30.0): An optional argument to specify the time this function may run before timing out.
