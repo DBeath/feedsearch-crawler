@@ -11,7 +11,9 @@ It is a continuation of my work on [Feedsearch](https://github.com/DBeath/feedse
 
 Feedsearch Crawler differs with all of the above in that it is now built as an asynchronous [Web crawler](https://en.wikipedia.org/wiki/Web_crawler) for [Python 3.7](https://www.python.org/downloads/release/python-370/) and above, using [asyncio](https://docs.python.org/3/library/asyncio.html) and [aiohttp](https://aiohttp.readthedocs.io/en/stable/), to allow much more rapid scanning of possible feed urls.
 
-An implementation using this library to provide a public Feed Search API is available at https://feedsearch.auctorial.com
+An implementation using this library to provide a public Feed Search API is available at https://feedsearch.dev
+
+Pull requests and suggestions are welcome.
 
 ## Installation
 The library is available on [PyPI](https://pypi.org/project/feedsearch-crawler/):
@@ -70,7 +72,8 @@ output_opml(feeds).decode()
 
 ``` python
 search(
-    url: str,
+    url: Union[URL, str, List[Union[URL, str]]],
+    crawl_hosts: bool=True,
     try_urls: Union[List[str], bool]=False,
     concurrency: int=10,
     total_timeout: Union[float, aiohttp.ClientTimeout]=10,
@@ -84,9 +87,9 @@ search(
 )
 ```
 
-- **url**: *str*: The initial URL at which to search for feeds.
-- **crawl_hosts**: *bool*: (default False): An optional argument to add the site host origin URL (e.g. http://example.com) to the list of initial crawl URLs.
-- **try_urls**: *Union[List[str], bool]*: (default False): An optional list of URL paths to query for feeds. Takes the origin of the *url* paramater and appends the provided paths. If no list is provided, but *try_urls* is **True**, then a list of common feed locations will be used.
+- **url**: *Union[str, List[str]]*: The initial URL or list of URLs at which to search for feeds. You may also provide [URL](https://yarl.readthedocs.io/en/latest/api.html) objects.
+- **crawl_hosts**: *bool*: (default True): An optional argument to add the site host origin URL to the list of initial crawl URLs. (e.g. add "example.com" if crawling "example.com/path/rss.xml"). If **False**, site metadata and favicon data may not be found.
+- **try_urls**: *Union[List[str], bool]*: (default False): An optional list of URL paths to query for feeds. Takes the origins of the *url* parameter and appends the provided paths. If no list is provided, but *try_urls* is **True**, then a list of common feed locations will be used.
 - **concurrency**: *int*: (default 10): An optional argument to specify the maximum number of concurrent HTTP requests.
 - **total_timeout**: *float*: (default 30.0): An optional argument to specify the time this function may run before timing out.
 - **request_timeout**: *float*: (default 3.0): An optional argument that controls how long before each individual HTTP request times out.
@@ -107,7 +110,7 @@ In addition to the *url*, FeedInfo objects may have the following values:
 - **favicon**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed or site [Favicon](https://en.wikipedia.org/wiki/Favicon).
 - **favicon_data_uri**: *str*: [Data Uri](https://en.wikipedia.org/wiki/Data_URI_scheme) of Favicon.
 - **hubs**: *List[str]*: List of [Websub](https://en.wikipedia.org/wiki/WebSub) hubs of feed if available.
-- **is_podcast**: *bool*: True if the feed contains valid podcast elements and enclosures.
+- **is_podcast**: *bool*: True if the feed contains valid [podcast](https://en.wikipedia.org/wiki/Podcast) elements and enclosures.
 - **is_push**: *bool*: True if feed contains valid Websub data.
 - **last_updated**: *datetime*: Date of the latest published entry.
 - **score**: *int*: Computed relevance of feed url value to provided URL. May be safely ignored.

@@ -62,7 +62,7 @@ class FeedsearchSpider(Crawler):
     favicon_data_uri = True
     try_urls: Union[List[str], bool] = False
     full_crawl: bool = False
-    crawl_hosts: bool = False
+    crawl_hosts: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
