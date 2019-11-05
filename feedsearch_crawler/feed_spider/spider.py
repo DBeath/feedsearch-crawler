@@ -17,9 +17,7 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 # Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile(
-    "\\b(rss|feeds?|atom|json|xml|rdf|podcasts?)\\b", re.IGNORECASE
-)
+feedlike_regex = re.compile("\\b(rss|feeds?|atom|json|xml|rdf)\\b", re.IGNORECASE)
 
 # Regex to check that a podcast string is a whole word.
 podcast_regex = re.compile("\\b(podcasts?)\\b", re.IGNORECASE)
@@ -391,7 +389,7 @@ class FeedsearchSpider(Crawler):
             )
             # If full_crawl then follow all valid URLs regardless of the feedlike quality of the URL.
             # Otherwise only follow URLs if they look like they might contain feed information.
-            if follow and (self.full_crawl or is_feedlike_url):
+            if follow and (self.full_crawl or is_feedlike_url or is_podcast_href):
 
                 # Remove the querystring unless it may point to a feed.
                 if not is_feedlike_querystring:
