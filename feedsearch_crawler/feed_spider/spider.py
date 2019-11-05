@@ -21,6 +21,9 @@ feedlike_regex = re.compile(
     "\\b(rss|feeds?|atom|json|xml|rdf|podcasts?)\\b", re.IGNORECASE
 )
 
+# Regex to check that a podcast string is a whole word.
+podcast_regex = re.compile("\\b(podcasts?)\\b", re.IGNORECASE)
+
 # Regex to check if the URL might contain author information.
 author_regex = re.compile(
     "(authors?|journalists?|writers?|contributors?)", re.IGNORECASE
@@ -31,6 +34,9 @@ file_regex = re.compile(
     ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff?2|svg|ttf|zip)/?$",
     re.IGNORECASE,
 )
+
+# Regex to check if possible RSS data.
+rss_regex = re.compile(r"(<rss|<rfd|<feed)", re.IGNORECASE)
 
 # Regex to match year and month in URLs, e.g. /2019/07/
 date_regex = re.compile("/(\\d{4}/\\d{2})/")
@@ -111,10 +117,8 @@ class FeedsearchSpider(Crawler):
         if response.url == url_origin or request.url == request_url_origin:
             yield self.site_meta_processor.parse_item(request, response)
 
-        # Restrict the RSS check to the first 500 characters, otherwise it's almost definitely not an actual feed.
-        data = response.text.lower()[:500]
-
-        if bool(data.count("<rss") + data.count("<rdf") + data.count("<feed")):
+        # Restrict the RSS check to the first 1000 characters, otherwise it's almost definitely not an actual feed.
+        if rss_regex.search(response.text, endpos=1000):
             yield self.feed_info_parser.parse_item(request, response, type="xml")
             return
 
@@ -341,9 +345,12 @@ class FeedsearchSpider(Crawler):
 
         priority: int = Request.priority
 
-        has_author_info: bool = self.has_author_info(href)
-        is_feedlike_href: bool = self.is_feedlike_href(href)
-        is_feedlike_querystring: bool = self.is_feedlike_querystring(url)
+        has_author_info: bool = self.is_href_matching(href, author_regex)
+        is_feedlike_href: bool = self.is_href_matching(href, feedlike_regex)
+        is_feedlike_querystring: bool = self.is_querystring_matching(
+            url, feedlike_regex
+        )
+        is_podcast_href: bool = self.is_href_matching(href, podcast_regex)
         is_low_priority: bool = self.is_low_priority(href)
 
         is_feedlike_url = is_feedlike_querystring or is_feedlike_href
@@ -351,6 +358,9 @@ class FeedsearchSpider(Crawler):
         # A low priority url should be fetched last.
         if is_low_priority:
             priority = Request.priority + 2
+        # Podcast pages are lower priority than authors or feeds.
+        if is_podcast_href:
+            priority = 5
         # Potential author info has a medium priority.
         if has_author_info:
             priority = 4
@@ -477,28 +487,29 @@ class FeedsearchSpider(Crawler):
         )
 
     @staticmethod
-    def is_feedlike_href(url_string: str) -> bool:
+    def is_href_matching(url_string: str, regex: re) -> bool:
         """
-        Check if url looks like it may point to something resembling a feed.
+        Check if the regex has any match in the url string.
 
-        :param url_string: URL string
+        :param url_string: URL as string
+        :param regex: Regex used to search URL
         :return: boolean
         """
-        # Check url string without query parameters
-        if feedlike_regex.search(url_query_cleaner(url_string)):
+        if regex.search(url_query_cleaner(url_string)):
             return True
         return False
 
     @staticmethod
-    def is_feedlike_querystring(url: URL) -> bool:
+    def is_querystring_matching(url: URL, regex: re) -> bool:
         """
-        Check if the url querystring looks like it may point to a feed.
+        Check if the regex has any match in the URL query parameters.
 
         :param url: URL object
+        :param regex: Regex used to search query
         :return: boolean
         """
         for key in url.query:
-            if feedlike_regex.search(key):
+            if regex.search(key):
                 return True
         return False
 
@@ -511,36 +522,22 @@ class FeedsearchSpider(Crawler):
         :return: boolean
         """
         return any(
-            map(
-                string.lower().count,
-                [
-                    "wp-includes",
-                    "wp-content",
-                    "wp-json",
-                    "xmlrpc",
-                    "wp-admin",
-                    # Theoretically there could be a feed at an AMP url, but not worth checking.
-                    "/amp/",
-                    "mailto:",
-                    "//font.",
-                ],
-            )
+            value in string.lower()
+            for value in [
+                "wp-includes",
+                "wp-content",
+                "wp-json",
+                "xmlrpc",
+                "wp-admin",
+                # Theoretically there could be a feed at an AMP url, but not worth checking.
+                "/amp/",
+                "mailto:",
+                "//font.",
+            ]
         )
 
     @staticmethod
-    def has_author_info(url_string: str) -> bool:
-        """
-        Check if the url may contain author information.
-
-        :param url_string: URL string
-        :return: boolean
-        """
-        if author_regex.search(url_query_cleaner(url_string)):
-            return True
-        return False
-
-    @staticmethod
-    def is_low_priority(url_string) -> bool:
+    def is_low_priority(url_string: str) -> bool:
         """
         Check if the url contains any strings that indicate the url should be low priority.
 
@@ -548,19 +545,17 @@ class FeedsearchSpider(Crawler):
         :return: boolean
         """
         if any(
-            map(
-                url_string.lower().count,
-                [
-                    # Archives and article pages are less likely to contain feeds.
-                    "/archive/",
-                    "/page/",
-                    # Forums are not likely to contain interesting feeds.
-                    "forum",
-                    # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
-                    "//cdn.",
-                    "video",
-                ],
-            )
+            value in url_string.lower()
+            for value in [
+                # Archives and article pages are less likely to contain feeds.
+                "/archive/",
+                "/page/",
+                # Forums are not likely to contain interesting feeds.
+                "forum",
+                # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
+                "//cdn.",
+                "video",
+            ]
         ):
             return True
 

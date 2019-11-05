@@ -33,14 +33,14 @@ urls = [
     # "www.vanityfair.com",
     # "bloomberg.com",
     # "http://www.bloomberg.com/politics/feeds/site.xml",
-    # "propublica.org"
+    "propublica.org"
     # "npr.org",
     # "rifters.com",
     # "https://www.bbc.co.uk/podcasts"
     # "https://www.bbc.co.uk/programmes/p02nrsln/episodes/downloads",
     # "https://breebird33.tumblr.com/",
     # "https://neurocorp.tumblr.com/",
-    "https://breebird33.tumblr.com/rss"
+    # "https://breebird33.tumblr.com/rss"
 ]
 
 
@@ -72,7 +72,7 @@ def run_crawl():
 
     crawler = FeedsearchSpider(
         concurrency=10,
-        total_timeout=360,
+        total_timeout=30,
         request_timeout=30,
         # user_agent=user_agent,
         # headers=headers,
@@ -83,13 +83,13 @@ def run_crawl():
         full_crawl=False,
         delay=0,
     )
-    # crawler.start_urls = urls
+    crawler.start_urls = urls
     # crawler.allowed_domains = create_allowed_domains(urls)
-    # asyncio.run(crawler.crawl())
+    asyncio.run(crawler.crawl())
     # asyncio.run(crawler.crawl(urls[0]))
-    items = search(urls, crawl_hosts=True)
+    # items = search(urls, crawl_hosts=True)
 
-    # items = sort_urls(list(crawler.items))
+    items = sort_urls(list(crawler.items))
 
     serialized = [item.serialize() for item in items]
 
