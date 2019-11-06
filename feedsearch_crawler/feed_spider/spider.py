@@ -29,12 +29,12 @@ author_regex = re.compile(
 
 # Regex to check URL string for invalid file types.
 file_regex = re.compile(
-    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff?2|svg|ttf|zip)/?$",
+    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff2?|svg|ttf|zip)/?$",
     re.IGNORECASE,
 )
 
 # Regex to check if possible RSS data.
-rss_regex = re.compile(r"(<rss|<rfd|<feed)", re.IGNORECASE)
+rss_regex = re.compile("(<rss|<rfd|<feed)", re.IGNORECASE)
 
 # Regex to match year and month in URLs, e.g. /2019/07/
 date_regex = re.compile("/(\\d{4}/\\d{2})/")
@@ -219,6 +219,7 @@ class FeedsearchSpider(Crawler):
                             favicon.resp_url if favicon.resp_url else favicon.url
                         )
 
+    # noinspection PyUnusedLocal
     async def create_data_uri(
         self, request: Request, response: Response, favicon: Favicon
     ) -> None:

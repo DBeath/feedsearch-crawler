@@ -5,7 +5,7 @@ from feedsearch_crawler.crawler import DuplicateFilter
 
 
 class NoQueryDupeFilter(DuplicateFilter):
-    valid_keys = ["feedformat", "feed", "rss", "atom", "jsonfeed", "format"]
+    valid_keys = ["feedformat", "feed", "rss", "atom", "jsonfeed", "format", "podcast"]
 
     def parse_url(self, url: URL) -> str:
         # Keep the query strings if they might be feed strings.
