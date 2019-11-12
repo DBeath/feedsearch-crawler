@@ -29,7 +29,7 @@ class SiteMetaParser(ItemParser):
                 if self.crawler.favicon_data_uri:
                     yield self.follow(
                         icon.url,
-                        self.crawler.create_data_uri,
+                        self.crawler.parse_favicon_data_uri,
                         cb_kwargs=dict(favicon=icon),
                         allow_domain=True,
                         max_content_length=51200,

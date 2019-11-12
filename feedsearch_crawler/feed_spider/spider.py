@@ -108,12 +108,7 @@ class FeedsearchSpider(Crawler):
             self.logger.debug("No text in %s", response)
             return
 
-        url_origin = response.url.origin()
-        request_url_origin = request.url.origin()
-        # If the returned url is an origin url, or the request url is an origin url (and there may have been a redirect)
-        # then parse the site meta.
-        if response.url == url_origin or request.url == request_url_origin:
-            yield self.site_meta_processor.parse_item(request, response)
+        yield self.parse_site_meta(request, response)
 
         # Restrict the RSS check to the first 1000 characters, otherwise it's almost definitely not an actual feed.
         if rss_regex.search(response.text, endpos=1000):
@@ -137,6 +132,25 @@ class FeedsearchSpider(Crawler):
             new_request = await self.should_follow_link(link, response)
             if new_request:
                 yield new_request
+
+    async def parse_site_meta(
+        self, request: Request, response: Response
+    ) -> AsyncGeneratorType:
+        """
+        Parses site metadata if the returned URL is a site origin URL.
+
+        If the returned url is an origin url, or the request url is an origin url (and there may have been a redirect)
+        then parse the site meta.
+
+        :param request: Request
+        :param response: Response
+        :return: AsyncGenerator yielding SiteMeta items
+        """
+        url_origin = response.url.origin()
+        request_url_origin = request.url.origin()
+
+        if response.url == url_origin or request.url == request_url_origin:
+            yield self.site_meta_processor.parse_item(request, response)
 
     async def parse_xml(self, response_text: str) -> Any:
         """
@@ -220,7 +234,7 @@ class FeedsearchSpider(Crawler):
                         )
 
     # noinspection PyUnusedLocal
-    async def create_data_uri(
+    async def parse_favicon_data_uri(
         self, request: Request, response: Response, favicon: Favicon
     ) -> None:
         """

@@ -59,7 +59,7 @@ class FeedInfoParser(ItemParser):
             favicon = Favicon(url=item.favicon)
             yield self.follow(
                 item.favicon,
-                self.crawler.create_data_uri,
+                self.crawler.parse_favicon_data_uri,
                 cb_kwargs=dict(favicon=favicon),
             )
 
