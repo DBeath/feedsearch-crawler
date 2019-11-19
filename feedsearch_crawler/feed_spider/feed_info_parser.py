@@ -118,8 +118,11 @@ class FeedInfoParser(ItemParser):
                 )
             )
 
-            item.last_updated = sorted(dates, reverse=True)[0]
-            item.velocity = self.entry_velocity(dates)
+            if dates:
+                item.last_updated = sorted(dates, reverse=True)[0]
+                item.velocity = self.entry_velocity(dates)
+            elif feed.get("updated"):
+                item.last_updated = datestring_to_utc_datetime(feed.get("updated"))
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
@@ -171,8 +174,9 @@ class FeedInfoParser(ItemParser):
                 )
             )
 
-            item.last_updated = sorted(dates, reverse=True)[0]
-            item.velocity = self.entry_velocity(dates)
+            if dates:
+                item.last_updated = sorted(dates, reverse=True)[0]
+                item.velocity = self.entry_velocity(dates)
         except Exception as e:
             self.logger.error("Unable to get feed published date: %s", e)
             pass
