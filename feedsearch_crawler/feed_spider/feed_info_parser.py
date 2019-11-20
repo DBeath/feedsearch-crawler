@@ -63,10 +63,7 @@ class FeedInfoParser(ItemParser):
                 cb_kwargs=dict(favicon=favicon),
             )
 
-        # Handle a case where the item url contains a trailing slash and the self url doesn't.
-        if item.self_url and item.self_url != item.url:
-            if str(item.url).strip("/") == item.self_url:
-                item.url = URL(str(item.url).strip("/"))
+        self.validate_self_url(item)
 
         item.content_length = response.content_length
         self.score_item(item, response.history[0])
@@ -81,12 +78,22 @@ class FeedInfoParser(ItemParser):
 
         # Parse data with feedparser
         # Don't wrap this in try/except, feedparser eats errors and returns bozo instead
-        parsed = self.parse_raw_data(data, encoding, headers)
-        if not parsed or parsed.get("bozo") == 1:
+        try:
+            parsed = self.parse_raw_data(data, encoding, headers)
+        except Exception as e:
+            self.logger.error("Unable to parse feed %s: %s", item, e)
+            return False
+
+        if not parsed:
+            self.logger.warning("No valid feed data for %s", item)
+            return False
+
+        if parsed.get("bozo") == 1:
+            item.bozo = 1
+            # The only Bozo exception that we're willing to return is a CharacterEncodingOverride
             if not isinstance(
                 parsed.get("bozo_exception"), feedparser.CharacterEncodingOverride
             ):
-                item.bozo = 1
                 self.logger.warning("No valid feed data for %s", item)
                 return False
 
@@ -440,3 +447,29 @@ class FeedInfoParser(ItemParser):
 
         result = round(86400 / mean_seconds_delta, 3)
         return result
+
+    @staticmethod
+    def validate_self_url(item: FeedInfo) -> None:
+        """
+        Validate the self url
+
+        :param item: FeedInfo item
+        """
+        try:
+            item.self_url = URL(item.self_url)
+        except ValueError:
+            item.self_url = ""
+            return
+
+        if item.self_url and item.self_url != item.url:
+            # Handle a case where the item url contains a trailing slash and the self url doesn't.
+            if str(item.url).strip("/") == str(item.self_url):
+                item.url = URL(str(item.url).strip("/"))
+                return
+
+            # The self url should be an absolute url.
+            if not item.self_url.is_absolute():
+                if str(item.self_url) in str(item.url):
+                    item.self_url = item.url
+                else:
+                    item.self_url = ""

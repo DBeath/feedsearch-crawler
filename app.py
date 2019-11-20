@@ -33,7 +33,7 @@ urls = [
     # "www.vanityfair.com",
     # "bloomberg.com",
     # "http://www.bloomberg.com/politics/feeds/site.xml",
-    "propublica.org"
+    # "propublica.org"
     # "npr.org",
     # "rifters.com",
     # "https://www.bbc.co.uk/podcasts"
@@ -41,6 +41,9 @@ urls = [
     # "https://breebird33.tumblr.com/",
     # "https://neurocorp.tumblr.com/",
     # "https://breebird33.tumblr.com/rss"
+    # "https://resel.fr/rss-news"
+    # "https://muhammadraza.me"
+    "https://www.franceinter.fr/rss/a-la-une.xml"
 ]
 
 
@@ -51,7 +54,7 @@ def get_pretty_print(json_object: object):
 # @profile()
 def run_crawl():
     # user_agent = "Mozilla/5.0 (Compatible; Bot)"
-    # user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
+    user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
     # user_agent = "curl/7.58.0"
     # user_agent = (
     #     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:68.0) Gecko/20100101 Firefox/68.0"
@@ -74,7 +77,7 @@ def run_crawl():
         concurrency=10,
         total_timeout=30,
         request_timeout=30,
-        # user_agent=user_agent,
+        user_agent=user_agent,
         # headers=headers,
         favicon_data_uri=True,
         max_depth=5,

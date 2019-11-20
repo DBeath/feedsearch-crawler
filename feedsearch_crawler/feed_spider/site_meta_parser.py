@@ -74,16 +74,20 @@ class SiteMetaParser(ItemParser):
             canonical = soup.find(name="link", rel="canonical")
             site = canonical.get("href")
             if site:
+                if site.strip() == "/":
+                    return url
                 return URL(site).origin()
-        except AttributeError:
+        except (AttributeError, ValueError):
             pass
 
         try:
             meta = soup.find(name="meta", property="og:url")
             site = meta.get("content")
             if site:
+                if site.strip() == "/":
+                    return url
                 return URL(site).origin()
-        except AttributeError:
+        except (AttributeError, ValueError):
             pass
 
         return url.origin()

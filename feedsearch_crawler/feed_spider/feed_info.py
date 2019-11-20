@@ -18,7 +18,7 @@ class FeedInfo(Item):
     is_push: bool = False
     last_updated: datetime = None
     score: int = 0
-    self_url: str = ""
+    self_url: URL = ""
     site_name: str = ""
     site_url: URL = ""
     title: str = ""
@@ -41,7 +41,7 @@ class FeedInfo(Item):
             is_push=self.is_push,
             last_updated=last_updated,
             score=self.score,
-            self_url=self.self_url,
+            self_url=to_string(self.self_url),
             site_name=self.site_name,
             site_url=to_string(self.site_url),
             title=self.title,
