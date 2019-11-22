@@ -284,7 +284,7 @@ class FeedsearchSpider(Crawler):
             if isinstance(url, str):
                 if "//" not in url:
                     url = f"//{url}"
-                url = URL(url)
+                url = self.parse_href_to_url(url)
 
             if url.scheme.lower() not in ["http", "https"]:
                 url = url.with_scheme("http")

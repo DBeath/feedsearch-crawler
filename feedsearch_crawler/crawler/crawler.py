@@ -326,10 +326,13 @@ class Crawler(ABC):
         if not href:
             return None
 
+        if not isinstance(href, str):
+            raise TypeError("href must be string")
+
         try:
             return URL(href)
         except UnicodeError as e:
-            self.logger.error("Failed to encode href: %s : %s", href, str(e))
+            self.logger.warning("Failed to encode href: %s : %s", href, e)
             return None
 
     def is_allowed_domain(self, url: URL) -> bool:
@@ -397,8 +400,13 @@ class Crawler(ABC):
         :param cb_kwargs: Optional Dictionary of keyword arguments to be passed to the callback function.
         :return: Request
         """
+        original_url = copy.copy(url)
         if isinstance(url, str):
-            url = URL(url)
+            url = self.parse_href_to_url(url)
+
+        if not url:
+            self.logger.warning("Attempted to follow invalid URL: %s", original_url)
+            return
 
         history = []
         if response:
