@@ -51,7 +51,7 @@ required = [
 
 setup(
     name="feedsearch-crawler",
-    version="0.1.23",
+    version="0.1.24",
     description="Search sites for RSS, Atom, and JSON feeds",
     long_description=readme,
     long_description_content_type="text/markdown",
