@@ -112,13 +112,14 @@ In addition to the *url*, FeedInfo objects may have the following values:
 - **hubs**: *List[str]*: List of [Websub](https://en.wikipedia.org/wiki/WebSub) hubs of feed if available.
 - **is_podcast**: *bool*: True if the feed contains valid [podcast](https://en.wikipedia.org/wiki/Podcast) elements and enclosures.
 - **is_push**: *bool*: True if feed contains valid Websub data.
+- **item_count**: *int*: Number of items currently in the feed.
 - **last_updated**: *datetime*: Date of the latest published entry.
 - **score**: *int*: Computed relevance of feed url value to provided URL. May be safely ignored.
-- **self_url**: *str*: *ref="self"* value returned from feed links. In some cases may be different from feed url.
+- **self_url**: *URL*: *ref="self"* value returned from feed links. In some cases may be different from feed url.
 - **site_name**: *str*: Name of feed's website.
 - **site_url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed's website.
 - **title**: *str*: Feed Title.
 - **url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) location of feed.
-- **velocity**: *float*: Mean number of entries per day in the feed at the current time.
+- **velocity**: *float*: Mean number of items per day in the feed at the current time.
 - **version**: *str*: Feed version [XML values](https://pythonhosted.org/feedparser/version-detection.html),
   or [JSON feed](https://jsonfeed.org/version/1).

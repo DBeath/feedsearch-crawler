@@ -16,6 +16,7 @@ class FeedInfo(Item):
     hubs: List[str] = []
     is_podcast: bool = False
     is_push: bool = False
+    item_count: int = 0
     last_updated: datetime = None
     score: int = 0
     self_url: URL = ""
@@ -39,6 +40,7 @@ class FeedInfo(Item):
             hubs=self.hubs,
             is_podcast=self.is_podcast,
             is_push=self.is_push,
+            item_count=self.item_count,
             last_updated=last_updated,
             score=self.score,
             self_url=to_string(self.self_url),

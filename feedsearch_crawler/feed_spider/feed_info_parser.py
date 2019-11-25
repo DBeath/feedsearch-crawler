@@ -119,10 +119,11 @@ class FeedInfoParser(ItemParser):
             dates = []
             now_date = datetime.utcnow().date()
 
+            entries = parsed.get("entries", [])
+            item.item_count = len(entries)
+
             dates.extend(
-                FeedInfoParser.entry_dates(
-                    parsed.get("entries", None), ["updated", "published"], now_date
-                )
+                FeedInfoParser.entry_dates(entries, ["updated", "published"], now_date)
             )
 
             if dates:
@@ -173,11 +174,12 @@ class FeedInfoParser(ItemParser):
             dates = []
             now_date: date = datetime.utcnow().date()
 
+            entries = data.get("items", [])
+            item.item_count = len(entries)
+
             dates.extend(
                 FeedInfoParser.entry_dates(
-                    data.get("items", None),
-                    ["date_modified", "date_published"],
-                    now_date,
+                    entries, ["date_modified", "date_published"], now_date
                 )
             )
 
