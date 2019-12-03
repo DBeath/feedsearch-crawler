@@ -164,6 +164,24 @@ def case_insensitive_key(key: str, dictionary: Dict) -> bool:
             return True
 
 
+def headers_to_dict(headers: Any) -> Dict[str, str]:
+    """
+    Convert various header classes to a simple dictionary
+
+    :param headers: Dict subclass of HTTP headers
+    :return: Dict of HTTP headers
+    """
+    if isinstance(headers, dict):
+        return headers
+
+    new_headers = {}
+    try:
+        new_headers.update({k.lower(): v for (k, v) in headers.items()})
+    except:
+        pass
+    return new_headers
+
+
 def ignore_aiohttp_ssl_eror(loop, aiohttpversion="3.5.4"):
     """Ignore aiohttp #3535 issue with SSL data after close
      There appears to be an issue on Python 3.7 and aiohttp SSL that throws a

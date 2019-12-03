@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
+from feedsearch_crawler.crawler.lib import headers_to_dict
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.lib import (
@@ -44,7 +45,10 @@ class FeedInfoParser(ItemParser):
                 valid_feed = self.parse_json(item, response.json)
             elif data_type == "xml":
                 valid_feed = self.parse_xml(
-                    item, response.data, response.encoding, response.headers
+                    item,
+                    response.data,
+                    response.encoding,
+                    headers_to_dict(response.headers),
                 )
                 if not item.content_type:
                     item.content_type = "text/xml"
@@ -89,12 +93,16 @@ class FeedInfoParser(ItemParser):
             return False
 
         if parsed.get("bozo") == 1:
-            item.bozo = 1
-            # The only Bozo exception that we're willing to return is a CharacterEncodingOverride
-            if not isinstance(
-                parsed.get("bozo_exception"), feedparser.CharacterEncodingOverride
+            bozo_exception = parsed.get("bozo_exception", None)
+            if isinstance(bozo_exception, feedparser.CharacterEncodingOverride):
+                item.bozo = 1
+            elif isinstance(
+                bozo_exception,
+                (feedparser.CharacterEncodingUnknown, feedparser.UndeclaredNamespace),
             ):
-                self.logger.warning("No valid feed data for %s", item)
+                self.logger.warning(
+                    "No valid feed data for %s: %s", item, bozo_exception
+                )
                 return False
 
         feed = parsed.get("feed")
