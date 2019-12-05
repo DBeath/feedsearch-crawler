@@ -13,6 +13,7 @@ from feedsearch_crawler.feed_spider.dupefilter import NoQueryDupeFilter
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
+from feedsearch_crawler.feed_spider.lib import ParseTypes
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
@@ -101,7 +102,9 @@ class FeedsearchSpider(Crawler):
         # If the Response contains JSON then attempt to parse it as a JsonFeed.
         if response.json:
             if "version" and "jsonfeed" and "feed_url" in response.json:
-                yield self.feed_info_parser.parse_item(request, response, type="json")
+                yield self.feed_info_parser.parse_item(
+                    request, response, parse_type=ParseTypes.JSON
+                )
                 return
 
         if not isinstance(response.text, str):
@@ -112,7 +115,9 @@ class FeedsearchSpider(Crawler):
 
         # Restrict the RSS check to the first 1000 characters, otherwise it's almost definitely not an actual feed.
         if rss_regex.search(response.text, endpos=1000):
-            yield self.feed_info_parser.parse_item(request, response, type="xml")
+            yield self.feed_info_parser.parse_item(
+                request, response, parse_type=ParseTypes.XML
+            )
             return
 
         # Don't waste time trying to parse and follow urls if the max depth is already reached.

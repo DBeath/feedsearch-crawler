@@ -5,6 +5,7 @@ from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
+from aiohttp import hdrs
 from bs4 import BeautifulSoup
 from yarl import URL
 
@@ -16,6 +17,8 @@ from feedsearch_crawler.feed_spider.lib import (
     parse_header_links,
     datestring_to_utc_datetime,
     remove_www,
+    create_content_type,
+    ParseTypes,
 )
 
 
@@ -25,7 +28,16 @@ class FeedInfoParser(ItemParser):
     ) -> AsyncGeneratorType:
         self.logger.info("Parsing: Feed %s", response.url)
 
-        content_type = response.headers.get("content-type", "")
+        if "parse_type" not in kwargs:
+            raise ValueError("type keyword argument is required")
+
+        parse_type = kwargs["parse_type"]
+
+        content_type = create_content_type(
+            parse_type,
+            response.encoding,
+            response.headers.get(hdrs.CONTENT_TYPE, "").lower(),
+        )
 
         item = FeedInfo(url=response.url, content_type=content_type)
 
@@ -34,24 +46,18 @@ class FeedInfoParser(ItemParser):
         if response.headers:
             item.hubs, item.self_url = self.header_links(response.headers)
 
-        if "type" not in kwargs:
-            raise ValueError("type keyword argument is required")
-
         try:
             valid_feed = False
-            data_type = kwargs["type"]
-            if data_type == "json":
-                item.content_type = "application/json"
+
+            if parse_type == ParseTypes.JSON:
                 valid_feed = self.parse_json(item, response.json)
-            elif data_type == "xml":
+            elif parse_type == ParseTypes.XML:
                 valid_feed = self.parse_xml(
                     item,
                     response.data,
                     response.encoding,
                     headers_to_dict(response.headers),
                 )
-                if not item.content_type:
-                    item.content_type = "text/xml"
 
             if not valid_feed:
                 return

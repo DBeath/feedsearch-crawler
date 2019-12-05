@@ -9,7 +9,7 @@ from random import random
 from typing import List, Tuple, Any, Union, Optional, Dict
 
 import aiohttp
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession, ClientTimeout, hdrs
 from yarl import URL
 
 from feedsearch_crawler.crawler.queueable import Queueable
@@ -154,7 +154,7 @@ class Request(Queueable):
                 history.append(resp.url)
 
                 # Fail the response if the content length header is too large.
-                content_length: int = int(resp.headers.get("Content-Length", "0"))
+                content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, 0))
                 if content_length > self.max_content_length:
                     self.logger.debug(
                         "Content-Length of Response header %d greater than max %d: %s",
@@ -305,7 +305,7 @@ class Request(Queueable):
 
         # If the text hasn't been parsed then we won't be able to parse JSON either.
         if not resp_text:
-            return
+            return None
 
         stripped = resp_text.strip()  # type: ignore
         if not stripped:
