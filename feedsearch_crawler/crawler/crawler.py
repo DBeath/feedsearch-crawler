@@ -528,7 +528,7 @@ class Crawler(ABC):
                             item.result, item.callback_recursion
                         )
                 except Exception as e:
-                    self.logger.error("Error handling item: %s : %s", item, e)
+                    self.logger.exception("Error handling item: %s : %s", item, e)
                 finally:
                     self._request_queue.task_done()
         except asyncio.CancelledError:
