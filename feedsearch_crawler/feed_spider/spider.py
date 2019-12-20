@@ -1,64 +1,24 @@
 import base64
-import pathlib
 import re
 from types import AsyncGeneratorType
-from typing import Union, Any, List, Set, Optional
+from typing import Union, Any, List, Set
 
 import bs4
-from w3lib.url import url_query_cleaner
 from yarl import URL
 
 from feedsearch_crawler.crawler import Crawler, Item, Request, Response
+from feedsearch_crawler.crawler.lib import parse_href_to_url
 from feedsearch_crawler.feed_spider.dupefilter import NoQueryDupeFilter
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 from feedsearch_crawler.feed_spider.lib import ParseTypes
+from feedsearch_crawler.feed_spider.link_filter import LinkFilter
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
-# Regex to check that a feed-like string is a whole word to help rule out false positives.
-feedlike_regex = re.compile("\\b(rss|feeds?|atom|json|xml|rdf)\\b", re.IGNORECASE)
-
-# Regex to check that a podcast string is a whole word.
-podcast_regex = re.compile("\\b(podcasts?)\\b", re.IGNORECASE)
-
-# Regex to check if the URL might contain author information.
-author_regex = re.compile(
-    "(authors?|journalists?|writers?|contributors?)", re.IGNORECASE
-)
-
-# Regex to check URL string for invalid file types.
-file_regex = re.compile(
-    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff2?|svg|ttf|zip)/?$",
-    re.IGNORECASE,
-)
-
 # Regex to check if possible RSS data.
 rss_regex = re.compile("(<rss|<rfd|<feed)", re.IGNORECASE)
-
-# Regex to match year and month in URLs, e.g. /2019/07/
-date_regex = re.compile("/(\\d{4}/\\d{2})/")
-
-invalid_filetypes = [
-    "jpeg",
-    "jpg",
-    "png",
-    "gif",
-    "bmp",
-    "mp4",
-    "mp3",
-    "mkv",
-    "md",
-    "css",
-    "avi",
-    "pdf",
-    "js",
-    "woff",
-    "woff2",
-    "svg",
-    "ttf",
-]
 
 
 class FeedsearchSpider(Crawler):
@@ -130,13 +90,24 @@ class FeedsearchSpider(Crawler):
         if not soup:
             return
 
+        # Don't crawl links from pages that are not from the original domain
+        if not response.is_original_domain():
+            return
+
+        link_filter = LinkFilter(
+            self.logger, request=request, response=response, full_crawl=self.full_crawl
+        )
+
         # Find all links in the Response.
         links = soup.find_all(self.tag_has_href)
         for link in links:
             # Check each href for validity and queue priority.
-            new_request = await self.should_follow_link(link, response)
-            if new_request:
-                yield new_request
+            values = link_filter.should_follow_link(link)
+            if values:
+                url, priority = values
+                yield await self.follow(
+                    url, self.parse, response, priority=priority, allow_domain=True
+                )
 
     async def parse_site_meta(
         self, request: Request, response: Response
@@ -289,7 +260,7 @@ class FeedsearchSpider(Crawler):
             if isinstance(url, str):
                 if "//" not in url:
                     url = f"//{url}"
-                url = self.parse_href_to_url(url)
+                url = parse_href_to_url(self.logger, url)
 
             if url.scheme.lower() not in ["http", "https"]:
                 url = url.with_scheme("http")
@@ -342,83 +313,6 @@ class FeedsearchSpider(Crawler):
 
         return list(crawl_start_urls)
 
-    async def should_follow_link(
-        self, link: bs4.Tag, response: Response
-    ) -> Optional[Request]:
-        """
-        Check that the link should be followed if it may contain feed information.
-
-        :param link: Link tag
-        :param response: Response
-        :return: boolean
-        """
-        href: str = link.get("href")
-        link_type: str = link.get("type")
-
-        url: URL = self.parse_href_to_url(href)
-        if not url:
-            return
-
-        is_one_jump: bool = self.is_one_jump_from_original_domain(url, response)
-
-        priority: int = Request.priority
-
-        has_author_info: bool = self.is_href_matching(href, author_regex)
-        is_feedlike_href: bool = self.is_href_matching(href, feedlike_regex)
-        is_feedlike_querystring: bool = self.is_querystring_matching(
-            url, feedlike_regex
-        )
-        is_podcast_href: bool = self.is_href_matching(href, podcast_regex)
-        is_low_priority: bool = self.is_low_priority(href)
-
-        is_feedlike_url = is_feedlike_querystring or is_feedlike_href
-
-        # A low priority url should be fetched last.
-        if is_low_priority:
-            priority = Request.priority + 2
-        # Podcast pages are lower priority than authors or feeds.
-        if is_podcast_href:
-            priority = 5
-        # Potential author info has a medium priority.
-        if has_author_info:
-            priority = 4
-        # A feedlike url has high priority.
-        if is_feedlike_url:
-            priority = 3
-
-        # If the link may have a valid feed type then follow it regardless of the url text.
-        if (
-            link_type
-            and any(
-                map(link_type.lower().count, ["application/json", "rss", "atom", "rdf"])
-            )
-            and "json+oembed" not in link_type
-            and is_one_jump
-        ):
-            # A link with a possible feed type has the highest priority after callbacks.
-            return await self.follow(
-                url, self.parse, response, priority=2, allow_domain=True
-            )
-        # Validate the actual URL string.
-        else:
-            follow = (
-                is_one_jump
-                and not self.has_invalid_contents(href)
-                and self.is_valid_filetype(href)
-                and not self.has_invalid_querystring(url)
-            )
-            # If full_crawl then follow all valid URLs regardless of the feedlike quality of the URL.
-            # Otherwise only follow URLs if they look like they might contain feed information.
-            if follow and (self.full_crawl or is_feedlike_url or is_podcast_href):
-
-                # Remove the querystring unless it may point to a feed.
-                if not is_feedlike_querystring:
-                    url = url.with_query(None)
-
-                return await self.follow(
-                    url, self.parse, response, priority=priority, allow_domain=True
-                )
-
     @staticmethod
     def tag_has_href(tag: bs4.Tag) -> bool:
         """
@@ -428,156 +322,3 @@ class FeedsearchSpider(Crawler):
         :return: boolean
         """
         return tag.has_attr("href")
-
-    @staticmethod
-    def is_one_jump_from_original_domain(url: URL, response: Response) -> bool:
-        """
-        Check that the current URL is only one response away from the originally queried domain.
-
-        We want to be able to follow potential feed links that point to a different domain than
-        the originally queried domain, but not to follow any deeper than that.
-
-        Sub-domains of the original domain are ok.
-
-        i.e: the following are ok
-            "test.com" -> "feedhost.com"
-            "test.com/feeds" -> "example.com/feed.xml"
-            "test.com" -> "feeds.test.com"
-
-        not ok:
-            "test.com" -> "feedhost.com" (we stop here) -> "feedhost.com/feeds"
-
-        :param url: URL object or string
-        :param response: Response object
-        :return: boolean
-        """
-
-        if not url.is_absolute():
-            url = url.join(response.url)
-
-        # This is the first Response in the chain
-        if len(response.history) == 1:
-            return True
-
-        # URL is same domain
-        if url.host == response.history[0].host:
-            return True
-
-        # URL is sub-domain
-        if response.history[0].host in url.host:
-            return True
-
-        # URL domain and current Response domain are different from original domain
-        if (
-            response.history[-1].host != response.history[0].host
-            and url.host != response.history[0].host
-        ):
-            return False
-
-        return True
-
-    @staticmethod
-    def is_valid_filetype(url: str) -> bool:
-        """
-        Check if url string has an invalid filetype extension.
-
-        :param url: URL string
-        :return: boolean
-        """
-        # if file_regex.search(url.strip()):
-        #     return False
-        # return True
-        suffix = pathlib.Path(url_query_cleaner(url)).suffix.strip(".").lower()
-        if suffix in invalid_filetypes:
-            return False
-        return True
-
-    @staticmethod
-    def has_invalid_querystring(url: URL) -> bool:
-        """
-        Check if URL querystring contains invalid keys.
-
-        :param url: URL object
-        :return: boolean
-        """
-        return any(
-            key in url.query for key in ["comment", "comments", "post", "view", "theme"]
-        )
-
-    @staticmethod
-    def is_href_matching(url_string: str, regex: re) -> bool:
-        """
-        Check if the regex has any match in the url string.
-
-        :param url_string: URL as string
-        :param regex: Regex used to search URL
-        :return: boolean
-        """
-        if regex.search(url_query_cleaner(url_string)):
-            return True
-        return False
-
-    @staticmethod
-    def is_querystring_matching(url: URL, regex: re) -> bool:
-        """
-        Check if the regex has any match in the URL query parameters.
-
-        :param url: URL object
-        :param regex: Regex used to search query
-        :return: boolean
-        """
-        for key in url.query:
-            if regex.search(key):
-                return True
-        return False
-
-    @staticmethod
-    def has_invalid_contents(string: str) -> bool:
-        """
-        Ignore any string containing the following strings.
-
-        :param string: String to check
-        :return: boolean
-        """
-        return any(
-            value in string.lower()
-            for value in [
-                "wp-includes",
-                "wp-content",
-                "wp-json",
-                "xmlrpc",
-                "wp-admin",
-                # Theoretically there could be a feed at an AMP url, but not worth checking.
-                "/amp/",
-                "mailto:",
-                "//font.",
-            ]
-        )
-
-    @staticmethod
-    def is_low_priority(url_string: str) -> bool:
-        """
-        Check if the url contains any strings that indicate the url should be low priority.
-
-        :param url_string: URL string
-        :return: boolean
-        """
-        if any(
-            value in url_string.lower()
-            for value in [
-                # Archives and article pages are less likely to contain feeds.
-                "/archive/",
-                "/page/",
-                # Forums are not likely to contain interesting feeds.
-                "forum",
-                # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
-                "//cdn.",
-                "video",
-            ]
-        ):
-            return True
-
-        # Search for dates in url, this generally indicates an article page.
-        if date_regex.search(url_string):
-            return True
-        return False

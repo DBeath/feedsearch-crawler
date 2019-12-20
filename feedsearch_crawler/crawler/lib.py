@@ -233,3 +233,23 @@ def ignore_aiohttp_ssl_eror(loop, aiohttpversion="3.5.4"):
             loop.default_exception_handler(context)
 
     loop.set_exception_handler(ignore_ssl_error)
+
+
+def parse_href_to_url(logger, href: str) -> Union[URL, None]:
+    """
+    Parse an href string to a URL object.
+
+    :param href: An href string that may be a valid url.
+    :return: URL or None.
+    """
+    if not href:
+        return None
+
+    if not isinstance(href, str):
+        raise TypeError("href must be string")
+
+    try:
+        return URL(href)
+    except UnicodeError as e:
+        logger.warning("Failed to encode href: %s : %s", href, e)
+        return None
