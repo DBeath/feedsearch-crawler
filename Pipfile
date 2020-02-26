@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 twine = "*"
 pytest = "*"
+black = "*"
 
 [packages]
 aiohttp = "*"

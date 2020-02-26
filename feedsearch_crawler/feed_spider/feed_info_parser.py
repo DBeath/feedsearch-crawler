@@ -292,9 +292,9 @@ class FeedInfoParser(ItemParser):
         :param parsed: Feedparser dict
         :return: bool
         """
-        has_itunes: bool = "itunes" in parsed.get("namespaces")
+        has_itunes: bool = "itunes" in parsed.get("namespaces", [])
         has_enclosures: bool = any(
-            [len(x.get("enclosures")) >= 1 for x in parsed.get("entries")]
+            [len(x.get("enclosures", [])) >= 1 for x in parsed.get("entries", [])]
         )
         return has_itunes and has_enclosures
 
@@ -335,9 +335,10 @@ class FeedInfoParser(ItemParser):
         """
         link_header = headers.get("Link")
         links: list = []
-        if link_header:
 
+        if link_header:
             links = parse_header_links(to_string(link_header))
+
         return FeedInfoParser.find_hubs_and_self_links(links)
 
     @staticmethod
