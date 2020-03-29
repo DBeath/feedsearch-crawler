@@ -23,6 +23,7 @@ from feedsearch_crawler.crawler.lib import (
     Stats,
     CallbackResult,
     CrawlerPriorityQueue,
+    parse_href_to_url,
 )
 from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
@@ -316,25 +317,6 @@ class Crawler(ABC):
         # Add the Request to the queue for processing.
         self._put_queue(request)
 
-    def parse_href_to_url(self, href: str) -> Union[URL, None]:
-        """
-        Parse an href string to a URL object.
-
-        :param href: An href string that may be a valid url.
-        :return: URL or None.
-        """
-        if not href:
-            return None
-
-        if not isinstance(href, str):
-            raise TypeError("href must be string")
-
-        try:
-            return URL(href)
-        except UnicodeError as e:
-            self.logger.warning("Failed to encode href: %s : %s", href, e)
-            return None
-
     def is_allowed_domain(self, url: URL) -> bool:
         """
         Check that the URL host is in the list of allowed domain patterns.
@@ -402,7 +384,7 @@ class Crawler(ABC):
         """
         original_url = copy.copy(url)
         if isinstance(url, str):
-            url = self.parse_href_to_url(url)
+            url = parse_href_to_url(self.logger, url)
 
         if not url:
             self.logger.warning("Attempted to follow invalid URL: %s", original_url)
@@ -412,7 +394,7 @@ class Crawler(ABC):
         if response:
             # Join the URL to the Response URL if it doesn't contain a domain.
             if not url.is_absolute():
-                url = response.url.origin().join(url)
+                url = response.origin.join(url)
 
             # Restrict the depth of the Request chain to the maximum depth.
             # This test happens before the URL duplicate check so that the URL might still be reachable by another path.

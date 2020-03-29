@@ -3,6 +3,8 @@ from typing import List, Dict, Any, Optional
 
 from yarl import URL
 
+from feedsearch_crawler.feed_spider.lib import remove_www
+
 
 class Response:
     _xml = None
@@ -39,6 +41,7 @@ class Response:
         self.redirect_history = redirect_history
         self.content_length = content_length
         self.meta = meta
+        self.origin: URL = url.origin()
 
     @property
     def ok(self) -> bool:
@@ -83,6 +86,24 @@ class Response:
         """
         if max_depth and len(self.history) >= max_depth:
             return True
+        return False
+
+    def is_original_domain(self) -> bool:
+        """
+        Check if this response is still at the original domain in the response chain.
+
+        :return: boolean
+        """
+        # This is the first Response in the chain
+        if len(self.history) == 1:
+            return True
+        # URL is same domain
+        if self.url.host == self.history[0].host:
+            return True
+        # URL is sub-domain
+        if remove_www(self.history[0].host) in self.url.host:
+            return True
+
         return False
 
     def __repr__(self):

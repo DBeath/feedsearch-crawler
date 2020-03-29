@@ -1,8 +1,14 @@
 from typing import Union, List
+import cgi
 
 from yarl import URL
 from datetime import datetime
 from dateutil import tz, parser
+
+
+class ParseTypes:
+    JSON = "json"
+    XML = "xml"
 
 
 def get_site_root(url: Union[str, URL]) -> str:
@@ -88,3 +94,22 @@ def remove_www(host: str) -> str:
     if host.startswith("www."):
         return host[4:]
     return host
+
+
+def create_content_type(parse_type: str, encoding: str, content_type: str) -> str:
+    """
+    Create the actual content type of the feed.
+
+    :param parse_type: How the feed is being parsed. XML or JSON
+    :param encoding: Charset encoding of the response
+    :param content_type: Content-Type header string of the response
+    :return: Content-Type string
+    """
+    ctype, pdict = cgi.parse_header(content_type)
+
+    if parse_type == ParseTypes.JSON and not ParseTypes.JSON in ctype.lower():
+        ctype = "application/json"
+    elif parse_type == ParseTypes.XML and not ParseTypes.XML in ctype.lower():
+        ctype = "application/xml"
+
+    return f"{ctype}; charset={encoding}".lower()
