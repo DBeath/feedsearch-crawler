@@ -198,3 +198,36 @@ def test_entry_velocity():
     ]
     result = FeedInfoParser.entry_velocity(dates)
     assert result == 7.255
+
+
+def test_is_podcast_no_data():
+    data = {}
+    result = FeedInfoParser.is_podcast(data)
+    assert result is False
+
+
+def test_is_podcast_not_podcast():
+    data = {"entries": [{}]}
+    result = FeedInfoParser.is_podcast(data)
+    assert result is False
+
+
+def test_is_podcast_no_namespace():
+    data = {"entries": [{"enclosures": [{"media": "file_url"}]}]}
+    result = FeedInfoParser.is_podcast(data)
+    assert result is False
+
+
+def test_is_podcast_is_true():
+    data = {
+        "namespaces": {"itunes": "testing"},
+        "entries": [{"enclosures": [{"media": "file_url"}]}],
+    }
+    result = FeedInfoParser.is_podcast(data)
+    assert result is True
+
+
+def test_is_podcast_no_enclosures():
+    data = {"namespaces": {"itunes": "testing"}, "entries": [{}]}
+    result = FeedInfoParser.is_podcast(data)
+    assert result is False

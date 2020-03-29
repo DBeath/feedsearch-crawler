@@ -278,9 +278,12 @@ class FeedInfoParser(ItemParser):
         :param parsed: Feedparser dict
         :return: bool
         """
-        has_itunes: bool = "itunes" in parsed.get("namespaces")
+        if not parsed:
+            return False
+
+        has_itunes: bool = "itunes" in parsed.get("namespaces", {})
         has_enclosures: bool = any(
-            [len(x.get("enclosures")) >= 1 for x in parsed.get("entries")]
+            [len(x.get("enclosures", [])) >= 1 for x in parsed.get("entries", [])]
         )
         return has_itunes and has_enclosures
 
