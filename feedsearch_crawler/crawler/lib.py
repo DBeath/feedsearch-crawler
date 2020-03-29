@@ -250,6 +250,6 @@ def parse_href_to_url(logger, href: str) -> Union[URL, None]:
 
     try:
         return URL(href)
-    except UnicodeError as e:
+    except (UnicodeError, ValueError) as e:
         logger.warning("Failed to encode href: %s : %s", href, e)
         return None
