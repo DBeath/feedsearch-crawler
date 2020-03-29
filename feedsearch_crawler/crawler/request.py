@@ -346,7 +346,7 @@ class Request(Queueable):
         try:
             return await self._xml_parser(response_text)
         except Exception as e:
-            self.logger.error("Error parsing response xml: %s", e)
+            self.logger.exception("Error parsing response xml: %s", e)
             return None
 
     def set_retry(self) -> None:

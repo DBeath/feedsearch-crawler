@@ -81,7 +81,7 @@ class FeedInfoParser(ItemParser):
         try:
             parsed = self.parse_raw_data(data, encoding, headers)
         except Exception as e:
-            self.logger.error("Unable to parse feed %s: %s", item, e)
+            self.logger.exception("Unable to parse feed %s: %s", item, e)
             return False
 
         if not parsed:
@@ -132,7 +132,7 @@ class FeedInfoParser(ItemParser):
             elif feed.get("updated"):
                 item.last_updated = datestring_to_utc_datetime(feed.get("updated"))
         except Exception as e:
-            self.logger.error("Unable to get feed published date: %s", e)
+            self.logger.exception("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -187,7 +187,7 @@ class FeedInfoParser(ItemParser):
                 item.last_updated = sorted(dates, reverse=True)[0]
                 item.velocity = self.entry_velocity(dates)
         except Exception as e:
-            self.logger.error("Unable to get feed published date: %s", e)
+            self.logger.exception("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -444,6 +444,9 @@ class FeedInfoParser(ItemParser):
             delta = current_date - previous_date
             deltas.append(delta.total_seconds())
             previous_date = current_date
+
+        if not deltas:
+            return 0
 
         mean_seconds_delta = mean(deltas)
 

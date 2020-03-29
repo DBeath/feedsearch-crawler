@@ -261,7 +261,7 @@ class FeedsearchSpider(Crawler):
                 )
                 return
         except Exception as e:
-            self.logger.error("Failure validation image type: %s: %s", response, e)
+            self.logger.exception("Failure validation image type: %s: %s", response, e)
 
         try:
             encoded = base64.b64encode(response.data)
@@ -270,7 +270,7 @@ class FeedsearchSpider(Crawler):
             favicon.data_uri = uri
             self.add_favicon(favicon)
         except Exception as e:
-            self.logger.error("Failure encoding image: %s: %s", response, e)
+            self.logger.exception("Failure encoding image: %s: %s", response, e)
 
     def create_start_urls(self, urls: List[Union[URL, str]]) -> List[URL]:
         """

@@ -5,6 +5,18 @@ from dateutil.tz import tzutc
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 
 
+def test_entry_velocity_no_dates():
+    dates = []
+    result = FeedInfoParser.entry_velocity(dates)
+    assert result == 0
+
+
+def test_entry_velocity_identical_dates():
+    dates = [datetime(2020, 1, 1), datetime(2020, 1, 1), datetime(2020, 1, 1)]
+    result = FeedInfoParser.entry_velocity(dates)
+    assert result == 0
+
+
 def test_entry_velocity():
     dates = [
         datetime(2019, 1, 1),
