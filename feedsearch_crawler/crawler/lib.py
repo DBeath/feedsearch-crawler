@@ -127,7 +127,9 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
         url = URL.build(scheme=scheme, host=split[0])
         if len(split) > 1:
             url = url.with_path(split[1])
-    elif url.scheme == "http" and https:
+
+
+    if (url.scheme == "http" and https) or not url.scheme:
         url = url.with_scheme(scheme)
 
     return url

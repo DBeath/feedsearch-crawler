@@ -15,3 +15,4 @@ def test_coerce_url():
     assert coerce_url("test.com/path/path2", https=True) == URL(
         "https://test.com/path/path2"
     )
+    assert coerce_url("//test.com") == URL("http://test.com")

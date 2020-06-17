@@ -60,6 +60,7 @@ class FeedInfoParser(ItemParser):
                 )
 
             if not valid_feed:
+                self.logger.debug("Invalid Feed: %s", item)
                 return
         except Exception as e:
             self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
@@ -80,7 +81,7 @@ class FeedInfoParser(ItemParser):
         yield item
 
     def parse_xml(
-        self, item: FeedInfo, data: str, encoding: str, headers: Dict
+        self, item: FeedInfo, data: Union[str, bytes], encoding: str, headers: Dict
     ) -> bool:
         """
         Get info from XML (RSS or ATOM) feed.
@@ -241,6 +242,7 @@ class FeedInfoParser(ItemParser):
             if isinstance(raw_data, str):
                 raw_data: bytes = raw_data.encode(encoding)
 
+            raw_data = raw_data.strip()
             content_length = len(raw_data)
 
             # We want to pass data into feedparser as bytes, otherwise if we accidentally pass a url string

@@ -43,7 +43,8 @@ urls = [
     # "https://breebird33.tumblr.com/rss"
     # "https://resel.fr/rss-news"
     # "https://muhammadraza.me"
-    "https://www.franceinter.fr/rss/a-la-une.xml"
+    # "https://www.franceinter.fr/rss/a-la-une.xml",
+    "harpers.org"
 ]
 
 
