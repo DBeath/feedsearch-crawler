@@ -46,12 +46,12 @@ required = [
     "cchardet",
     "aiodns",
     "w3lib",
-    "uvloop",
+    "uvloop ; sys_platform != 'win32'",
 ]
 
 setup(
     name="feedsearch-crawler",
-    version="0.2.4",
+    version="0.2.5",
     description="Search sites for RSS, Atom, and JSON feeds",
     long_description=readme,
     long_description_content_type="text/markdown",
