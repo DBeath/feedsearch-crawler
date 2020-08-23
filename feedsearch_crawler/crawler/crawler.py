@@ -393,8 +393,8 @@ class Crawler(ABC):
         history = []
         if response:
             # Join the URL to the Response URL if it doesn't contain a domain.
-            if not url.is_absolute():
-                url = response.origin.join(url)
+            if not url.is_absolute() or not url.scheme:
+                url = coerce_url(response.origin.join(url), scheme=response.scheme)
 
             # Restrict the depth of the Request chain to the maximum depth.
             # This test happens before the URL duplicate check so that the URL might still be reachable by another path.
@@ -404,6 +404,13 @@ class Crawler(ABC):
 
             # Copy the Response history so that it isn't a reference to a mutable object.
             history = copy.deepcopy(response.history)
+        else:
+            if not url.is_absolute():
+                self.logger.debug("URL should have domain: %s", url)
+                return
+
+            if not url.scheme:
+                url = coerce_url(url)
 
         # The URL scheme must be in the list of allowed schemes.
         if self.allowed_schemes and url.scheme not in self.allowed_schemes:

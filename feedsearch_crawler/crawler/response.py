@@ -52,6 +52,10 @@ class Response:
         return self.url.host
 
     @property
+    def scheme(self) -> str:
+        return self.url.scheme
+
+    @property
     def previous_domain(self) -> str:
         if not self.history:
             return ""

@@ -108,7 +108,7 @@ class Stats(Enum):
         return self.value < other.value
 
 
-def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
+def coerce_url(url: Union[URL, str], https: bool = False, scheme: str = 'http') -> URL:
     """
     Coerce URL to valid format
 
@@ -119,7 +119,7 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
     if isinstance(url, str):
         url = URL(url.strip())
 
-    scheme = "https" if https else "http"
+    scheme = "https" if https else scheme
 
     if not url.is_absolute():
         url_string = str(url)
@@ -127,7 +127,6 @@ def coerce_url(url: Union[URL, str], https: bool = False) -> URL:
         url = URL.build(scheme=scheme, host=split[0])
         if len(split) > 1:
             url = url.with_path(split[1])
-
 
     if (url.scheme == "http" and https) or not url.scheme:
         url = url.with_scheme(scheme)

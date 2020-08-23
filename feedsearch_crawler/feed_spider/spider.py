@@ -18,7 +18,7 @@ from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 # Regex to check if possible RSS data.
-rss_regex = re.compile("(<rss|<rfd|<feed)", re.IGNORECASE)
+rss_regex = re.compile("(<rss|<rdf|<feed)", re.IGNORECASE)
 
 
 class FeedsearchSpider(Crawler):

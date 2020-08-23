@@ -10,7 +10,7 @@ import collections
 
 urls = [
     # "arstechnica.com",
-    # "http://davidbeath.com",
+    # "https://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
@@ -44,7 +44,8 @@ urls = [
     # "https://resel.fr/rss-news"
     # "https://muhammadraza.me"
     # "https://www.franceinter.fr/rss/a-la-une.xml",
-    "harpers.org"
+    # "harpers.org",
+    "slashdot.com"
 ]
 
 
