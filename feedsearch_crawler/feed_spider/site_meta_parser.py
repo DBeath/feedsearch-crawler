@@ -43,10 +43,13 @@ class SiteMetaParser(ItemParser):
     def find_site_icon_urls(soup, url, host) -> List[Favicon]:
         search_icons = [
             Favicon(
-                url=url.join(URL("favicon.ico")), rel="favicon", priority=3, host=host
+                url=url.join(URL("favicon.ico")),
+                rel="favicon",
+                priority=3,
+                site_host=host,
             ),
-            Favicon(url="", rel="shortcut icon", priority=1, host=host),
-            Favicon(url="", rel="icon", priority=2, host=host),
+            Favicon(url="", rel="shortcut icon", priority=1, site_host=host),
+            Favicon(url="", rel="icon", priority=2, site_host=host),
         ]
 
         possible_icons = []

@@ -67,7 +67,10 @@ class FeedInfoParser(ItemParser):
             return
 
         if item.favicon and self.crawler.favicon_data_uri:
-            favicon = Favicon(url=item.favicon)
+            favicon = Favicon(
+                url=item.favicon,
+                priority=1,
+            )
             yield self.follow(
                 item.favicon,
                 self.crawler.parse_favicon_data_uri,

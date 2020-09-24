@@ -188,26 +188,18 @@ class FeedsearchSpider(Crawler):
             if not feed.favicon or (
                 self.favicon_data_uri and not feed.favicon_data_uri
             ):
-                if self.favicon_data_uri:
-                    favicons = list(
-                        x
-                        for x in list(self.favicons.values())
-                        if (x.url and x.site_host in feed.url.host and x.data_uri)
-                    )
-                else:
-                    favicons = list(
-                        x
-                        for x in list(self.favicons.values())
-                        if (x.url and x.site_host in feed.url.host)
-                    )
+                feed_host = feed.url.host
+                favicons = list(
+                    x
+                    for x in self.favicons.values()
+                    if x.matches_host(feed_host, self.favicon_data_uri)
+                )
 
                 if favicons:
                     favicon = min(favicons, key=lambda x: x.priority)
-                    if favicon:
-                        feed.favicon_data_uri = favicon.data_uri
-                        feed.favicon = (
-                            favicon.resp_url if favicon.resp_url else favicon.url
-                        )
+
+                    feed.favicon_data_uri = favicon.data_uri
+                    feed.favicon = favicon.resp_url if favicon.resp_url else favicon.url
 
     # noinspection PyUnusedLocal
     async def parse_favicon_data_uri(
