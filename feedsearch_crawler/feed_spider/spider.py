@@ -1,5 +1,4 @@
 import base64
-import re
 from types import AsyncGeneratorType
 from typing import Union, Any, List, Set
 
@@ -14,11 +13,9 @@ from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 from feedsearch_crawler.feed_spider.lib import ParseTypes
 from feedsearch_crawler.feed_spider.link_filter import LinkFilter
+from feedsearch_crawler.feed_spider.regexes import rss_regex
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
-
-# Regex to check if possible RSS data.
-rss_regex = re.compile("(<rss|<rdf|<feed)", re.IGNORECASE)
 
 
 class FeedsearchSpider(Crawler):

@@ -1,38 +1,22 @@
-import re
-from typing import Optional, Tuple
 import pathlib
+import re
+from typing import Optional, Tuple, List
 
 import bs4
-from yarl import URL
 from w3lib.url import url_query_cleaner
+from yarl import URL
 
 from feedsearch_crawler.crawler import Response, Request
-
-# Regex to check that a feed-like string is a whole word to help rule out false positives.
 from feedsearch_crawler.crawler.lib import parse_href_to_url
-
-feedlike_regex = re.compile(
-    "\\b(rss|feeds?|atom|json|xml|rdf|blogs?)\\b", re.IGNORECASE
+from feedsearch_crawler.feed_spider.regexes import (
+    feedlike_regex,
+    podcast_regex,
+    author_regex,
+    date_regex,
 )
 
-# Regex to check that a podcast string is a whole word.
-podcast_regex = re.compile("\\b(podcasts?)\\b", re.IGNORECASE)
-
-# Regex to check if the URL might contain author information.
-author_regex = re.compile(
-    "(authors?|journalists?|writers?|contributors?)", re.IGNORECASE
-)
-
-# Regex to check URL string for invalid file types.
-file_regex = re.compile(
-    ".(jpe?g|png|gif|bmp|mp4|mp3|mkv|md|css|avi|pdf|js|woff2?|svg|ttf|zip)/?$",
-    re.IGNORECASE,
-)
-
-# Regex to match year and month in URLs, e.g. /2019/07/
-date_regex = re.compile("/(\\d{4}/\\d{2})/")
-
-invalid_filetypes = [
+# List of invalid filetypes
+invalid_filetypes: List[str] = [
     "jpeg",
     "jpg",
     "png",
@@ -51,6 +35,33 @@ invalid_filetypes = [
     "svg",
     "ttf",
 ]
+
+# List of strings that are invalid as querystring keys
+invalid_querystring_keys: List[str] = ["comment", "comments", "post", "view", "theme"]
+
+# List of strings that indicate a URL is invalid for crawling
+invalid_url_contents: List[str] = [
+    "wp-includes",
+    "wp-content",
+    "wp-json",
+    "xmlrpc",
+    "wp-admin",
+    "/amp/",  # Theoretically there could be a feed at an AMP url, but not worth checking.
+    "mailto:",
+    "//font.",
+]
+
+# List of strings that indicate a URL should be low priority
+low_priority_urls: List[str] = [
+    "/archive/",  # Archives are less likely to contain feeds.
+    "/page/",  # Articles pages are less likely to contain feeds.
+    "forum",  # Forums are not likely to contain interesting feeds.
+    "//cdn.",  # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
+    "video",
+]
+
+# Link Types that should always be searched for feeds
+feed_link_types: List[str] = ["application/json", "rss", "atom", "rdf"]
 
 
 class LinkFilter:
@@ -79,9 +90,7 @@ class LinkFilter:
         # If the link may have a valid feed type then follow it regardless of the url text.
         if (
             link_type
-            and any(
-                map(link_type.lower().count, ["application/json", "rss", "atom", "rdf"])
-            )
+            and any(map(link_type.lower().count, feed_link_types))
             and "json+oembed" not in link_type
         ):
             # A link with a possible feed type has the highest priority after callbacks.
@@ -210,9 +219,7 @@ class LinkFilter:
         :param url: URL object
         :return: boolean
         """
-        return any(
-            key in url.query for key in ["comment", "comments", "post", "view", "theme"]
-        )
+        return any(key in url.query for key in invalid_querystring_keys)
 
     @staticmethod
     def is_href_matching(url_string: str, regex: re) -> bool:
@@ -249,20 +256,7 @@ class LinkFilter:
         :param string: String to check
         :return: boolean
         """
-        return any(
-            value in string.lower()
-            for value in [
-                "wp-includes",
-                "wp-content",
-                "wp-json",
-                "xmlrpc",
-                "wp-admin",
-                # Theoretically there could be a feed at an AMP url, but not worth checking.
-                "/amp/",
-                "mailto:",
-                "//font.",
-            ]
-        )
+        return any(value in string.lower() for value in invalid_url_contents)
 
     @staticmethod
     def is_low_priority(url_string: str) -> bool:
@@ -272,19 +266,7 @@ class LinkFilter:
         :param url_string: URL string
         :return: boolean
         """
-        if any(
-            value in url_string.lower()
-            for value in [
-                # Archives and article pages are less likely to contain feeds.
-                "/archive/",
-                "/page/",
-                # Forums are not likely to contain interesting feeds.
-                "forum",
-                # Can't guarantee that someone won't put a feed at a CDN url, so we can't outright ignore it.
-                "//cdn.",
-                "video",
-            ]
-        ):
+        if any(value in url_string.lower() for value in low_priority_urls):
             return True
 
         # Search for dates in url, this generally indicates an article page.
