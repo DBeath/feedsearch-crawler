@@ -19,7 +19,7 @@ from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.lib import (
     coerce_url,
-    ignore_aiohttp_ssl_eror,
+    ignore_aiohttp_ssl_error,
     Stats,
     CallbackResult,
     CrawlerPriorityQueue,
@@ -37,6 +37,9 @@ try:
 except ImportError:
     uvloop = None
     pass
+
+
+logger = logging.getLogger(__name__)
 
 
 class Crawler(ABC):
@@ -146,8 +149,6 @@ class Crawler(ABC):
         self._ssl = ssl
         self._trace = trace
 
-        self.logger = logging.getLogger("feedsearch_crawler")
-
         # Default set for parsed items.
         self.items: set = set()
 
@@ -204,7 +205,7 @@ class Crawler(ABC):
         """
         try:
             if request.has_run and not request.should_retry:
-                self.logger.warning("%s has already run", request)
+                logger.warning("%s has already run", request)
                 return
 
             start = time.perf_counter()
@@ -216,7 +217,7 @@ class Crawler(ABC):
             dur = int((time.perf_counter() - start) * 1000)
             self._stats_request_durations.append(dur)
             self._stats_request_latencies.append(request.req_latency)
-            self.logger.debug(
+            logger.debug(
                 "Fetched: url=%s dur=%dms latency=%dms read=%dms status=%s prev=%s",
                 response.url,
                 dur,
@@ -252,9 +253,9 @@ class Crawler(ABC):
                 self._put_queue(request)
 
         except asyncio.CancelledError as e:
-            self.logger.debug("Cancelled: %s, %s", request, e)
+            logger.debug("Cancelled: %s, %s", request, e)
         except Exception as e:
-            self.logger.exception("Exception during %s: %s", request, e)
+            logger.exception("Exception during %s: %s", request, e)
         finally:
             return
 
@@ -270,7 +271,7 @@ class Crawler(ABC):
         :return: None
         """
         if callback_recursion >= self.max_callback_recursion:
-            self.logger.warning(
+            logger.warning(
                 "Max callback recursion of %d reached", self.max_callback_recursion
             )
             return
@@ -300,7 +301,7 @@ class Crawler(ABC):
                 await self.process_item(result)
                 self.stats[Stats.ITEMS_PROCESSED] += 1
         except Exception as e:
-            self.logger.exception(e)
+            logger.exception(e)
 
     def _process_request(self, request: Request) -> None:
         """
@@ -313,7 +314,7 @@ class Crawler(ABC):
             return
 
         self.stats[Stats.REQUESTS_QUEUED] += 1
-        self.logger.debug("Queue Add: %s", request)
+        logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
         self._put_queue(request)
 
@@ -337,7 +338,7 @@ class Crawler(ABC):
                 if fnmatch(host, domain_pattern):
                     return True
         except Exception as e:
-            self.logger.warning(e)
+            logger.warning(e)
         return False
 
     async def follow(
@@ -384,10 +385,10 @@ class Crawler(ABC):
         """
         original_url = copy.copy(url)
         if isinstance(url, str):
-            url = parse_href_to_url(self.logger, url)
+            url = parse_href_to_url(url)
 
         if not url:
-            self.logger.warning("Attempted to follow invalid URL: %s", original_url)
+            logger.warning("Attempted to follow invalid URL: %s", original_url)
             return
 
         history = []
@@ -399,14 +400,14 @@ class Crawler(ABC):
             # Restrict the depth of the Request chain to the maximum depth.
             # This test happens before the URL duplicate check so that the URL might still be reachable by another path.
             if self.max_depth and len(response.history) >= self.max_depth:
-                self.logger.debug("Max Depth of '%d' reached: %s", self.max_depth, url)
+                logger.debug("Max Depth of '%d' reached: %s", self.max_depth, url)
                 return
 
             # Copy the Response history so that it isn't a reference to a mutable object.
             history = copy.deepcopy(response.history)
         else:
             if not url.is_absolute():
-                self.logger.debug("URL should have domain: %s", url)
+                logger.debug("URL should have domain: %s", url)
                 return
 
             if not url.scheme:
@@ -414,12 +415,12 @@ class Crawler(ABC):
 
         # The URL scheme must be in the list of allowed schemes.
         if self.allowed_schemes and url.scheme not in self.allowed_schemes:
-            self.logger.debug("URI Scheme '%s' not allowed: %s", url.scheme, url)
+            logger.debug("URI Scheme '%s' not allowed: %s", url.scheme, url)
             return
 
         # The URL host must be in the list of allowed domains.
         if not allow_domain and not self.is_allowed_domain(url):
-            self.logger.debug("Domain '%s' not allowed: %s", url.host, url)
+            logger.debug("Domain '%s' not allowed: %s", url.host, url)
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.
@@ -496,15 +497,15 @@ class Crawler(ABC):
             while True:
                 self._stats_queue_sizes.append(self._request_queue.qsize())
                 item: Queueable = await self._request_queue.get()
-                # self.logger.debug("Priority: %s Item: %s", item.priority, item)
+                # logger.debug("Priority: %s Item: %s", item.priority, item)
                 if item.get_queue_wait_time():
-                    # self.logger.debug(
+                    # logger.debug(
                     #     "Waited: %sms Item: %s", item.get_queue_wait_time(), item
                     # )
                     self._stats_queue_wait_times.append(item.get_queue_wait_time())
 
                 if self._session.closed:
-                    self.logger.debug("Session is closed. Cannot run %s", item)
+                    logger.debug("Session is closed. Cannot run %s", item)
                     continue
 
                 try:
@@ -517,11 +518,11 @@ class Crawler(ABC):
                             item.result, item.callback_recursion
                         )
                 except Exception as e:
-                    self.logger.exception("Error handling item: %s : %s", item, e)
+                    logger.exception("Error handling item: %s : %s", item, e)
                 finally:
                     self._request_queue.task_done()
         except asyncio.CancelledError:
-            self.logger.debug("Cancelled Worker: %s", task_num)
+            logger.debug("Cancelled Worker: %s", task_num)
 
     async def _run_callback(self, callback, *args, **kwargs) -> None:
         """
@@ -539,7 +540,7 @@ class Crawler(ABC):
         elif inspect.isfunction(callback):
             callback(*args, **kwargs)
         else:
-            self.logger.warning("Callback %s must be a coroutine or function", callback)
+            logger.warning("Callback %s must be a coroutine or function", callback)
 
     def create_start_urls(self, urls: List[Union[URL, str]]) -> List[URL]:
         """
@@ -636,7 +637,7 @@ class Crawler(ABC):
         """
 
         # Fix for ssl errors
-        ignore_aiohttp_ssl_eror(asyncio.get_running_loop())
+        ignore_aiohttp_ssl_error(asyncio.get_running_loop())
 
         start = time.perf_counter()
 
@@ -691,7 +692,7 @@ class Crawler(ABC):
                     self._request_queue.join(), timeout=self.total_timeout.total
                 )
         except asyncio.TimeoutError:
-            self.logger.debug("Timed out after %s seconds", self.total_timeout.total)
+            logger.debug("Timed out after %s seconds", self.total_timeout.total)
             self._request_queue.clear()
         finally:
             # Make sure all workers are cancelled.
@@ -711,9 +712,9 @@ class Crawler(ABC):
 
         self.record_statistics()
 
-        self.logger.info(
+        logger.info(
             "Crawl finished: requests=%s time=%dms",
             self.stats[Stats.REQUESTS_QUEUED],
             duration,
         )
-        self.logger.debug("Stats: %s", self.stats)
+        logger.debug("Stats: %s", self.stats)

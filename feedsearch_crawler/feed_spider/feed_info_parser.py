@@ -1,10 +1,11 @@
-import time
+import logging
 from datetime import datetime, date
 from statistics import mean
 from types import AsyncGeneratorType
 from typing import Tuple, List, Union, Dict
 
 import feedparser
+import time
 from aiohttp import hdrs
 from bs4 import BeautifulSoup
 from yarl import URL
@@ -21,12 +22,14 @@ from feedsearch_crawler.feed_spider.lib import (
     ParseTypes,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class FeedInfoParser(ItemParser):
     async def parse_item(
         self, request: Request, response: Response, *args, **kwargs
     ) -> AsyncGeneratorType:
-        self.logger.info("Parsing: Feed %s", response.url)
+        logger.info("Parsing: Feed %s", response.url)
 
         if "parse_type" not in kwargs:
             raise ValueError("type keyword argument is required")
@@ -60,10 +63,10 @@ class FeedInfoParser(ItemParser):
                 )
 
             if not valid_feed:
-                self.logger.debug("Invalid Feed: %s", item)
+                logger.debug("Invalid Feed: %s", item)
                 return
         except Exception as e:
-            self.logger.exception("Failed to parse feed %s, Error: %s", item, e)
+            logger.exception("Failed to parse feed %s, Error: %s", item, e)
             return
 
         if item.favicon and self.crawler.favicon_data_uri:
@@ -94,11 +97,11 @@ class FeedInfoParser(ItemParser):
         try:
             parsed = self.parse_raw_data(data, encoding, headers)
         except Exception as e:
-            self.logger.exception("Unable to parse feed %s: %s", item, e)
+            logger.exception("Unable to parse feed %s: %s", item, e)
             return False
 
         if not parsed:
-            self.logger.warning("No valid feed data for %s", item)
+            logger.warning("No valid feed data for %s", item)
             return False
 
         if parsed.get("bozo") == 1:
@@ -109,9 +112,7 @@ class FeedInfoParser(ItemParser):
                 bozo_exception,
                 (feedparser.CharacterEncodingUnknown, feedparser.UndeclaredNamespace),
             ):
-                self.logger.warning(
-                    "No valid feed data for %s: %s", item, bozo_exception
-                )
+                logger.warning("No valid feed data for %s: %s", item, bozo_exception)
                 return False
 
         feed = parsed.get("feed")
@@ -149,7 +150,7 @@ class FeedInfoParser(ItemParser):
             elif feed.get("updated"):
                 item.last_updated = datestring_to_utc_datetime(feed.get("updated"))
         except Exception as e:
-            self.logger.exception("Unable to get feed published date: %s", e)
+            logger.exception("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -204,7 +205,7 @@ class FeedInfoParser(ItemParser):
                 item.last_updated = sorted(dates, reverse=True)[0]
                 item.velocity = self.entry_velocity(dates)
         except Exception as e:
-            self.logger.exception("Unable to get feed published date: %s", e)
+            logger.exception("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -253,11 +254,11 @@ class FeedInfoParser(ItemParser):
             data = feedparser.parse(raw_data, response_headers=h)
 
             dur = int((time.perf_counter() - start) * 1000)
-            self.logger.debug("Feed Parse: size=%s dur=%sms", content_length, dur)
+            logger.debug("Feed Parse: size=%s dur=%sms", content_length, dur)
 
             return data
         except Exception as e:
-            self.logger.exception("Could not parse RSS data: %s", e)
+            logger.exception("Could not parse RSS data: %s", e)
 
     def feed_title(self, feed: dict) -> str:
         """
@@ -285,7 +286,7 @@ class FeedInfoParser(ItemParser):
                 title = title[:1020] + "..."
             return title
         except Exception as ex:
-            self.logger.exception("Failed to clean title: %s", ex)
+            logger.exception("Failed to clean title: %s", ex)
             return ""
 
     @staticmethod

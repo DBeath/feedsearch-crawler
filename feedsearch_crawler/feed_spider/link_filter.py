@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import re
 from typing import Optional, Tuple, List
@@ -64,11 +65,11 @@ low_priority_urls: List[str] = [
 feed_link_types: List[str] = ["application/json", "rss", "atom", "rdf"]
 
 
+logger = logging.getLogger(__name__)
+
+
 class LinkFilter:
-    def __init__(
-        self, logger, response: Response, request: Request, full_crawl: bool = False
-    ):
-        self.logger = logger
+    def __init__(self, response: Response, request: Request, full_crawl: bool = False):
         self.response = response
         self.request = request
         self.full_crawl = full_crawl
@@ -83,7 +84,7 @@ class LinkFilter:
         href: str = link.get("href")
         link_type: str = link.get("type")
 
-        url: URL = parse_href_to_url(self.logger, href)
+        url: URL = parse_href_to_url(href)
         if not url:
             return None
 

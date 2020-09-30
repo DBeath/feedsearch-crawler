@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from yarl import URL
@@ -7,10 +8,12 @@ from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.lib import remove_www
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 
+logger = logging.getLogger(__name__)
+
 
 class SiteMetaParser(ItemParser):
     async def parse_item(self, request: Request, response: Response, *args, **kwargs):
-        self.logger.info("Parsing: SiteMeta %s", response.url)
+        logger.info("Parsing: SiteMeta %s", response.url)
         url = response.url
         site_meta: SiteMeta = SiteMeta(url)
 

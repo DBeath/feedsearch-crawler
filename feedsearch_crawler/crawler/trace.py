@@ -2,7 +2,7 @@ import asyncio
 import aiohttp
 import logging
 
-logger = logging.getLogger("feedsearch_crawler")
+logger = logging.getLogger(__name__)
 
 
 async def on_request_start(session, trace_config_ctx, params):

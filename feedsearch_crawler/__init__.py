@@ -7,7 +7,7 @@ from yarl import URL
 
 from feedsearch_crawler.feed_spider import FeedsearchSpider, FeedInfo
 
-logging.getLogger("feedsearch_crawler").addHandler(logging.NullHandler())
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 name = "Feedsearch Crawler"
 

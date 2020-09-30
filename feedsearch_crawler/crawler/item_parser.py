@@ -12,7 +12,6 @@ class ItemParser(ABC):
     def __init__(self, crawler):
         self.crawler = crawler
         self.follow = crawler.follow
-        self.logger = logging.getLogger("feedsearch_crawler")
 
     @abstractmethod
     async def parse_item(

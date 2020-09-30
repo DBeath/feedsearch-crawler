@@ -10,7 +10,7 @@ import collections
 
 urls = [
     # "arstechnica.com",
-    "https://davidbeath.com",
+    # "https://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
     # "en.wikipedia.com",
@@ -46,6 +46,7 @@ urls = [
     # "https://www.franceinter.fr/rss/a-la-une.xml",
     # "harpers.org",
     # "slashdot.com"
+    "https://bearblog.dev"
 ]
 
 
@@ -81,7 +82,7 @@ def run_crawl():
         request_timeout=30,
         user_agent=user_agent,
         # headers=headers,
-        favicon_data_uri=True,
+        favicon_data_uri=False,
         max_depth=5,
         max_retries=3,
         ssl=True,
@@ -141,7 +142,7 @@ if __name__ == "__main__":
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(message)s [in %(pathname)s:%(lineno)d]"
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s [in %(pathname)s:%(lineno)d]"
     )
     ch.setFormatter(formatter)
     fl = logging.FileHandler(

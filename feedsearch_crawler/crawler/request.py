@@ -16,6 +16,9 @@ from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.response import Response
 
 
+logger = logging.getLogger(__name__)
+
+
 class Request(Queueable):
     METHOD = ["GET", "POST"]
 
@@ -101,8 +104,6 @@ class Request(Queueable):
             if hasattr(self, key):
                 setattr(self, key, value)
 
-        self.logger = logging.getLogger("feedsearch_crawler")
-
     async def fetch_callback(self, semaphore: Semaphore = None) -> Tuple[Any, Response]:
         """
         Fetch HTTP Response and run Callbacks.
@@ -156,7 +157,7 @@ class Request(Queueable):
                 # Fail the response if the content length header is too large.
                 content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, 0))
                 if content_length > self.max_content_length:
-                    self.logger.debug(
+                    logger.debug(
                         "Content-Length of Response header %d greater than max %d: %s",
                         content_length,
                         self.max_content_length,
@@ -170,7 +171,7 @@ class Request(Queueable):
                     return self._failed_response(413)
 
                 if content_length and content_length != actual_content_length:
-                    self.logger.debug(
+                    logger.debug(
                         "Header Content-Length %d different from actual content-length %d: %s",
                         content_length,
                         actual_content_length,
@@ -221,15 +222,15 @@ class Request(Queueable):
                 resp.raise_for_status()
 
         except asyncio.TimeoutError:
-            self.logger.debug("Failed fetch: url=%s reason=timeout", self.url)
+            logger.debug("Failed fetch: url=%s reason=timeout", self.url)
             history.append(self.url)
             response = self._failed_response(408, history)
         except aiohttp.ClientResponseError as e:
-            self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
+            logger.debug("Failed fetch: url=%s reason=%s", self.url, e.message)
             if not response:
                 response = self._failed_response(e.status, history)
         except Exception as e:
-            self.logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
+            logger.debug("Failed fetch: url=%s reason=%s", self.url, e)
             if isinstance(e, CancelledError) and not response:
                 response = self._failed_response(499, history)
         finally:
@@ -282,14 +283,14 @@ class Request(Queueable):
                     break
                 body += chunk
                 if len(body) > self.max_content_length:
-                    self.logger.debug(
+                    logger.debug(
                         "Content Length of Response body greater than max %d: %s",
                         self.max_content_length,
                         self,
                     )
                     return False, 0
         except (IncompleteReadError, LimitOverrunError) as e:
-            self.logger.exception("Failed to read Response content: %s: %s", self, e)
+            logger.exception("Failed to read Response content: %s: %s", self, e)
             return False, 0
         resp._body = body
         return True, len(body)
@@ -346,7 +347,7 @@ class Request(Queueable):
         try:
             return await self._xml_parser(response_text)
         except Exception as e:
-            self.logger.exception("Error parsing response xml: %s", e)
+            logger.exception("Error parsing response xml: %s", e)
             return None
 
     def set_retry(self) -> None:

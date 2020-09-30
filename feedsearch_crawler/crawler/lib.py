@@ -3,12 +3,17 @@ from enum import Enum
 from typing import Any, Union, Dict
 from yarl import URL
 from asyncio import PriorityQueue
+import logging
 
 from feedsearch_crawler.crawler.queueable import Queueable
+
+logger = logging.getLogger(__name__)
 
 
 # noinspection PyUnresolvedReferences
 class CrawlerPriorityQueue(PriorityQueue):
+    _unfinished_tasks: int
+
     def clear(self):
         """
         Clear the Queue of any unfinished tasks.
@@ -108,7 +113,7 @@ class Stats(Enum):
         return self.value < other.value
 
 
-def coerce_url(url: Union[URL, str], https: bool = False, scheme: str = 'http') -> URL:
+def coerce_url(url: Union[URL, str], https: bool = False, scheme: str = "http") -> URL:
     """
     Coerce URL to valid format
 
@@ -178,12 +183,13 @@ def headers_to_dict(headers: Any) -> Dict[str, str]:
     new_headers = {}
     try:
         new_headers.update({k.lower(): v for (k, v) in headers.items()})
-    except:
+    except Exception as e:
+        logger.warning("Exception parsing headers to dict: %s", e)
         pass
     return new_headers
 
 
-def ignore_aiohttp_ssl_eror(loop, aiohttpversion="3.5.4"):
+def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
     """Ignore aiohttp #3535 issue with SSL data after close
      There appears to be an issue on Python 3.7 and aiohttp SSL that throws a
     ssl.SSLError fatal error (ssl.SSLError: [SSL: KRB5_S_INIT] application data
@@ -195,7 +201,7 @@ def ignore_aiohttp_ssl_eror(loop, aiohttpversion="3.5.4"):
      If the current aiohttp version is not exactly equal to aiohttpversion
     nothing is done, assuming that the next version will have this bug fixed.
     This can be disabled by setting this parameter to None
-     """
+    """
     import ssl
     import aiohttp
     import asyncio
@@ -236,7 +242,7 @@ def ignore_aiohttp_ssl_eror(loop, aiohttpversion="3.5.4"):
     loop.set_exception_handler(ignore_ssl_error)
 
 
-def parse_href_to_url(logger, href: str) -> Union[URL, None]:
+def parse_href_to_url(href: str) -> Union[URL, None]:
     """
     Parse an href string to a URL object.
 
