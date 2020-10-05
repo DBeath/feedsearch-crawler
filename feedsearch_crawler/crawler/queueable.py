@@ -1,6 +1,7 @@
-import time
-from typing import Union
 from asyncio import Queue
+from typing import Union
+
+import time
 
 
 class Queueable:

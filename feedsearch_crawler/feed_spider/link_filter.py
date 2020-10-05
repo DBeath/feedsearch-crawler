@@ -111,6 +111,9 @@ class LinkFilter:
         if not self.full_crawl and not is_feedlike_url and not is_podcast_url:
             return
 
+        # This check is deprecated, as it has been moved to the spider to prevent the crawling of any links
+        # from responses that are not the same as the original domain
+        #
         # is_one_jump: bool = self.is_one_jump_from_original_domain(url, self.response)
         # if not is_one_jump:
         #     return
@@ -173,9 +176,10 @@ class LinkFilter:
         """
 
         # This is the first Response in the chain
-        if len(response.history) == 1:
+        if len(response.history) < 2:
             return True
 
+        # The URL is relative, so on the same domain
         if not url.is_absolute():
             return True
 

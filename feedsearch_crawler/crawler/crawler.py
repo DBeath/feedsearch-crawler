@@ -2,16 +2,16 @@ import asyncio
 import copy
 import inspect
 import logging
-import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from fnmatch import fnmatch
 from statistics import harmonic_mean, median
 from types import AsyncGeneratorType
 from typing import List, Any, Dict, Set
 from typing import Union
-from fnmatch import fnmatch
 
 import aiohttp
+import time
 from aiohttp import ClientTimeout
 from yarl import URL
 
@@ -395,7 +395,9 @@ class Crawler(ABC):
         if response:
             # Join the URL to the Response URL if it doesn't contain a domain.
             if not url.is_absolute() or not url.scheme:
-                url = coerce_url(response.origin.join(url), scheme=response.scheme)
+                url = coerce_url(
+                    response.origin.join(url), default_scheme=response.scheme
+                )
 
             # Restrict the depth of the Request chain to the maximum depth.
             # This test happens before the URL duplicate check so that the URL might still be reachable by another path.
@@ -524,7 +526,8 @@ class Crawler(ABC):
         except asyncio.CancelledError:
             logger.debug("Cancelled Worker: %s", task_num)
 
-    async def _run_callback(self, callback, *args, **kwargs) -> None:
+    @staticmethod
+    async def _run_callback(callback, *args, **kwargs) -> None:
         """
         Runs a callback function.
 

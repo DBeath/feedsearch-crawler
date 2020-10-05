@@ -51,6 +51,7 @@ class DuplicateFilter:
         :param method: Optional HTTP method
         :return: Hashed string
         """
+        # noinspection InsecureHash
         fp = hashlib.sha1()
         fp.update(to_bytes(url))
         if method:

@@ -1,9 +1,9 @@
-from typing import Union, List
 import cgi
-
-from yarl import URL
 from datetime import datetime
+from typing import Union, List
+
 from dateutil import tz, parser
+from yarl import URL
 
 
 class ParseTypes:
@@ -84,18 +84,6 @@ def datestring_to_utc_datetime(date_string: str) -> datetime:
     return force_utc(dt)
 
 
-def remove_www(host: str) -> str:
-    """
-    Remove www. subdomain from URL host strings.
-
-    :param host: URL host without scheme or path. e.g. www.test.com
-    :return: URL host string.
-    """
-    if host.startswith("www."):
-        return host[4:]
-    return host
-
-
 def create_content_type(parse_type: str, encoding: str, content_type: str) -> str:
     """
     Create the actual content type of the feed.
@@ -107,9 +95,9 @@ def create_content_type(parse_type: str, encoding: str, content_type: str) -> st
     """
     ctype, pdict = cgi.parse_header(content_type)
 
-    if parse_type == ParseTypes.JSON and not ParseTypes.JSON in ctype.lower():
+    if parse_type == ParseTypes.JSON and ParseTypes.JSON not in ctype.lower():
         ctype = "application/json"
-    elif parse_type == ParseTypes.XML and not ParseTypes.XML in ctype.lower():
+    elif parse_type == ParseTypes.XML and ParseTypes.XML not in ctype.lower():
         ctype = "application/xml"
 
     return f"{ctype}; charset={encoding}".lower()

@@ -11,13 +11,12 @@ from bs4 import BeautifulSoup
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response, to_string
-from feedsearch_crawler.crawler.lib import headers_to_dict
+from feedsearch_crawler.crawler.lib import headers_to_dict, remove_www
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.lib import (
     parse_header_links,
     datestring_to_utc_datetime,
-    remove_www,
     create_content_type,
     ParseTypes,
 )
@@ -210,8 +209,9 @@ class FeedInfoParser(ItemParser):
 
         return True
 
+    @staticmethod
     def parse_raw_data(
-        self, raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None
+        raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None
     ) -> Dict:
         """
         Loads the raw RSS/Atom XML data.

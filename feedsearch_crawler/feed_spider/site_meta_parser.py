@@ -4,8 +4,8 @@ from typing import List
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response
+from feedsearch_crawler.crawler.lib import remove_www
 from feedsearch_crawler.feed_spider.favicon import Favicon
-from feedsearch_crawler.feed_spider.lib import remove_www
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 
 logger = logging.getLogger(__name__)

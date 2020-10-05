@@ -1,6 +1,7 @@
 import asyncio
-import aiohttp
 import logging
+
+import aiohttp
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,10 @@
-import logging
+from abc import ABC, abstractmethod
 from types import AsyncGeneratorType
 from typing import Union
 
-from feedsearch_crawler.crawler.response import Response
-from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.item import Item
-from abc import ABC, abstractmethod
+from feedsearch_crawler.crawler.request import Request
+from feedsearch_crawler.crawler.response import Response
 
 
 class ItemParser(ABC):

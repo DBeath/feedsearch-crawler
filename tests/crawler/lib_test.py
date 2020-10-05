@@ -1,4 +1,4 @@
-from feedsearch_crawler.crawler.lib import coerce_url
+from feedsearch_crawler.crawler.lib import coerce_url, is_same_domain
 from yarl import URL
 
 
@@ -16,3 +16,14 @@ def test_coerce_url():
         "https://test.com/path/path2"
     )
     assert coerce_url("//test.com") == URL("http://test.com")
+
+
+def test_is_same_domain():
+    assert is_same_domain("test.com", "test.com") is True
+    assert is_same_domain("example.com", "test.com") is False
+    assert is_same_domain("feeds.test.com", "test.com") is False
+    assert is_same_domain("test.com", "feeds.test.com") is True
+    assert is_same_domain("test.com", "test.feeds.test.com") is True
+    assert is_same_domain("www.test.com", "test.com") is True
+    assert is_same_domain("www.test.com", "feed.test.com") is True
+    assert is_same_domain("test.www.test.com", "test.com") is False

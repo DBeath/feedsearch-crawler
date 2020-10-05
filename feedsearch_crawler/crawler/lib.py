@@ -1,9 +1,10 @@
+import logging
+from asyncio import PriorityQueue
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union, Dict
+
 from yarl import URL
-from asyncio import PriorityQueue
-import logging
 
 from feedsearch_crawler.crawler.queueable import Queueable
 
@@ -113,18 +114,21 @@ class Stats(Enum):
         return self.value < other.value
 
 
-def coerce_url(url: Union[URL, str], https: bool = False, scheme: str = "http") -> URL:
+def coerce_url(
+    url: Union[URL, str], https: bool = False, default_scheme: str = "http"
+) -> URL:
     """
     Coerce URL to valid format
 
     :param url: URL
     :param https: Force https if no scheme in url
+    :param default_scheme: Default scheme if not forcing https
     :return: str
     """
     if isinstance(url, str):
         url = URL(url.strip())
 
-    scheme = "https" if https else scheme
+    scheme = "https" if https else default_scheme
 
     if not url.is_absolute():
         url_string = str(url)
@@ -207,6 +211,7 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
     import asyncio
 
     try:
+        # noinspection PyUnresolvedReferences
         import uvloop
 
         protocol_class = uvloop.loop.SSLProtocol
@@ -220,7 +225,7 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
     orig_handler = loop.get_exception_handler()
 
     # noinspection PyUnresolvedReferences
-    def ignore_ssl_error(loop, context):
+    def ignore_ssl_error(this_loop, context):
         errors = ["SSL error", "Fatal error"]
         if any(x in context.get("message") for x in errors):
             # validate we have the right exception, transport and protocol
@@ -231,13 +236,13 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
                 and exception.reason == "KRB5_S_INIT"
                 and isinstance(protocol, protocol_class)
             ):
-                if loop.get_debug():
+                if this_loop.get_debug():
                     asyncio.log.logger.debug("Ignoring aiohttp SSL KRB5_S_INIT error")
                 return
         if orig_handler is not None:
-            orig_handler(loop, context)
+            orig_handler(this_loop, context)
         else:
-            loop.default_exception_handler(context)
+            this_loop.default_exception_handler(context)
 
     loop.set_exception_handler(ignore_ssl_error)
 
@@ -260,3 +265,26 @@ def parse_href_to_url(href: str) -> Union[URL, None]:
     except (UnicodeError, ValueError) as e:
         logger.warning("Failed to encode href: %s : %s", href, e)
         return None
+
+
+def remove_www(host: str) -> str:
+    """
+    Remove www. subdomain from URL host strings.
+
+    :param host: URL host without scheme or path. e.g. www.test.com
+    :return: URL host string.
+    """
+    if host.startswith("www."):
+        return host[4:]
+    return host
+
+
+def is_same_domain(root_domain: str, url_domain: str) -> bool:
+    """
+    Check if the url domain is the same or a subdomain of the root domain.
+
+    :param root_domain: Original root domain of this crawl
+    :param url_domain: Domain of the url to filter
+    :return: boolean
+    """
+    return remove_www(root_domain) in url_domain

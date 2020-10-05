@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Optional
 
 from yarl import URL
 
-from feedsearch_crawler.feed_spider.lib import remove_www
+from feedsearch_crawler.crawler.lib import is_same_domain
 
 
 class Response:
@@ -99,13 +99,10 @@ class Response:
         :return: boolean
         """
         # This is the first Response in the chain
-        if len(self.history) == 1:
+        if len(self.history) < 2:
             return True
-        # URL is same domain
-        if self.url.host == self.history[0].host:
-            return True
-        # URL is sub-domain
-        if remove_www(self.history[0].host) in self.url.host:
+        # URL is same domain or sub-domain
+        if is_same_domain(self.history[0].host, self.url.host):
             return True
 
         return False

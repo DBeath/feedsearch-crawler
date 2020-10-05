@@ -17,6 +17,7 @@ w3lib = "*"
 feedparser = "*"
 brotlipy = "*"
 python-dateutil = "*"
+yarl = "*"
 
 [requires]
 python_version = "3.8"

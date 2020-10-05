@@ -2,19 +2,18 @@ import asyncio
 import copy
 import json
 import logging
-import time
 import uuid
 from asyncio import Semaphore, IncompleteReadError, LimitOverrunError, CancelledError
 from random import random
 from typing import List, Tuple, Any, Union, Optional, Dict
 
 import aiohttp
+import time
 from aiohttp import ClientSession, ClientTimeout, hdrs
 from yarl import URL
 
 from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.response import Response
-
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +154,7 @@ class Request(Queueable):
                 history.append(resp.url)
 
                 # Fail the response if the content length header is too large.
-                content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, 0))
+                content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, "0"))
                 if content_length > self.max_content_length:
                     logger.debug(
                         "Content-Length of Response header %d greater than max %d: %s",
