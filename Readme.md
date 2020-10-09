@@ -2,7 +2,6 @@
 [![PyPI](https://img.shields.io/pypi/v/feedsearch-crawler.svg)](https://pypi.org/project/feedsearch-crawler/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/feedsearch-crawler.svg)
 ![PyPI - License](https://img.shields.io/pypi/l/feedsearch-crawler.svg)
-[![Downloads](https://pepy.tech/badge/feedsearch-crawler/month)](https://pepy.tech/project/feedsearch-crawler/month)
 
 Feedsearch Crawler is a Python library for searching websites for [RSS](https://en.wikipedia.org/wiki/RSS), [Atom](https://en.wikipedia.org/wiki/Atom_(Web_standard)), and [JSON](https://jsonfeed.org/) feeds.
 

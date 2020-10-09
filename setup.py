@@ -51,7 +51,7 @@ required = [
 
 setup(
     name="feedsearch-crawler",
-    version="0.2.7",
+    version="1.0.0",
     description="Search sites for RSS, Atom, and JSON feeds",
     long_description=readme,
     long_description_content_type="text/markdown",
@@ -64,10 +64,17 @@ setup(
     classifiers=[
         "License :: OSI Approved :: MIT License",
         "Intended Audience :: Developers",
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Production/Stable",
         "Natural Language :: English",
-        "Operating System :: OS Independent",
+        "Operating System :: POSIX",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: MacOS :: MacOS X",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+        "Typing :: Typed",
+        "Framework :: AsyncIO",
     ],
     python_requires=">=3.7",
 )
