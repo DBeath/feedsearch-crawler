@@ -30,10 +30,7 @@ classifiers = [
 ]
 packages = [
     { include = "feedsearch_crawler" },
-    { include = "feedsearch_crawler.crawler" },
-    { include = "feedsearch_crawler.feed_spider" }
 ]
-
 
 [tool.poetry.dependencies]
 python = "^3.8"
