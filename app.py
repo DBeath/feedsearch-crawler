@@ -9,7 +9,7 @@ from datetime import datetime
 import collections
 
 urls = [
-    "arstechnica.com",
+    # "arstechnica.com",
     # "https://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -48,6 +48,10 @@ urls = [
     # "slashdot.com",
     # "https://bearblog.dev",
     # "aeon.co",
+    # "https://davidgerard.co.uk/blockchain/"
+    # "raymii.org/s/"
+    # "stratechery.com",
+    "www.internet-law.de"
 ]
 
 
@@ -89,6 +93,7 @@ def run_crawl():
         ssl=True,
         full_crawl=False,
         delay=0,
+        try_urls=True,
     )
     crawler.start_urls = urls
     # crawler.allowed_domains = create_allowed_domains(urls)

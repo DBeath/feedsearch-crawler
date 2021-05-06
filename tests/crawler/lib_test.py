@@ -16,6 +16,10 @@ def test_coerce_url():
         "https://test.com/path/path2"
     )
     assert coerce_url("//test.com") == URL("http://test.com")
+    assert coerce_url("feed://test.com") == URL("feed://test.com")
+    assert coerce_url("feed://www.internet-law.de/?feed=/feed/") == URL(
+        "feed://www.internet-law.de/?feed=/feed/"
+    )
 
 
 def test_is_same_domain():
