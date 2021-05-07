@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "feedsearch-crawler"
+version = "1.0.1"
+description = "Search sites for RSS, Atom, and JSON feeds"
+authors = ["David Beath <davidgbeath@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/DBeath/feedsearch-crawler"
+keywords = [
+    "RSS",
+    "Search",
+    "Crawler",
+    "Feeds",
+    "Atom"
+]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Operating System :: POSIX",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Typing :: Typed",
+    "Framework :: AsyncIO",
+]
+packages = [
+    { include = "feedsearch_crawler" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+aiohttp = "^3.7.4"
+beautifulsoup4 = "^4.9.3"
+cchardet = "^2.1.7"
+aiodns = "^2.0.0"
+uvloop = "^0.15.2"
+w3lib = "^1.22.0"
+feedparser = "^6.0.2"
+brotlipy = "^0.7.0"
+python-dateutil = "^2.8.1"
+yarl = "^1.6.3"
+
+[tool.poetry.dev-dependencies]
+twine = "*"
+pytest = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
