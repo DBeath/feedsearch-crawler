@@ -5,7 +5,7 @@ rss_regex = re.compile("(<rss|<rdf|<feed)", re.IGNORECASE)
 
 # Regex to check that a feed-like string is a whole word to help rule out false positives.
 feedlike_regex = re.compile(
-    "\\b(rss|feeds?|atom|json|xml|rdf|blogs?)\\b", re.IGNORECASE
+    "\\b(rss|feeds?|atom|json|xml|rdf|blogs?|subscribe)\\b", re.IGNORECASE
 )
 
 # Regex to check that a podcast string is a whole word.

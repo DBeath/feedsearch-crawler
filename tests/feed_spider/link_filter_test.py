@@ -35,6 +35,7 @@ def test_feedlike_regex():
         "rdf",
         "blog",
         "blogs",
+        "test/subscribe/testing"
     ]
     for value in valid:
         assert feedlike_regex.search(value)

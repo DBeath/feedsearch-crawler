@@ -51,7 +51,9 @@ urls = [
     # "https://davidgerard.co.uk/blockchain/"
     # "raymii.org/s/"
     # "stratechery.com",
-    "www.internet-law.de"
+    # "www.internet-law.de",
+    # "https://medium.com/zendesk-engineering/the-joys-of-story-estimation-cda0cd807903",
+    "https://danwang.co/"
 ]
 
 
