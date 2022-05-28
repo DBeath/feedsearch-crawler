@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "feedsearch-crawler"
-version = "1.0.2"
+version = "1.0.3"
 description = "Search sites for RSS, Atom, and JSON feeds"
 authors = ["David Beath <davidgbeath@gmail.com>"]
 license = "MIT"

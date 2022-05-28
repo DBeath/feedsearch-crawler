@@ -94,7 +94,7 @@ class FeedInfoParser(ItemParser):
 
         # Parse data with feedparser
         try:
-            parsed = self.parse_raw_data(data, encoding, headers)
+            parsed: dict = self.parse_raw_data(data, encoding, headers)
         except Exception as e:
             logger.exception("Unable to parse feed %s: %s", item, e)
             return False
@@ -301,9 +301,14 @@ class FeedInfoParser(ItemParser):
             return False
 
         has_itunes: bool = "itunes" in parsed.get("namespaces", {})
-        has_enclosures: bool = any(
-            [len(x.get("enclosures", [])) >= 1 for x in parsed.get("entries", [])]
-        )
+
+        has_enclosures = False
+
+        for entry in parsed.get("entries", []):
+            for enclosure in entry.get("enclosures", []):
+                if "audio" in enclosure.get("type"):
+                    has_enclosures = True
+
         return has_itunes and has_enclosures
 
     @staticmethod

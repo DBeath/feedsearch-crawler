@@ -53,7 +53,8 @@ urls = [
     # "stratechery.com",
     # "www.internet-law.de",
     # "https://medium.com/zendesk-engineering/the-joys-of-story-estimation-cda0cd807903",
-    "https://danwang.co/"
+    # "https://danwang.co/",
+    "http://matthewdickens.me/podcasts/TWIS-feed.xml"
 ]
 
 
