@@ -25,21 +25,21 @@ class Request(Queueable):
         self,
         url: URL,
         request_session: ClientSession,
-        params: Dict = None,
-        data: Union[dict, bytes] = None,
-        json_data: Dict = None,
-        encoding: str = None,
+        params: Optional[Dict] = None,
+        data: Optional[Union[dict, bytes]] = None,
+        json_data: Optional[Dict] = None,
+        encoding: str = "",
         method: str = "GET",
-        headers: Dict = None,
+        headers: Optional[Dict] = None,
         timeout: Union[float, ClientTimeout] = 5.0,
-        history: List = None,
+        history: Optional[List[URL]] = None,
         callback=None,
         xml_parser=None,
         failure_callback=None,
         max_content_length: int = 1024 * 1024 * 10,
         delay: float = 0,
         retries: int = 3,
-        cb_kwargs: Dict = None,
+        cb_kwargs: Optional[Dict] = None,
         **kwargs,
     ):
         """
@@ -73,8 +73,8 @@ class Request(Queueable):
             raise ValueError(f"request_session must be of type ClientSession")
         self.request_session = request_session
         self.headers = headers
-        if not isinstance(timeout, ClientTimeout):
-            timeout = aiohttp.ClientTimeout(total=self.timeout)
+        if isinstance(timeout, float):
+            timeout = aiohttp.ClientTimeout(total=timeout)
         self.timeout = timeout
         self.history = history or []
         self.encoding = encoding
@@ -103,7 +103,9 @@ class Request(Queueable):
             if hasattr(self, key):
                 setattr(self, key, value)
 
-    async def fetch_callback(self, semaphore: Semaphore = None) -> Tuple[Any, Response]:
+    async def fetch_callback(
+        self, semaphore: Optional[Semaphore] = None
+    ) -> Tuple[Any, Response]:
         """
         Fetch HTTP Response and run Callbacks.
 
@@ -184,14 +186,14 @@ class Request(Queueable):
                 # Read response content
                 try:
                     # Read response content as text
-                    resp_text = await resp.text(encoding=self.encoding)
+                    resp_text: str = await resp.text(encoding=self.encoding)
 
                     # Attempt to read response content as JSON
-                    resp_json = await self._read_json(resp_text)
+                    resp_json: dict = await self._read_json(resp_text)
                 # If response content can't be decoded then neither text or JSON can be set.
                 except UnicodeDecodeError:
-                    resp_text = None
-                    resp_json = None
+                    resp_text: str = ""
+                    resp_json: dict = {}
 
                 # Close the asyncio response
                 if not resp.closed:
@@ -295,7 +297,7 @@ class Request(Queueable):
         return True, len(body)
 
     @staticmethod
-    async def _read_json(resp_text: Union[str, None]) -> Optional[dict]:
+    async def _read_json(resp_text: Union[str, None]) -> dict:
         """
         Attempt to read Response content as JSON.
 
@@ -305,16 +307,16 @@ class Request(Queueable):
 
         # If the text hasn't been parsed then we won't be able to parse JSON either.
         if not resp_text:
-            return None
+            return {}
 
         stripped = resp_text.strip()  # type: ignore
         if not stripped:
-            return None
+            return {}
 
         try:
             return json.loads(stripped)
         except ValueError:
-            return None
+            return {}
 
     def _failed_response(
         self, status: int, history: List[URL] = None, headers=None

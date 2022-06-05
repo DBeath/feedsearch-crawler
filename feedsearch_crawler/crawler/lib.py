@@ -279,7 +279,7 @@ def remove_www(host: str) -> str:
     return host
 
 
-def is_same_domain(root_domain: str, url_domain: str) -> bool:
+def is_same_domain(root_domain: Union[str, None], url_domain: Union[str, None]) -> bool:
     """
     Check if the url domain is the same or a subdomain of the root domain.
 
@@ -287,4 +287,6 @@ def is_same_domain(root_domain: str, url_domain: str) -> bool:
     :param url_domain: Domain of the url to filter
     :return: boolean
     """
+    if not root_domain or not url_domain:
+        return False
     return remove_www(root_domain) in url_domain

@@ -221,7 +221,7 @@ def test_is_podcast_no_namespace():
 def test_is_podcast_is_true():
     data = {
         "namespaces": {"itunes": "testing"},
-        "entries": [{"enclosures": [{"media": "file_url"}]}],
+        "entries": [{"enclosures": [{"media": "file_url", "type": "audio/mp3"}]}],
     }
     result = FeedInfoParser.is_podcast(data)
     assert result is True

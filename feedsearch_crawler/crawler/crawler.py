@@ -6,8 +6,8 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from fnmatch import fnmatch
 from statistics import harmonic_mean, median
-from types import AsyncGeneratorType
-from typing import List, Any, Dict, Set
+from types import AsyncGeneratorType, MethodType
+from typing import Callable, List, Any, Dict, Optional, Set
 from typing import Union
 
 import aiohttp
@@ -80,16 +80,16 @@ class Crawler(ABC):
 
     def __init__(
         self,
-        start_urls: List[str] = None,
-        allowed_domains: List[str] = None,
+        start_urls: List[str] = [],
+        allowed_domains: List[str] = [],
         concurrency: int = 10,
         total_timeout: Union[float, ClientTimeout] = 30,
         request_timeout: Union[float, ClientTimeout] = 5,
         user_agent: str = "",
         max_content_length: int = 1024 * 1024 * 10,
         max_depth: int = 10,
-        headers: dict = None,
-        allowed_schemes: List[str] = None,
+        headers: dict = {},
+        allowed_schemes: List[str] = [],
         delay: float = 0.5,
         max_retries: int = 3,
         ssl: bool = False,
@@ -344,16 +344,16 @@ class Crawler(ABC):
     async def follow(
         self,
         url: Union[str, URL],
-        callback=None,
-        response: Response = None,
+        callback: Callable,
+        response: Optional[Response] = None,
+        max_content_length: Optional[int] = None,
+        timeout: Optional[float] = None,
         method: str = "GET",
-        delay: Union[float, None] = None,
+        delay: float = 0,
         priority: int = 0,
         allow_domain: bool = False,
-        cb_kwargs: Dict = None,
-        max_content_length: int = None,
-        timeout: float = None,
-        retries: int = None,
+        cb_kwargs: Dict = {},
+        retries: int = 0,
         **kwargs,
     ) -> Union[Request, None]:
         """
@@ -384,19 +384,26 @@ class Crawler(ABC):
         :return: Request
         """
         original_url = copy.copy(url)
+        request_url: URL
         if isinstance(url, str):
-            url = parse_href_to_url(url)
+            parsed_url: Union[URL, None] = parse_href_to_url(url)
+            if not parsed_url:
+                logger.warning("Cannot parse str to URL: %s", original_url)
+                return
+            request_url = parsed_url
+        else:
+            request_url = url
 
-        if not url:
+        if not request_url:
             logger.warning("Attempted to follow invalid URL: %s", original_url)
             return
 
-        history = []
+        history: List[URL] = []
         if response:
             # Join the URL to the Response URL if it doesn't contain a domain.
-            if not url.is_absolute() or not url.scheme:
-                url = coerce_url(
-                    response.origin.join(url), default_scheme=response.scheme
+            if not request_url.is_absolute() or not request_url.scheme:
+                request_url = coerce_url(
+                    response.origin.join(request_url), default_scheme=response.scheme
                 )
 
             # Restrict the depth of the Request chain to the maximum depth.
@@ -408,29 +415,29 @@ class Crawler(ABC):
             # Copy the Response history so that it isn't a reference to a mutable object.
             history = copy.deepcopy(response.history)
         else:
-            if not url.is_absolute():
+            if not request_url.is_absolute():
                 logger.debug("URL should have domain: %s", url)
                 return
 
-            if not url.scheme:
+            if not request_url.scheme:
                 url = coerce_url(url)
 
         # The URL scheme must be in the list of allowed schemes.
-        if self.allowed_schemes and url.scheme not in self.allowed_schemes:
-            logger.debug("URI Scheme '%s' not allowed: %s", url.scheme, url)
+        if self.allowed_schemes and request_url.scheme not in self.allowed_schemes:
+            logger.debug("URI Scheme '%s' not allowed: %s", request_url.scheme, url)
             return
 
         # The URL host must be in the list of allowed domains.
-        if not allow_domain and not self.is_allowed_domain(url):
-            logger.debug("Domain '%s' not allowed: %s", url.host, url)
+        if not allow_domain and not self.is_allowed_domain(request_url):
+            logger.debug("Domain '%s' not allowed: %s", request_url.host, url)
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.
-        if await self._duplicate_filter.url_seen(url, method):
+        if await self._duplicate_filter.url_seen(request_url, method):
             return
 
         request = Request(
-            url=url,
+            url=request_url,
             request_session=self._session,
             history=history,
             callback=callback,
@@ -632,7 +639,7 @@ class Crawler(ABC):
         stats = {str(k): v for k, v in self.stats.items()}
         return dict(OrderedDict(sorted(stats.items())).items())
 
-    async def crawl(self, urls: Union[URL, str, List[Union[URL, str]]] = None) -> None:
+    async def crawl(self, urls: Union[URL, str, List[Union[URL, str]]] = []) -> None:
         """
         Start the web crawler.
 
@@ -664,9 +671,7 @@ class Crawler(ABC):
         if self._trace:
             trace_configs.append(add_trace_config())
 
-        conn = aiohttp.TCPConnector(
-            limit=0, ssl=self._ssl, ttl_dns_cache=self.total_timeout.total
-        )
+        conn = aiohttp.TCPConnector(limit=0, ssl=self._ssl)
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(
             timeout=self.total_timeout,

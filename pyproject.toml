@@ -34,20 +34,21 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-aiohttp = "^3.7.4"
+aiohttp = "^3.8.1"
 beautifulsoup4 = "^4.9.3"
 cchardet = "^2.1.7"
 aiodns = "^2.0.0"
-uvloop = "^0.15.2"
+uvloop = "^0.16.0"
 w3lib = "^1.22.0"
 feedparser = "^6.0.10"
 brotlipy = "^0.7.0"
-python-dateutil = "^2.8.1"
-yarl = "^1.6.3"
+python-dateutil = "^2.8.2"
+yarl = "^1.7.2"
 
 [tool.poetry.dev-dependencies]
 twine = "*"
 pytest = "*"
+black = {version = "^22.3.0", allow-prereleases = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

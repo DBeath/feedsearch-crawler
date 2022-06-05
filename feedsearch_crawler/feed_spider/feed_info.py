@@ -11,19 +11,19 @@ class FeedInfo(Item):
     content_length: int = 0
     content_type: str = ""
     description: str = ""
-    favicon: URL = ""
+    favicon: URL
     favicon_data_uri: str = ""
     hubs: List[str] = []
     is_podcast: bool = False
     is_push: bool = False
     item_count: int = 0
-    last_updated: datetime = None
+    last_updated: datetime
     score: int = 0
-    self_url: URL = ""
+    self_url: URL
     site_name: str = ""
-    site_url: URL = ""
+    site_url: URL
     title: str = ""
-    url: URL = ""
+    url: URL
     velocity: float = 0
     version: str = ""
 

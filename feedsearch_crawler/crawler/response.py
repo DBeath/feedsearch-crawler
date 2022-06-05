@@ -15,16 +15,16 @@ class Response:
         method: str,
         encoding: str = "",
         text: str = "",
-        json: Dict = None,
+        json: Dict = {},
         data: bytes = b"",
-        history: List[URL] = None,
+        history: List[URL] = [],
         headers=None,
         status_code: int = -1,
         cookies=None,
         xml_parser=None,
         redirect_history=None,
         content_length: int = 0,
-        meta: Dict = None,
+        meta: Dict = {},
     ):
         self.url = url
         self.encoding = encoding
@@ -32,8 +32,8 @@ class Response:
         self.text = text
         self.json = json
         self.data = data
-        self.history = history or []
-        self.headers = headers or {}
+        self.history = history
+        self.headers = headers
         self.status_code = status_code
         self.cookies = cookies
         self.id = uuid.uuid4()
@@ -48,7 +48,7 @@ class Response:
         return self.status_code == 0 or 200 <= self.status_code <= 299
 
     @property
-    def domain(self) -> str:
+    def domain(self) -> Optional[str]:
         return self.url.host
 
     @property
@@ -56,7 +56,7 @@ class Response:
         return self.url.scheme
 
     @property
-    def previous_domain(self) -> str:
+    def previous_domain(self) -> Optional[str]:
         if not self.history:
             return ""
         return self.history[-1].host

@@ -9,7 +9,7 @@ from datetime import datetime
 import collections
 
 urls = [
-    # "arstechnica.com",
+    "arstechnica.com",
     # "https://davidbeath.com",
     # "http://xkcd.com",
     # "http://jsonfeed.org",
@@ -54,7 +54,7 @@ urls = [
     # "www.internet-law.de",
     # "https://medium.com/zendesk-engineering/the-joys-of-story-estimation-cda0cd807903",
     # "https://danwang.co/",
-    "http://matthewdickens.me/podcasts/TWIS-feed.xml"
+    # "http://matthewdickens.me/podcasts/TWIS-feed.xml"
 ]
 
 
