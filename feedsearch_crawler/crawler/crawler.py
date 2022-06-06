@@ -7,7 +7,7 @@ from collections import OrderedDict
 from fnmatch import fnmatch
 from statistics import harmonic_mean, median
 from types import AsyncGeneratorType, MethodType
-from typing import Callable, List, Any, Dict, Optional, Set
+from typing import Callable, Final, List, Any, Dict, Optional, Set
 from typing import Union
 
 import aiohttp
@@ -41,6 +41,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TOTAL_TIMEOUT: Final[float] = 30.0
+DEFAULT_REQUEST_TIMEOUT: Final[float] = 5.0
+DEFAULT_MAX_CONTENT_LENGTH: Final[int] = 1024 * 1024 * 10
+
 
 class Crawler(ABC):
 
@@ -53,7 +57,7 @@ class Crawler(ABC):
     post_crawl_callback = None
 
     # URLs to start the crawl.
-    start_urls = []
+    start_urls: List[Union[str, URL]] = []
     # Domain patterns that are allowed to be crawled.
     allowed_domains = []
 
@@ -80,13 +84,13 @@ class Crawler(ABC):
 
     def __init__(
         self,
-        start_urls: List[str] = [],
+        start_urls: List[Union[str, URL]] = [],
         allowed_domains: List[str] = [],
         concurrency: int = 10,
-        total_timeout: Union[float, ClientTimeout] = 30,
-        request_timeout: Union[float, ClientTimeout] = 5,
+        total_timeout: Union[float, ClientTimeout] = DEFAULT_TOTAL_TIMEOUT,
+        request_timeout: Union[float, ClientTimeout] = DEFAULT_REQUEST_TIMEOUT,
         user_agent: str = "",
-        max_content_length: int = 1024 * 1024 * 10,
+        max_content_length: int = DEFAULT_MAX_CONTENT_LENGTH,
         max_depth: int = 10,
         headers: dict = {},
         allowed_schemes: List[str] = [],
@@ -124,9 +128,9 @@ class Crawler(ABC):
         self.concurrency = concurrency
 
         if not isinstance(total_timeout, ClientTimeout):
-            total_timeout = aiohttp.ClientTimeout(total=total_timeout)
+            total_timeout = ClientTimeout(total=float(total_timeout))
         if not isinstance(request_timeout, ClientTimeout):
-            request_timeout = aiohttp.ClientTimeout(total=request_timeout)
+            request_timeout = ClientTimeout(total=float(request_timeout))
 
         self.total_timeout: ClientTimeout = total_timeout
         self.request_timeout: ClientTimeout = request_timeout
@@ -656,9 +660,9 @@ class Crawler(ABC):
             urls = []
         if isinstance(urls, (URL, str)):
             urls = [urls]
-        self.start_urls = self.create_start_urls(urls)
+        initial_urls = self.create_start_urls(urls)
 
-        if not self.start_urls:
+        if not initial_urls:
             raise ValueError("crawler.start_urls are required")
 
         # Create the Request Queue within the asyncio loop.
@@ -671,7 +675,14 @@ class Crawler(ABC):
         if self._trace:
             trace_configs.append(add_trace_config())
 
-        conn = aiohttp.TCPConnector(limit=0, ssl=self._ssl)
+        ttl_dns_cache: float = (
+            self.total_timeout.total
+            if self.total_timeout.total is not None
+            else DEFAULT_TOTAL_TIMEOUT
+        )
+        conn = aiohttp.TCPConnector(
+            limit=0, ssl=self._ssl, ttl_dns_cache=int(ttl_dns_cache)
+        )
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(
             timeout=self.total_timeout,
@@ -681,7 +692,7 @@ class Crawler(ABC):
         )
 
         # Create a Request for each start URL and add it to the Request Queue.
-        for url in self.start_urls:
+        for url in initial_urls:
             req = await self.follow(coerce_url(url), self.parse, delay=0)
             if req:
                 self._process_request(req)

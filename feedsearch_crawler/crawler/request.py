@@ -151,8 +151,8 @@ class Request(Queueable):
 
         try:
             async with self._create_request() as resp:
-                resp_recieved = time.perf_counter()
-                self.req_latency = int((resp_recieved - start) * 1000)
+                resp_received = time.perf_counter()
+                self.req_latency = int((resp_received - start) * 1000)
                 history.append(resp.url)
 
                 # Fail the response if the content length header is too large.
@@ -164,12 +164,12 @@ class Request(Queueable):
                         self.max_content_length,
                         self,
                     )
-                    return self._failed_response(413)
+                    return self._failed_response(413, history)
 
                 # Read the response content, and fail the response if the actual content size is too large.
                 content_read, actual_content_length = await self._read_response(resp)
                 if not content_read:
-                    return self._failed_response(413)
+                    return self._failed_response(413, history)
 
                 if content_length and content_length != actual_content_length:
                     logger.debug(
@@ -199,7 +199,7 @@ class Request(Queueable):
                 if not resp.closed:
                     resp.close()
 
-                self.content_read = int((time.perf_counter() - resp_recieved) * 1000)
+                self.content_read = int((time.perf_counter() - resp_received) * 1000)
 
                 response = Response(
                     url=resp.url,
@@ -211,7 +211,7 @@ class Request(Queueable):
                     data=resp._body,
                     json=resp_json,
                     headers=resp.headers,
-                    xml_parser=self._parse_xml,
+                    xml_parser=self._xml_parser,
                     cookies=resp.cookies,
                     redirect_history=resp.history,
                     content_length=actual_content_length,
@@ -319,7 +319,7 @@ class Request(Queueable):
             return {}
 
     def _failed_response(
-        self, status: int, history: List[URL] = None, headers=None
+        self, status: int, history: List[URL], headers=None
     ) -> Response:
         """
         Create a failed Response object with the provided Status Code.
@@ -337,19 +337,6 @@ class Request(Queueable):
             status_code=status,
             headers=headers or {},
         )
-
-    async def _parse_xml(self, response_text: str) -> Any:
-        """
-        Use provided XML Parsers method to attempt to parse Response content as XML.
-
-        :param response_text: Response content as text string.
-        :return: Response content as parsed XML. Type depends on XML parser.
-        """
-        try:
-            return await self._xml_parser(response_text)
-        except Exception as e:
-            logger.exception("Error parsing response xml: %s", e)
-            return None
 
     def set_retry(self) -> None:
         """

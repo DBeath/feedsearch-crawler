@@ -1,9 +1,13 @@
 import uuid
+import logging
 from typing import List, Dict, Any, Optional
 
 from yarl import URL
 
 from feedsearch_crawler.crawler.lib import is_same_domain
+
+
+logger = logging.getLogger(__name__)
 
 
 class Response:
@@ -69,16 +73,28 @@ class Response:
 
     @property
     async def xml(self) -> Any:
+        """
+        Use provided XML Parsers method to attempt to parse Response content as XML.
+
+        :return: Response content as parsed XML. Type depends on XML parser.
+        """
         if self._xml:
             return self._xml
 
         if not self._xml_parser:
-            return None
+            return self._xml
 
         if not self.text and self.data and self.encoding:
-            self.text = self.data.decode(self.encoding)
+            try:
+                self.text = self.data.decode(self.encoding)
+            except UnicodeDecodeError as e:
+                logger.exception("Error decoding data to %s: %s", self.encoding, e)
+                return self._xml
 
-        self._xml = await self._xml_parser(self.text)
+        try:
+            self._xml = await self._xml_parser(self.text)
+        except Exception as e:
+            logger.exception("Error parsing response xml: %s", e)
         return self._xml
 
     def is_max_depth_reached(self, max_depth: int) -> bool:

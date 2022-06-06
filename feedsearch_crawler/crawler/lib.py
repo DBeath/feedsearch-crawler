@@ -1,8 +1,9 @@
 import logging
-from asyncio import PriorityQueue
+from asyncio import Event, Queue
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union, Dict
+import heapq
 
 from yarl import URL
 
@@ -11,9 +12,23 @@ from feedsearch_crawler.crawler.queueable import Queueable
 logger = logging.getLogger(__name__)
 
 
-# noinspection PyUnresolvedReferences
-class CrawlerPriorityQueue(PriorityQueue):
+class CrawlerPriorityQueue(Queue):
+    """A subclass of Queue; retrieves entries in priority order (lowest first).
+
+    Entries are typically tuples of the form: (priority number, data).
+    """
+
     _unfinished_tasks: int
+    _finished: Event
+
+    def _init(self, maxsize):
+        self._queue = []
+
+    def _put(self, item, heappush=heapq.heappush):
+        heappush(self._queue, item)
+
+    def _get(self, heappop=heapq.heappop):
+        return heappop(self._queue)
 
     def clear(self):
         """
@@ -172,6 +187,7 @@ def case_insensitive_key(key: str, dictionary: Dict) -> bool:
     for key in dictionary.keys():
         if key.lower() == k:
             return True
+    return False
 
 
 def headers_to_dict(headers: Any) -> Dict[str, str]:
@@ -214,9 +230,9 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
         # noinspection PyUnresolvedReferences
         import uvloop
 
-        protocol_class = uvloop.loop.SSLProtocol
+        protocol_class = uvloop.loop.SSLProtocol  # type: ignore
     except ImportError:
-        protocol_class = asyncio.sslproto.SSLProtocol
+        protocol_class = asyncio.sslproto.SSLProtocol  # type: ignore
         pass
 
     if aiohttpversion is not None and aiohttp.__version__ != aiohttpversion:
@@ -237,7 +253,7 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
                 and isinstance(protocol, protocol_class)
             ):
                 if this_loop.get_debug():
-                    asyncio.log.logger.debug("Ignoring aiohttp SSL KRB5_S_INIT error")
+                    asyncio.log.logger.debug("Ignoring aiohttp SSL KRB5_S_INIT error")  # type: ignore
                 return
         if orig_handler is not None:
             orig_handler(this_loop, context)
