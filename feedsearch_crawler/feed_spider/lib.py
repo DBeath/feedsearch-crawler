@@ -11,21 +11,6 @@ class ParseTypes:
     XML = "xml"
 
 
-def get_site_root(url: Union[str, URL]) -> str:
-    """
-    Find the root domain of a url
-    """
-    if isinstance(url, URL):
-        return url.host
-    return URL(url).host
-
-
-def create_allowed_domains(url: Union[str, URL]) -> List[str]:
-    if isinstance(url, URL):
-        return [url.host]
-    return [URL(url).host]
-
-
 def parse_header_links(value):
     """
     Return a list of Dicts of parsed link headers proxies.

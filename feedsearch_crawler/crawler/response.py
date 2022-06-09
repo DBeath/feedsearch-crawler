@@ -1,6 +1,7 @@
 import uuid
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
+from multidict import CIMultiDictProxy
 
 from yarl import URL
 
@@ -17,13 +18,13 @@ class Response:
         self,
         url: URL,
         method: str,
+        headers: Union[CIMultiDictProxy[str], dict],
+        status_code: int = -1,
         encoding: str = "",
         text: str = "",
         json: Dict = {},
         data: bytes = b"",
         history: List[URL] = [],
-        headers=None,
-        status_code: int = -1,
         cookies=None,
         xml_parser=None,
         redirect_history=None,

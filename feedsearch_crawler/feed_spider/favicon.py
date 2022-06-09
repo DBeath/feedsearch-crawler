@@ -1,14 +1,15 @@
 from yarl import URL
+from typing import Union
 
 from feedsearch_crawler.crawler import Item
 
 
 class Favicon(Item):
-    url: URL = None
+    url: Union[URL, None] = None
     priority: int = 0
     rel: str = ""
     data_uri: str = ""
-    resp_url: URL = None
+    resp_url: Union[URL, None] = None
     site_host: str = ""
 
     def __eq__(self, other):
@@ -29,8 +30,8 @@ class Favicon(Item):
         :return: bool
         """
         return (
-            self.url
-            and self.site_host
-            and self.site_host in host
-            and (self.data_uri if requires_data_uri else True)
+            bool(self.url)
+            and bool(self.site_host)
+            and bool(self.site_host in host)
+            and (bool(self.data_uri) if requires_data_uri else True)
         )

@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from yarl import URL
 
@@ -6,10 +6,10 @@ from feedsearch_crawler.crawler import Item
 
 
 class SiteMeta(Item):
-    url: URL = None
+    url: Union[URL, None] = None
     site_url: str = ""
     site_name: str = ""
-    icon_url: URL = None
+    icon_url: Union[URL, None] = None
     icon_data_uri: str = ""
     possible_icons: List = []
     host: str = ""

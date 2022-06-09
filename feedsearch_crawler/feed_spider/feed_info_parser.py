@@ -45,7 +45,9 @@ class FeedInfoParser(ItemParser):
         # Check link headers first for WebSub content discovery
         # https://www.w3.org/TR/websub/#discovery
         if response.headers:
-            item.hubs, item.self_url = self.header_links(response.headers)
+            hubs, self_url = self.header_links(response.headers)
+            item.hubs = hubs
+            item.self_url = URL(self_url)
 
         try:
             valid_feed = False

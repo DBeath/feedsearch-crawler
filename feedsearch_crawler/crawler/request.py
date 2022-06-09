@@ -10,6 +10,7 @@ from typing import List, Tuple, Any, Union, Optional, Dict
 import aiohttp
 import time
 from aiohttp import ClientSession, ClientTimeout, hdrs
+from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
 from feedsearch_crawler.crawler.queueable import Queueable
@@ -205,12 +206,12 @@ class Request(Queueable):
                     url=resp.url,
                     method=resp.method,
                     encoding=self.encoding,
+                    headers=resp.headers,
                     status_code=resp.status,
                     history=history,
                     text=resp_text,
                     data=resp._body,
                     json=resp_json,
-                    headers=resp.headers,
                     xml_parser=self._xml_parser,
                     cookies=resp.cookies,
                     redirect_history=resp.history,
@@ -333,9 +334,9 @@ class Request(Queueable):
             url=self.url,
             method=self.method,
             encoding=self.encoding,
+            headers=headers or {},
             history=history or [],
             status_code=status,
-            headers=headers or {},
         )
 
     def set_retry(self) -> None:
