@@ -21,13 +21,13 @@ class CrawlerPriorityQueue(Queue):
     _unfinished_tasks: int
     _finished: Event
 
-    def _init(self, maxsize):
-        self._queue = []
+    def _init(self, maxsize: int):
+        self._queue: list[Any] = []
 
-    def _put(self, item, heappush=heapq.heappush):
+    def _put(self, item: Queueable, heappush: Any = heapq.heappush):
         heappush(self._queue, item)
 
-    def _get(self, heappop=heapq.heappop):
+    def _get(self, heappop: Any = heapq.heappop):
         return heappop(self._queue)
 
     def clear(self):
@@ -123,7 +123,7 @@ class Stats(Enum):
     def __str__(self):
         return str(self.value)
 
-    def __lt__(self, other):
+    def __lt__(self, other: Any):
         if not isinstance(other, Stats):
             return False
         return self.value < other.value
@@ -158,7 +158,7 @@ def coerce_url(
     return url
 
 
-def to_bytes(text, encoding: str = "utf-8", errors: str = "strict"):
+def to_bytes(text: str, encoding: str = "utf-8", errors: str = "strict"):
     """Return the binary representation of `text`. If `text`
     is already a bytes object, return it as-is."""
     if not text:
@@ -179,7 +179,7 @@ def to_string(item: Any, encoding: str = "utf-8", errors: str = "strict") -> str
     return str(item)
 
 
-def case_insensitive_key(key: str, dictionary: Dict) -> bool:
+def case_insensitive_key(key: str, dictionary: Dict[str, Any]) -> bool:
     """
     Check if a case-insensitive key is in a dictionary.
     """
@@ -197,10 +197,7 @@ def headers_to_dict(headers: Any) -> Dict[str, str]:
     :param headers: Dict subclass of HTTP headers
     :return: Dict of HTTP headers
     """
-    if isinstance(headers, dict):
-        return headers
-
-    new_headers = {}
+    new_headers: Dict[str, str] = {}
     try:
         new_headers.update({k.lower(): v for (k, v) in headers.items()})
     except Exception as e:
@@ -209,7 +206,7 @@ def headers_to_dict(headers: Any) -> Dict[str, str]:
     return new_headers
 
 
-def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
+def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4"):
     """Ignore aiohttp #3535 issue with SSL data after close
      There appears to be an issue on Python 3.7 and aiohttp SSL that throws a
     ssl.SSLError fatal error (ssl.SSLError: [SSL: KRB5_S_INIT] application data
@@ -241,7 +238,7 @@ def ignore_aiohttp_ssl_error(loop, aiohttpversion="3.5.4"):
     orig_handler = loop.get_exception_handler()
 
     # noinspection PyUnresolvedReferences
-    def ignore_ssl_error(this_loop, context):
+    def ignore_ssl_error(this_loop: Any, context: Any):
         errors = ["SSL error", "Fatal error"]
         if any(x in context.get("message") for x in errors):
             # validate we have the right exception, transport and protocol
@@ -272,9 +269,6 @@ def parse_href_to_url(href: str) -> Union[URL, None]:
     """
     if not href:
         return None
-
-    if not isinstance(href, str):
-        raise TypeError("href must be string")
 
     try:
         return URL(href)

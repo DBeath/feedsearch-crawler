@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+from typing import Dict
 
 from yarl import URL
 
@@ -13,7 +14,7 @@ class DuplicateFilter:
 
     def __init__(self):
         # Dictionary whose keys are the hashed fingerprints of the URLs
-        self.fingerprints = dict()
+        self.fingerprints: Dict[str, str] = {}
         # Locks the fingerprints dict when accessing keys.
         self._seen_lock = asyncio.Lock()
 
@@ -26,7 +27,7 @@ class DuplicateFilter:
         :return: True if URL already seen
         """
         url_str: str = self.parse_url(url)
-        fp = self.url_fingerprint_hash(url_str, method)
+        fp: str = self.url_fingerprint_hash(url_str, method)
         async with self._seen_lock:
             if fp in self.fingerprints:
                 return True

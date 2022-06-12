@@ -6,13 +6,23 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from fnmatch import fnmatch
 from statistics import harmonic_mean, median
-from types import AsyncGeneratorType, MethodType
-from typing import Callable, Final, List, Any, Dict, Optional, Set
+from types import AsyncGeneratorType
+from typing import (
+    AsyncGenerator,
+    Callable,
+    Coroutine,
+    Final,
+    List,
+    Any,
+    Dict,
+    Optional,
+    Set,
+)
 from typing import Union
 
 import aiohttp
 import time
-from aiohttp import ClientTimeout
+from aiohttp import ClientTimeout, TraceConfig
 from yarl import URL
 
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
@@ -154,24 +164,24 @@ class Crawler(ABC):
         self._trace = trace
 
         # Default set for parsed items.
-        self.items: set = set()
+        self.items: set[Item] = set()
 
         # URL Duplicate Filter instance.
         self._duplicate_filter = self.duplicate_filter_class()
 
         # List of total durations in Milliseconds for the total handling time of all Requests.
-        self._stats_request_durations = []
+        self._stats_request_durations: list[int] = []
         # List of total duration in Milliseconds of all HTTP requests.
-        self._stats_request_latencies = []
+        self._stats_request_latencies: list[int] = []
         # List of Content Length in bytes of all Responses.
-        self._stats_response_content_lengths = []
+        self._stats_response_content_lengths: list[int] = []
         # List of time in Milliseconds that each item spend on the queue.
-        self._stats_queue_wait_times = []
+        self._stats_queue_wait_times: list[int] = []
         # List of the size of the queue each time an item was popped off the queue.
-        self._stats_queue_sizes = []
+        self._stats_queue_sizes: list[int] = []
 
         # Initialise Crawl Statistics.
-        self.stats: dict = {
+        self.stats: Dict[Stats, Any] = {
             Stats.REQUESTS_QUEUED: 0,
             Stats.REQUESTS_SUCCESSFUL: 0,
             Stats.REQUESTS_FAILED: 0,
@@ -264,7 +274,15 @@ class Crawler(ABC):
             return
 
     async def _process_request_callback_result(
-        self, result: Any, callback_recursion: int = 0
+        self,
+        result: Union[
+            CallbackResult,
+            AsyncGenerator[Any, Any],
+            Coroutine[Any, Any, Any],
+            Request,
+            Item,
+        ],
+        callback_recursion: int = 0,
     ) -> None:
         """
         Process the Request callback result depending on the result type.
@@ -449,7 +467,7 @@ class Crawler(ABC):
             max_content_length=max_content_length or self.max_content_length,
             timeout=timeout or self.request_timeout,
             method=method,
-            delay=delay if isinstance(delay, float) else self.delay,
+            delay=delay if delay else self.delay,
             retries=retries or self.max_retries,
             cb_kwargs=cb_kwargs,
             **kwargs,
@@ -468,7 +486,7 @@ class Crawler(ABC):
 
         :param item: A parsed Item.
         """
-        self.items.add(item)
+        raise NotImplementedError("Not Implemented")
 
     @abstractmethod
     async def parse_xml(self, response_text: str) -> Any:
@@ -481,7 +499,9 @@ class Crawler(ABC):
         raise NotImplementedError("Not Implemented")
 
     @abstractmethod
-    async def parse(self, request: Request, response: Response) -> AsyncGeneratorType:
+    async def parse(
+        self, request: Request, response: Response
+    ) -> AsyncGenerator[Any, Any]:
         """
         Parse an HTTP Response. Must yield Items, Requests, AsyncGenerators, or Coroutines.
 
@@ -496,13 +516,11 @@ class Crawler(ABC):
 
         :param queueable: An object that inherits from Queueable.
         """
-        if not isinstance(queueable, Queueable):
-            raise ValueError("Object must inherit from Queueable Class")
-
-        queueable.add_to_queue(self._request_queue)
+        queueable.set_queue_put_time()
+        self._request_queue.put_nowait(queueable)
         self.stats[Stats.QUEUED_TOTAL] += 1
 
-    async def _work(self, task_num):
+    async def _work(self, task_num: int) -> None:
         """
         Worker function for handling request queue items.
         """
@@ -510,12 +528,9 @@ class Crawler(ABC):
             while True:
                 self._stats_queue_sizes.append(self._request_queue.qsize())
                 item: Queueable = await self._request_queue.get()
-                # logger.debug("Priority: %s Item: %s", item.priority, item)
-                if item.get_queue_wait_time():
-                    # logger.debug(
-                    #     "Waited: %sms Item: %s", item.get_queue_wait_time(), item
-                    # )
-                    self._stats_queue_wait_times.append(item.get_queue_wait_time())
+
+                if item_wait_time := item.get_queue_wait_time():
+                    self._stats_queue_wait_times.append(item_wait_time)
 
                 if self._session.closed:
                     logger.debug("Session is closed. Cannot run %s", item)
@@ -636,7 +651,7 @@ class Crawler(ABC):
             sum(self._stats_request_latencies)
         )
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict[str, Any]:
         """
         Return crawl statistics as a sorted dictionary.
         """
@@ -671,7 +686,7 @@ class Crawler(ABC):
         # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
         self._semaphore = asyncio.Semaphore(self.concurrency)
 
-        trace_configs = []
+        trace_configs: List[TraceConfig] = []
         if self._trace:
             trace_configs.append(add_trace_config())
 
