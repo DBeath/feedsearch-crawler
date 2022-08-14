@@ -255,7 +255,7 @@ class Crawler(ABC):
 
             # Mark the Response URL as seen in the duplicate filter, as it may be different from the Request URL
             # due to redirects.
-            await self._duplicate_filter.url_seen(response.url, response.method)
+            await self._duplicate_filter.is_url_seen(response.url, response.method)
 
             # Add callback results to the queue for processing.
             if results:
@@ -455,7 +455,7 @@ class Crawler(ABC):
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.
-        if await self._duplicate_filter.url_seen(request_url, method):
+        if await self._duplicate_filter.is_url_seen(request_url, method):
             return
 
         request = Request(

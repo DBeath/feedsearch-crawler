@@ -12,7 +12,7 @@ from feedsearch_crawler.crawler.queueable import Queueable
 logger = logging.getLogger(__name__)
 
 
-class CrawlerPriorityQueue(Queue):
+class CrawlerPriorityQueue(Queue[Queueable]):
     """A subclass of Queue; retrieves entries in priority order (lowest first).
 
     Entries are typically tuples of the form: (priority number, data).
@@ -21,16 +21,16 @@ class CrawlerPriorityQueue(Queue):
     _unfinished_tasks: int
     _finished: Event
 
-    def _init(self, maxsize: int):
-        self._queue: list[Any] = []
+    def _init(self, maxsize: int) -> None:
+        self._queue: list[Queueable] = []
 
-    def _put(self, item: Queueable, heappush: Any = heapq.heappush):
+    def _put(self, item: Queueable, heappush: Any = heapq.heappush) -> None:
         heappush(self._queue, item)
 
-    def _get(self, heappop: Any = heapq.heappop):
+    def _get(self, heappop: Any = heapq.heappop) -> Queueable:
         return heappop(self._queue)
 
-    def clear(self):
+    def clear(self) -> None:
         """
         Clear the Queue of any unfinished tasks.
         """
