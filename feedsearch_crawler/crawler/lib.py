@@ -12,6 +12,18 @@ from feedsearch_crawler.crawler.queueable import Queueable
 logger = logging.getLogger(__name__)
 
 
+class ContentLengthError(Exception):
+    """Content Length is too long."""
+
+    def __init__(self, max_content_length: int, *args: object) -> None:
+        self.max_content_length = max_content_length
+        super().__init__(*args)
+
+
+class ContentReadError(Exception):
+    """Response Content was not read."""
+
+
 class CrawlerPriorityQueue(Queue[Queueable]):
     """A subclass of Queue; retrieves entries in priority order (lowest first).
 

@@ -6,7 +6,6 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from fnmatch import fnmatch
 from statistics import harmonic_mean, median
-from types import AsyncGeneratorType
 from typing import (
     AsyncGenerator,
     Callable,
@@ -377,7 +376,7 @@ class Crawler(ABC):
         cb_kwargs: Dict = {},
         retries: int = 0,
         **kwargs,
-    ) -> Union[Request, None]:
+    ) -> Optional[Request]:
         """
         Follow a URL by creating an HTTP Request.
 
@@ -499,7 +498,7 @@ class Crawler(ABC):
         raise NotImplementedError("Not Implemented")
 
     @abstractmethod
-    async def parse(
+    def parse_response(
         self, request: Request, response: Response
     ) -> AsyncGenerator[Any, Any]:
         """
@@ -708,7 +707,7 @@ class Crawler(ABC):
 
         # Create a Request for each start URL and add it to the Request Queue.
         for url in initial_urls:
-            req = await self.follow(coerce_url(url), self.parse, delay=0)
+            req = await self.follow(coerce_url(url), self.parse_response, delay=0)
             if req:
                 self._process_request(req)
 

@@ -34,8 +34,8 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.8"
-aiohttp = "^3.8.1"
-beautifulsoup4 = "^4.9.3"
+aiohttp = {extras = ["speedups"], version = "^3.8.1"}
+beautifulsoup4 = "^4.11.1"
 cchardet = "^2.1.7"
 aiodns = "^2.0.0"
 uvloop = "^0.16.0"
