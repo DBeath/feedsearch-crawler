@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Union, Dict
 import heapq
+import re
+from typing import List
 
 from yarl import URL
 
@@ -244,7 +246,7 @@ def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4"):
         protocol_class = asyncio.sslproto.SSLProtocol  # type: ignore
         pass
 
-    if aiohttpversion is not None and aiohttp.__version__ != aiohttpversion:
+    if aiohttpversion and aiohttp.__version__ != aiohttpversion:
         return
 
     orig_handler = loop.get_exception_handler()
@@ -312,3 +314,74 @@ def is_same_domain(root_domain: Union[str, None], url_domain: Union[str, None]) 
     if not root_domain or not url_domain:
         return False
     return remove_www(root_domain) in url_domain
+
+
+def parse_robots_txt(robots_txt: str, user_agent: str) -> List[str]:
+    """
+    Parses a robots.txt file and returns a list of disallowed paths.
+
+    Args:
+      robots_txt: The robots.txt file, as a string.
+
+    Returns:
+      A list of the the paths that are not allowed to be crawled.
+    """
+    # Create a regex pattern to match the "Disallow" lines in the robots.txt file
+    disallow_pattern = re.compile(r"^Disallow:\.*(.*)$", re.MULTILINE)
+
+    # Create a list to store the disallowed paths
+    disallowed_paths: List[str] = []
+
+    # Split the robots.txt file into lines
+    lines = robots_txt.split("\n")
+
+    # Flag to indicate whether we're currently in the section of the file that applies to our user-agent
+    in_our_section = False
+
+    # Loop through each line of the robots.txt file
+    for line in lines:
+        # If this line is the start of a section for a user-agent, check if it's our user-agent
+        if line.startswith("User-agent:"):
+            # Check if this user-agent section applies to our user-agent
+            in_our_section = line.strip().endswith(user_agent) or line.strip().endswith(
+                "*"
+            )
+        # If this line is a "Disallow" line and we're currently in our user-agent section,
+        # add the disallowed path to our list
+        elif in_our_section:
+            disallowed = disallow_pattern.match(line)
+            if disallowed:
+                disallowed_paths.append(disallowed.group(1))
+
+    # Return the list of disallowed paths
+    return disallowed_paths
+
+
+def parse_sitemap(sitemap_xml: str) -> List[str]:
+    """Parses a sitemap XML file and returns the URLs of any RSS or Atom feeds.
+
+    Args:
+      sitemap_xml: The sitemap XML file, as a string.
+
+    Returns:
+      A list of URLs of the RSS or Atom feeds that are included in the sitemap.
+    """
+
+    # Create a regex pattern to match the "loc" elements in the sitemap
+    loc_pattern = re.compile(r"<loc>(.*?)</loc>")
+
+    # Create a list to store the URLs of the feeds
+    feed_urls: List[str] = []
+
+    # Use the regex pattern to find all the "loc" elements in the sitemap
+    for loc_element in loc_pattern.finditer(sitemap_xml):
+        # Get the URL from the "loc" element
+        url = loc_element.group(1)
+        # If the URL ends with ".rss" or ".xml", it's an RSS feed URL
+        # If the URL ends with ".atom", it's an Atom feed URL
+        if url.endswith(".rss") or url.endswith(".xml") or url.endswith(".atom"):
+            # Add it to the list of feed URLs
+            feed_urls.append(url)
+
+    # Return the list of feed URLs
+    return feed_urls

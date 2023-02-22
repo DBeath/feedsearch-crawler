@@ -106,7 +106,7 @@ class FeedsearchSpider(Crawler):
             values = link_filter.should_follow_link(link)
             if values:
                 url, priority = values
-                yield await self.follow(
+                yield self.follow(
                     url,
                     self.parse_response,
                     response,
