@@ -1,4 +1,5 @@
 # Feedsearch Crawler
+
 [![PyPI](https://img.shields.io/pypi/v/feedsearch-crawler.svg)](https://pypi.org/project/feedsearch-crawler/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/feedsearch-crawler.svg)
 ![PyPI - License](https://img.shields.io/pypi/l/feedsearch-crawler.svg)
@@ -10,20 +11,22 @@ It is a continuation of my work on [Feedsearch](https://github.com/DBeath/feedse
 
 Feedsearch Crawler differs with all of the above in that it is now built as an asynchronous [Web crawler](https://en.wikipedia.org/wiki/Web_crawler) for [Python 3.7](https://www.python.org/downloads/release/python-370/) and above, using [asyncio](https://docs.python.org/3/library/asyncio.html) and [aiohttp](https://aiohttp.readthedocs.io/en/stable/), to allow much more rapid scanning of possible feed urls.
 
-An implementation using this library to provide a public Feed Search API is available at https://feedsearch.dev
+An implementation using this library to provide a public Feed Search API is available at <https://feedsearch.dev>
 
 Pull requests and suggestions are welcome.
 
 ## Installation
+
 The library is available on [PyPI](https://pypi.org/project/feedsearch-crawler/):
 
-```
+```shell
 pip install feedsearch-crawler
 ```
 
 The library requires Python 3.7+.
 
 ## Usage
+
 Feedsearch Crawler is called with the single function ``search``:
 
 ``` python
@@ -58,7 +61,7 @@ import logging
 logger = logging.getLogger("feedsearch_crawler")
 ```
 
-Feedsearch Crawler also provides a handy function to output the returned feeds as an [OPML](https://en.wikipedia.org/wiki/OPML) subscription list, encoded as a UTF-8 bytestring. 
+Feedsearch Crawler also provides a handy function to output the returned feeds as an [OPML](https://en.wikipedia.org/wiki/OPML) subscription list, encoded as a UTF-8 bytestring.
 
 ``` python
 from feedsearch_crawler import output_opml
@@ -67,6 +70,7 @@ output_opml(feeds).decode()
 ```
 
 ## Search Arguments
+
 ``search`` and ``search_async`` take the following arguments:
 
 ``` python
@@ -100,6 +104,7 @@ search(
 - **delay**: *float*: (default 0.0): An optional argument to delay each HTTP request by the specified time in seconds. Used in conjunction with the concurrency setting to avoid overloading sites.
 
 ## FeedInfo Values
+
 In addition to the *url*, FeedInfo objects may have the following values:
 
 - **bozo**: *int*: Set to 1 when feed data is not well formed or may not be a feed. Defaults 0.
