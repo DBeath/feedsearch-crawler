@@ -116,7 +116,7 @@ class FeedsearchSpider(Crawler):
 
     async def parse_site_meta(
         self, request: Request, response: Response
-    ) -> AsyncGeneratorType:
+    ) -> AsyncGenerator[Any, Any]:
         """
         Parses site metadata if the returned URL is a site origin URL.
 
