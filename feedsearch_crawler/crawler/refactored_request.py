@@ -1,9 +1,10 @@
-from typing import Callable, Tuple, Any, Optional, Dict, List, Union
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
 from yarl import URL
 
 
-@dataclass
+@dataclass(slots=True)
 class Request:
     """
     Represents an HTTP request for the web crawler.
@@ -55,6 +56,9 @@ class Request:
     retries: int = 3
     history: Optional[List[URL]] = None
     timeout: float = 10.0
+
+    # Default lowest queue priority is 100 (higher number means lower priority)
+    priority: int = 100
 
     def __post_init__(self):
         # HTTP method validation

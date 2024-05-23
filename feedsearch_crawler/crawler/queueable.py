@@ -1,11 +1,16 @@
 import time
+from dataclasses import dataclass, field
+from typing import Any
 
 
+@dataclass(slots=True, order=True)
 class Queueable:
-    _queue_put_time = None
-    _queue_get_time = None
+    item: Any = field(compare=False)
     # Default lowest queue priority is 100 (higher number means lower priority)
-    priority = 100
+    priority: int = 100
+
+    _queue_put_time: float | None = field(compare=False, default=None)
+    _queue_get_time: float | None = field(compare=False, default=None)
 
     def get_queue_wait_time(self) -> int:
         """
@@ -16,10 +21,10 @@ class Queueable:
         # Only set queue_get_time if not already set, so that the value of this method doesn't change each time
         # it's called.
         if not self._queue_get_time:
-            self._queue_get_time = time.perf_counter()
+            self._queue_get_time = time.monotonic_ns()
 
         if self._queue_put_time:
-            return int(self._queue_get_time - self._queue_put_time) * 1000
+            return int(self._queue_get_time - self._queue_put_time) * 1_000_000
         return 0
 
     def set_queue_put_time(self) -> None:
@@ -29,27 +34,15 @@ class Queueable:
         # Set queue_get_time to None, because this method is called whenever a Queueable is added to the queue
         # and it may be added to a queue multiple times in its life.
         self._queue_get_time = None
-        self._queue_put_time = time.perf_counter()
+        self._queue_put_time = time.monotonic_ns()
 
-    def __lt__(self, __o: object) -> bool:
-        """
-        Compare Queueable priority for Queue ordering.
-        Lower priority has precedence in the Queue.
 
-        :param other: Another Queueable object
-        :return: boolean
-        """
-        if not isinstance(__o, Queueable):
-            return True
-        elif self.priority == __o.priority:
-            return self.get_queue_wait_time() < __o.get_queue_wait_time()
-        else:
-            return self.priority < __o.priority
+@dataclass(slots=True, order=True)
+class CallbackResult(Queueable):
+    """Dataclass for holding callback results and recording recursion"""
 
-    def __eq__(self, __o: object) -> bool:
-        if not isinstance(__o, Queueable):
-            return False
-        elif self.priority != __o.priority:
-            return self.get_queue_wait_time() == __o.get_queue_wait_time()
-        else:
-            return True
+    # CallbackResult priority is high (lower value is higher priority) so that we clear Callbacks off the queue and process them as fast as possible.
+    # Otherwise the workers always process Requests and don't often process the Request results.
+    priority: int = 1
+
+    callback_recursion: int = field(compare=False, default=0)

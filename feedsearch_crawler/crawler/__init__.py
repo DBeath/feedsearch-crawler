@@ -2,12 +2,8 @@ from feedsearch_crawler.crawler.crawler import Crawler
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.item_parser import ItemParser
-from feedsearch_crawler.crawler.lib import (
-    to_string,
-    to_bytes,
-    coerce_url,
-    CallbackResult,
-)
+from feedsearch_crawler.crawler.lib import coerce_url, to_bytes, to_string
+from feedsearch_crawler.crawler.queueable import CallbackResult
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 

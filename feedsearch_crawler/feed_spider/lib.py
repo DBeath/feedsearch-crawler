@@ -1,9 +1,6 @@
-import cgi
 from datetime import datetime
-from typing import Union, List
 
-from dateutil import tz, parser
-from yarl import URL
+from dateutil import parser, tz
 
 
 class ParseTypes:
@@ -78,11 +75,11 @@ def create_content_type(parse_type: str, encoding: str, content_type: str) -> st
     :param content_type: Content-Type header string of the response
     :return: Content-Type string
     """
-    ctype, pdict = cgi.parse_header(content_type)
 
-    if parse_type == ParseTypes.JSON and ParseTypes.JSON not in ctype.lower():
-        ctype = "application/json"
-    elif parse_type == ParseTypes.XML and ParseTypes.XML not in ctype.lower():
-        ctype = "application/xml"
+    content_type = content_type.lower()
+    if parse_type == ParseTypes.JSON and ParseTypes.JSON not in content_type:
+        content_type = "application/json"
+    elif parse_type == ParseTypes.XML and ParseTypes.XML not in content_type:
+        content_type = "application/xml"
 
-    return f"{ctype}; charset={encoding}".lower()
+    return f"{content_type}; charset={encoding.lower()}"

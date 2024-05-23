@@ -1,11 +1,9 @@
-import logging
-from asyncio import Event, Queue
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Union, Dict
 import heapq
+import logging
 import re
-from typing import List
+from asyncio import Event, Queue
+from enum import Enum
+from typing import Any, Dict, List, Union
 
 from yarl import URL
 
@@ -26,10 +24,12 @@ class ContentReadError(Exception):
     """Response Content was not read."""
 
 
-class CrawlerPriorityQueue(Queue[Queueable]):
+class CrawlerPriorityQueue(Queue):
     """A subclass of Queue; retrieves entries in priority order (lowest first).
 
     Entries are typically tuples of the form: (priority number, data).
+
+    This class is used instead of the standard library PriorityQueue because it implements a clear() method.
     """
 
     _unfinished_tasks: int
@@ -37,8 +37,9 @@ class CrawlerPriorityQueue(Queue[Queueable]):
 
     def _init(self, maxsize: int) -> None:
         self._queue: list[Queueable] = []
+        self._maxsize: int = maxsize
 
-    def _put(self, item: Queueable, heappush: Any = heapq.heappush) -> None:
+    def _put(self, item: Queueable, heappush=heapq.heappush) -> None:
         heappush(self._queue, item)
 
     def _get(self, heappop: Any = heapq.heappop) -> Queueable:
@@ -51,20 +52,6 @@ class CrawlerPriorityQueue(Queue[Queueable]):
         self._queue.clear()
         self._unfinished_tasks = 0
         self._finished.set()
-
-
-@dataclass
-class CallbackResult(Queueable):
-    """Dataclass for holding callback results and recording recursion"""
-
-    result: Any
-    callback_recursion: int
-    # CallbackResult priority is high so that we clear Callbacks off the queue and process them as fast as possible.
-    # Otherwise the workers always process Requests and don't often process the Request results.
-    priority = 1
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.result.__class__.__name__})"
 
 
 class Stats(Enum):
@@ -233,9 +220,10 @@ def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4"):
     nothing is done, assuming that the next version will have this bug fixed.
     This can be disabled by setting this parameter to None
     """
-    import ssl
-    import aiohttp
     import asyncio
+    import ssl
+
+    import aiohttp
 
     try:
         # noinspection PyUnresolvedReferences

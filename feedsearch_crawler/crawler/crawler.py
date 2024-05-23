@@ -2,39 +2,38 @@ import asyncio
 import copy
 import inspect
 import logging
+import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from fnmatch import fnmatch
 from statistics import harmonic_mean, median
 from typing import (
+    Any,
     AsyncGenerator,
     Callable,
     Coroutine,
+    Dict,
     Final,
     List,
-    Any,
-    Dict,
     Optional,
     Set,
+    Union,
 )
-from typing import Union
 
 import aiohttp
-import time
 from aiohttp import ClientTimeout, TraceConfig
 from yarl import URL
 
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.lib import (
+    CrawlerPriorityQueue,
+    Stats,
     coerce_url,
     ignore_aiohttp_ssl_error,
-    Stats,
-    CallbackResult,
-    CrawlerPriorityQueue,
     parse_href_to_url,
 )
-from feedsearch_crawler.crawler.queueable import Queueable
+from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.trace import add_trace_config
@@ -56,7 +55,6 @@ DEFAULT_MAX_CONTENT_LENGTH: Final[int] = 1024 * 1024 * 10
 
 
 class Crawler(ABC):
-
     # Class Name of the Duplicate Filter.
     # May be overridden to use different Duplicate Filter.
     # Not an instantiation of the class.
@@ -293,7 +291,9 @@ class Crawler(ABC):
         """
         if callback_recursion >= self.max_callback_recursion:
             logger.warning(
-                "Max callback recursion of %d reached", self.max_callback_recursion
+                "Max callback recursion of %d reached for %s",
+                self.max_callback_recursion,
+                result,
             )
             return
 
@@ -301,7 +301,7 @@ class Crawler(ABC):
             # If a CallbackResult class is passed, process the result values from within the class.
             if isinstance(result, CallbackResult):
                 await self._process_request_callback_result(
-                    result.result, result.callback_recursion
+                    result.item, result.callback_recursion
                 )
             # For async generators, put each value back on the queue for processing.
             # This will happen recursively until the end of the recursion chain or max_callback_recursion is reached.
@@ -334,10 +334,12 @@ class Crawler(ABC):
         if not request:
             return
 
+        priority: int = request.priority or 100
+
         self.stats[Stats.REQUESTS_QUEUED] += 1
         logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
-        self._put_queue(request)
+        self._put_queue(Queueable(request, priority=priority))
 
     def is_allowed_domain(self, url: URL) -> bool:
         """
@@ -526,24 +528,32 @@ class Crawler(ABC):
         try:
             while True:
                 self._stats_queue_sizes.append(self._request_queue.qsize())
-                item: Queueable = await self._request_queue.get()
+                queue_item: Queueable = await self._request_queue.get()
 
-                if item_wait_time := item.get_queue_wait_time():
+                if item_wait_time := queue_item.get_queue_wait_time():
                     self._stats_queue_wait_times.append(item_wait_time)
 
                 if self._session.closed:
-                    logger.debug("Session is closed. Cannot run %s", item)
+                    logger.debug("Session is closed. Cannot run %s", queue_item)
                     continue
 
                 try:
-                    # Fetch Request and handle callbacks
-                    if isinstance(item, Request):
-                        await self._handle_request(item)
                     # Process Callback results
-                    elif isinstance(item, CallbackResult):
+                    if isinstance(queue_item, CallbackResult):
                         await self._process_request_callback_result(
-                            item.result, item.callback_recursion
+                            queue_item.item, queue_item.callback_recursion
                         )
+                    else:
+                        item: Request | CallbackResult = queue_item.item
+                        # Fetch Request and handle callbacks
+                        if isinstance(item, Request):
+                            await self._handle_request(item)
+                        # Process Callback results
+                        elif isinstance(item, CallbackResult):
+                            await self._process_request_callback_result(
+                                item.item, item.callback_recursion
+                            )
+
                 except Exception as e:
                     logger.exception("Error handling item: %s : %s", item, e)
                 finally:

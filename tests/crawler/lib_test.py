@@ -1,5 +1,11 @@
-from feedsearch_crawler.crawler.lib import coerce_url, is_same_domain
+import pytest
 from yarl import URL
+
+from feedsearch_crawler.crawler.lib import (
+    CrawlerPriorityQueue,
+    coerce_url,
+    is_same_domain,
+)
 
 
 def test_coerce_url():
@@ -31,3 +37,49 @@ def test_is_same_domain():
     assert is_same_domain("www.test.com", "test.com") is True
     assert is_same_domain("www.test.com", "feed.test.com") is True
     assert is_same_domain("test.www.test.com", "test.com") is False
+
+
+@pytest.mark.asyncio
+async def test_crawler_priority_queue():
+    queue = CrawlerPriorityQueue()
+
+    # Test empty queue
+    assert queue.empty()
+    assert queue.qsize() == 0
+
+    # Test put and get
+    await queue.put((1, "data1"))
+    await queue.put((3, "data3"))
+    await queue.put((2, "data2"))
+
+    assert queue.qsize() == 3
+    assert await queue.get() == (1, "data1")
+    assert await queue.get() == (2, "data2")
+    assert await queue.get() == (3, "data3")
+
+    # Test clear
+    await queue.put((5, "data5"))
+    await queue.put((4, "data4"))
+    queue.clear()
+
+    assert queue.empty()
+    assert queue.qsize() == 0
+
+    # Test put with custom item class
+    class CustomItem:
+        def __init__(self, priority, data):
+            self.priority = priority
+            self.data = data
+
+        def __lt__(self, other):
+            return self.priority < other.priority
+
+        def __eq__(self, other):
+            return self.priority == other.priority and self.data == other.data
+
+    await queue.put(CustomItem(9, "data9"))
+    await queue.put(CustomItem(8, "data8"))
+
+    assert queue.qsize() == 2
+    assert await queue.get() == CustomItem(8, "data8")
+    assert await queue.get() == CustomItem(9, "data9")
