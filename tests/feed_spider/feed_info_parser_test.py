@@ -5,19 +5,19 @@ from dateutil.tz import tzutc
 from feedsearch_crawler.feed_spider.feed_info_parser import FeedInfoParser
 
 
-def test_entry_velocity_no_dates():
+def test_entry_velocity_no_dates() -> None:
     dates = []
     result = FeedInfoParser.entry_velocity(dates)
     assert result == 0
 
 
-def test_entry_velocity_identical_dates():
+def test_entry_velocity_identical_dates() -> None:
     dates = [datetime(2020, 1, 1), datetime(2020, 1, 1), datetime(2020, 1, 1)]
     result = FeedInfoParser.entry_velocity(dates)
     assert result == 0
 
 
-def test_entry_velocity():
+def test_entry_velocity() -> None:
     dates = [
         datetime(2019, 1, 1),
         datetime(2019, 1, 2),
@@ -137,6 +137,7 @@ def test_entry_velocity():
         datetime(2019, 9, 21, 11, 57, 55, tzinfo=tzutc()),
         datetime(2019, 9, 21, 11, 57, 55, tzinfo=tzutc()),
         datetime(2019, 9, 21, 11, 57, 55, tzinfo=tzutc()),
+        datetime(2019, 9, 21, 11, 57, 55, tzinfo=tzutc()),
         datetime(2019, 9, 21, 12, 50, 21, tzinfo=tzutc()),
         datetime(2019, 9, 21, 12, 50, 21, tzinfo=tzutc()),
         datetime(2019, 9, 21, 13, 26, 45, tzinfo=tzutc()),
@@ -200,25 +201,25 @@ def test_entry_velocity():
     assert result == 7.255
 
 
-def test_is_podcast_no_data():
+def test_is_podcast_no_data() -> None:
     data = {}
     result = FeedInfoParser.is_podcast(data)
     assert result is False
 
 
-def test_is_podcast_not_podcast():
+def test_is_podcast_not_podcast() -> None:
     data = {"entries": [{}]}
     result = FeedInfoParser.is_podcast(data)
     assert result is False
 
 
-def test_is_podcast_no_namespace():
+def test_is_podcast_no_namespace() -> None:
     data = {"entries": [{"enclosures": [{"media": "file_url"}]}]}
     result = FeedInfoParser.is_podcast(data)
     assert result is False
 
 
-def test_is_podcast_is_true():
+def test_is_podcast_is_true() -> None:
     data = {
         "namespaces": {"itunes": "testing"},
         "entries": [{"enclosures": [{"media": "file_url", "type": "audio/mp3"}]}],
@@ -227,7 +228,7 @@ def test_is_podcast_is_true():
     assert result is True
 
 
-def test_is_podcast_no_enclosures():
+def test_is_podcast_no_enclosures() -> None:
     data = {"namespaces": {"itunes": "testing"}, "entries": [{}]}
     result = FeedInfoParser.is_podcast(data)
     assert result is False

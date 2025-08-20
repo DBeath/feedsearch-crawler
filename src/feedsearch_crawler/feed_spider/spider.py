@@ -28,7 +28,7 @@ class FeedsearchSpider(Crawler):
     full_crawl: bool = False
     crawl_hosts: bool = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.site_meta_processor = SiteMetaParser(self)
         self.feed_info_parser = FeedInfoParser(self)

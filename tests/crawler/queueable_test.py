@@ -4,7 +4,7 @@ from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 
 
 # Test Initialization
-def test_initialization():
+def test_initialization() -> None:
     queueable = Queueable(item="test")
     assert queueable.item == "test"
     assert queueable.priority == 100
@@ -13,7 +13,7 @@ def test_initialization():
 
 
 # Test Queue Put Time
-def test_set_queue_put_time():
+def test_set_queue_put_time() -> None:
     queueable = Queueable(item="test")
     queueable.set_queue_put_time()
     assert queueable._queue_put_time is not None
@@ -21,7 +21,7 @@ def test_set_queue_put_time():
 
 
 # Test Queue Wait Time
-def test_get_queue_wait_time():
+def test_get_queue_wait_time() -> None:
     queueable = Queueable(item="test")
     queueable.set_queue_put_time()
     time.sleep(0.01)  # Sleep for 10 milliseconds
@@ -32,7 +32,7 @@ def test_get_queue_wait_time():
 
 
 # Test Queueable Ordering
-def test_queueable_ordering():
+def test_queueable_ordering() -> None:
     queueable1 = Queueable(item="test1", priority=1)
     queueable2 = Queueable(item="test2", priority=2)
     queueable3 = Queueable(item="test3", priority=3)
@@ -81,7 +81,7 @@ def test_queueable_ordering():
     assert queueable3 >= queueable1
 
 
-def test_callbackresult_init():
+def test_callbackresult_init() -> None:
     result1 = CallbackResult(item="test1")
     assert result1.item == "test1"
     assert result1.priority == 1

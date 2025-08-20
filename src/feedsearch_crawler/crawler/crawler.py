@@ -37,7 +37,7 @@ from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.trace import add_trace_config
-from feedsearch_crawler.crawler.middleware.robots import RobotsTxtMiddleware
+from feedsearch_crawler.crawler.middleware.robots import RobotsMiddleware
 from feedsearch_crawler.crawler.middleware.throttle import ThrottleMiddleware
 from feedsearch_crawler.crawler.middleware.retry import RetryMiddleware
 from feedsearch_crawler.crawler.middleware.cookie import CookieMiddleware
@@ -214,7 +214,7 @@ class Crawler(ABC):
         }
 
         self.middlewares = [
-            RobotsTxtMiddleware(user_agent='Feedsearch-Crawler/1.0'),
+            RobotsMiddleware(user_agent=self.user_agent),
             ThrottleMiddleware(rate_per_sec=2),
             RetryMiddleware(max_retries=3),
             CookieMiddleware(),
@@ -579,7 +579,7 @@ class Crawler(ABC):
             logger.debug("Cancelled Worker: %s", task_num)
 
     @staticmethod
-    async def _run_callback(callback, *args, **kwargs) -> None:
+    async def _run_callback(callback: Any, *args: Any, **kwargs: Any) -> None:
         """
         Runs a callback function.
 

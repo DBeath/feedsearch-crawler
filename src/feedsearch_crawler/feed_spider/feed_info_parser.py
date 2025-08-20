@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, date
 from statistics import mean
-from typing import AsyncGenerator, Tuple, List, Union, Dict
+from typing import AsyncGenerator, Tuple, List, Union, Dict, Any
 
 import feedparser
 import time
@@ -382,7 +382,7 @@ class FeedInfoParser(ItemParser):
         return hub_urls, self_url
 
     @staticmethod
-    def score_item(item: FeedInfo, original_url: URL):
+    def score_item(item: FeedInfo, original_url: URL) -> None:
         score = 0
 
         url_str = str(item.url).lower()
@@ -437,7 +437,9 @@ class FeedInfoParser(ItemParser):
         item.score = score
 
     @staticmethod
-    def entry_dates(entries: List[Dict], date_names: List[str], current_date: date):
+    def entry_dates(
+        entries: List[Dict], date_names: List[str], current_date: date
+    ) -> Any:
         """
         Return published or updated dates from feed entries.
 

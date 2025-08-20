@@ -1,5 +1,5 @@
 from yarl import URL
-from typing import Union
+from typing import Union, Any
 
 from feedsearch_crawler.crawler import Item
 
@@ -12,14 +12,16 @@ class Favicon(Item):
     resp_url: Union[URL, None] = None
     site_host: str = ""
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.url == other.url
+    def __eq__(self, other: "Favicon") -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return self.url == other.url
 
-    def __hash__(self):
+    def __hash__(self) -> str:
         return hash(self.url)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({str(self.url)})"
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(url={str(self.url)}, site_host={self.site_host})"
 
     def matches_host(self, host: str, requires_data_uri: bool = False) -> bool:
         """

@@ -6,7 +6,7 @@ from feedsearch_crawler.feed_spider.link_filter import (
 from feedsearch_crawler.feed_spider.regexes import feedlike_regex, podcast_regex
 
 
-def test_feedlike_regex():
+def test_feedlike_regex() -> None:
     valid = [
         "rss",
         "testing/rss",
@@ -41,17 +41,17 @@ def test_feedlike_regex():
         assert feedlike_regex.search(value)
 
 
-def test_feedlike_regex_invalid():
+def test_feedlike_regex_invalid() -> None:
     invalid = ["rsss", "rs-s", "feedss", "tfeed", "fee-d", "fee.d"]
     for value in invalid:
         assert not feedlike_regex.search(value)
 
 
-def test_podcast_regex():
+def test_podcast_regex() -> None:
     pass
 
 
-def test_is_feedlike_href():
+def test_is_feedlike_href() -> None:
     assert lf.is_href_matching("test.com/feed", feedlike_regex) is True
     assert lf.is_href_matching("feed", feedlike_regex) is True
     assert lf.is_href_matching("feeds", feedlike_regex) is True
@@ -63,7 +63,7 @@ def test_is_feedlike_href():
     assert lf.is_href_matching("test.com/podcast", feedlike_regex) is False
 
 
-def test_is_feedlike_querystring():
+def test_is_feedlike_querystring() -> None:
     assert lf.is_querystring_matching(URL("test.com?feed"), feedlike_regex) is True
     assert lf.is_querystring_matching(URL("test.com/test?feed"), feedlike_regex) is True
     assert (
@@ -97,14 +97,14 @@ def test_is_feedlike_querystring():
     )
 
 
-def test_is_podcast_href():
+def test_is_podcast_href() -> None:
     assert lf.is_href_matching("test.com/podcasts/test", podcast_regex) is True
     assert lf.is_href_matching("test.com/podcast/test", podcast_regex) is True
     assert lf.is_href_matching("test.com/podcasts", podcast_regex) is True
     assert lf.is_href_matching("test.com/podcast", podcast_regex) is True
 
 
-def test_is_podcast_querystring():
+def test_is_podcast_querystring() -> None:
     assert (
         lf.is_querystring_matching(URL("test.com?podcast=test"), podcast_regex) is True
     )

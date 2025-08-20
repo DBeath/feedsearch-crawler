@@ -69,7 +69,9 @@ logger = logging.getLogger(__name__)
 
 
 class LinkFilter:
-    def __init__(self, response: Response, request: Request, full_crawl: bool = False):
+    def __init__(
+        self, response: Response, request: Request, full_crawl: bool = False
+    ) -> None:
         self.response = response
         self.request = request
         self.full_crawl = full_crawl
@@ -146,7 +148,6 @@ class LinkFilter:
         # If full_crawl then follow all valid URLs regardless of the feedlike quality of the URL.
         # Otherwise only follow URLs if they look like they might contain feed information.
         if follow and (self.full_crawl or is_feedlike_url or is_podcast_href):
-
             # Remove the querystring unless it may point to a feed.
             if not is_feedlike_querystring:
                 url = url.with_query(None)

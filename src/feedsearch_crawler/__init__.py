@@ -16,7 +16,7 @@ def search(
     url: Union[URL, str, List[Union[URL, str]]],
     try_urls: Union[List[str], bool] = False,
     *args,
-    **kwargs
+    **kwargs,
 ) -> List[FeedInfo]:
     """
     Search for feeds at a URL.
@@ -33,7 +33,7 @@ async def search_async(
     url: Union[URL, str, List[Union[URL, str]]],
     try_urls: Union[List[str], bool] = False,
     *args,
-    **kwargs
+    **kwargs,
 ) -> List[FeedInfo]:
     """
     Search asynchronously for feeds at a URL.

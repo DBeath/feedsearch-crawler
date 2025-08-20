@@ -4,31 +4,31 @@ from yarl import URL
 
 
 # Test Initialization with default and provided values
-def test_initialization():
+def test_initialization() -> None:
     req = Request(url=URL("http://example.com"))
     assert req.url == URL("http://example.com")
     assert req.method == "GET"
 
 
 # Test HTTP Method Validation
-def test_valid_http_methods():
+def test_valid_http_methods() -> None:
     valid_methods = ["GET", "POST", "PUT", "DELETE"]
     for method in valid_methods:
         req = Request(url=URL("http://example.com"), method=method)
         assert req.method == method
 
 
-def test_invalid_http_method():
+def test_invalid_http_method() -> None:
     with pytest.raises(ValueError):
         Request(url=URL("http://example.com"), method="INVALID")
 
 
 # Test Callback Flexibility
-def test_callback_flexibility():
-    def success_func(arg1, arg2):
+def test_callback_flexibility() -> None:
+    def success_func(arg1: str, arg2: int) -> str:
         return arg1 + arg2
 
-    def failure_func():
+    def failure_func() -> str:
         return "Failure"
 
     # Test with function only
@@ -51,7 +51,7 @@ def test_callback_flexibility():
 
 
 # Test Attributes
-def test_attributes():
+def test_attributes() -> None:
     req = Request(
         url=URL("http://example.com"),
         method="POST",

@@ -3,7 +3,7 @@ from .cookie import CookieMiddleware
 from .content_type import ContentTypeMiddleware
 from .monitoring import MonitoringMiddleware
 from .retry import RetryMiddleware
-from .robots import RobotsTxtMiddleware
+from .robots import RobotsMiddleware
 from .throttle import ThrottleMiddleware
 
 
@@ -13,6 +13,6 @@ __all__ = [
     "ContentTypeMiddleware",
     "MonitoringMiddleware",
     "RetryMiddleware",
-    "RobotsTxtMiddleware",
+    "RobotsMiddleware",
     "ThrottleMiddleware",
 ]

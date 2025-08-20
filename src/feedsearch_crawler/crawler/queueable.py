@@ -12,29 +12,19 @@ class Queueable:
     _queue_put_time: float | None = field(compare=False, default=None)
     _queue_get_time: float | None = field(compare=False, default=None)
 
-    def __lt__(self, other):
-        if not isinstance(other, Queueable):
-            return NotImplemented
-        return self.priority < other.priority
-
-    def __le__(self, other):
-        if not isinstance(other, Queueable):
-            return NotImplemented
-        return self.priority <= other.priority
-
-    def __gt__(self, other):
-        if not isinstance(other, Queueable):
-            return NotImplemented
+    def __lt__(self, other: "Queueable") -> bool:
         return self.priority > other.priority
 
-    def __ge__(self, other):
-        if not isinstance(other, Queueable):
-            return NotImplemented
+    def __le__(self, other: "Queueable") -> bool:
         return self.priority >= other.priority
 
-    def __eq__(self, other):
-        if not isinstance(other, Queueable):
-            return NotImplemented
+    def __gt__(self, other: "Queueable") -> bool:
+        return self.priority < other.priority
+
+    def __ge__(self, other: "Queueable") -> bool:
+        return self.priority <= other.priority
+
+    def __eq__(self, other: "Queueable") -> bool:
         return self.priority == other.priority
 
     def get_queue_wait_time(self) -> int:

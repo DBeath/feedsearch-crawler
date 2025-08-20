@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Any
 
 from yarl import URL
 
@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class SiteMetaParser(ItemParser):
-    async def parse_item(self, request: Request, response: Response, *args, **kwargs):
+    async def parse_item(
+        self, request: Request, response: Response, *args, **kwargs
+    ) -> Any:
         logger.info("Parsing: SiteMeta %s", response.url)
         url = response.url
         site_meta: SiteMeta = SiteMeta(url)
@@ -43,7 +45,7 @@ class SiteMetaParser(ItemParser):
         yield site_meta
 
     @staticmethod
-    def find_site_icon_urls(soup, url, host) -> List[Favicon]:
+    def find_site_icon_urls(soup: Any, url: URL, host: str) -> List[Favicon]:
         search_icons = [
             Favicon(
                 url=url.join(URL("favicon.ico")),
@@ -68,7 +70,7 @@ class SiteMetaParser(ItemParser):
         return sorted(possible_icons, key=lambda x: x.priority)
 
     @staticmethod
-    def find_site_url(soup, url: URL) -> URL:
+    def find_site_url(soup: Any, url: URL) -> URL:
         """
         Attempts to find the canonical Url of the Site
 
@@ -99,7 +101,7 @@ class SiteMetaParser(ItemParser):
         return url.origin()
 
     @staticmethod
-    def find_site_name(soup) -> str:
+    def find_site_name(soup: Any) -> str:
         """
         Attempts to find Site Name
 

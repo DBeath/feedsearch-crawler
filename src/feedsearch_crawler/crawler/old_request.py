@@ -9,7 +9,7 @@ from typing import List, Tuple, Any, Union, Optional, Dict
 
 import aiohttp
 import time
-from aiohttp import ClientSession, ClientTimeout, hdrs
+from aiohttp import ClientSession, ClientTimeout, hdrs, ClientRequest
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 
@@ -247,7 +247,7 @@ class Request(Queueable):
 
             return response
 
-    def _create_request(self):
+    def _create_request(self) -> ClientRequest:
         """
         Create an asyncio HTTP Request.
 
@@ -271,7 +271,7 @@ class Request(Queueable):
                 "HTTP method %s is not valid. Must be GET or POST", self.method
             )
 
-    async def _read_response(self, resp) -> Tuple[bool, int]:
+    async def _read_response(self, resp: Any) -> Tuple[bool, int]:
         """
         Read HTTP Response content as bytes.
 
@@ -356,5 +356,5 @@ class Request(Queueable):
             # Sleep for the delay plus up to one extra second of random time, to spread out requests.
             await asyncio.sleep(self.delay + random())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self.url)})"

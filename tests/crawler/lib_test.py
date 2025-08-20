@@ -1,5 +1,6 @@
 import pytest
 from yarl import URL
+from typing import Any
 
 from feedsearch_crawler.crawler.lib import (
     CrawlerPriorityQueue,
@@ -8,7 +9,7 @@ from feedsearch_crawler.crawler.lib import (
 )
 
 
-def test_coerce_url():
+def test_coerce_url() -> None:
     assert coerce_url("test.com") == URL("http://test.com")
     assert coerce_url("https://test.com") == URL("https://test.com")
     assert coerce_url(" https://test.com") == URL("https://test.com")
@@ -28,7 +29,7 @@ def test_coerce_url():
     )
 
 
-def test_is_same_domain():
+def test_is_same_domain() -> None:
     assert is_same_domain("test.com", "test.com") is True
     assert is_same_domain("example.com", "test.com") is False
     assert is_same_domain("feeds.test.com", "test.com") is False
@@ -40,7 +41,7 @@ def test_is_same_domain():
 
 
 @pytest.mark.asyncio
-async def test_crawler_priority_queue():
+async def test_crawler_priority_queue() -> None:
     queue = CrawlerPriorityQueue()
 
     # Test empty queue
@@ -67,14 +68,14 @@ async def test_crawler_priority_queue():
 
     # Test put with custom item class
     class CustomItem:
-        def __init__(self, priority, data):
+        def __init__(self, priority: int, data: str) -> None:
             self.priority = priority
             self.data = data
 
-        def __lt__(self, other):
+        def __lt__(self, other: Any) -> bool:
             return self.priority < other.priority
 
-        def __eq__(self, other):
+        def __eq__(self, other: Any) -> bool:
             return self.priority == other.priority and self.data == other.data
 
     await queue.put(CustomItem(9, "data9"))

@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Union, Dict, Any
 
 from yarl import URL
 
@@ -18,16 +18,20 @@ class SiteMeta(Item):
         super().__init__(**kwargs)
         self.url = url
 
-    def serialize(self):
-        return dict(
-            url=str(self.url), site_name=self.site_name, icon_url=str(self.icon_url)
-        )
+    def serialize(self) -> Dict[str, Any]:
+        return {
+            "url": str(self.url),
+            "site_name": self.site_name,
+            "icon_url": str(self.icon_url) if self.icon_url else None,
+        }
 
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.url == other.url
+    def __eq__(self, other: "SiteMeta") -> bool:
+        if not isinstance(other, self.__class__):
+            return False
+        return self.url == other.url
 
-    def __hash__(self):
+    def __hash__(self) -> str:
         return hash(self.url)
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({str(self.url)})"
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(url={str(self.url)}, title={self.title})"

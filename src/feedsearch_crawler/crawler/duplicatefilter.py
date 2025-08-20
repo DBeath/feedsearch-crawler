@@ -12,7 +12,7 @@ class DuplicateFilter:
     Filters duplicate URLs.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Dictionary whose keys are the hashed fingerprints of the URLs
         self.fingerprints: Dict[str, str] = {}
         # Locks the fingerprints dict when accessing keys.

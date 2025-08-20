@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Dict
 
 from dateutil import parser, tz
 
@@ -8,7 +9,7 @@ class ParseTypes:
     XML = "xml"
 
 
-def parse_header_links(value):
+def parse_header_links(value: str) -> List[Dict[str, str]]:
     """
     Return a list of Dicts of parsed link headers proxies.
     i.e. Link: <http:/.../front.jpeg>; rel=front; type="image/jpeg",

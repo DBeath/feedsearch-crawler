@@ -9,6 +9,7 @@ from feedsearch_crawler import search, FeedsearchSpider, output_opml, sort_urls
 from feedsearch_crawler.crawler import coerce_url
 from datetime import datetime, timezone
 import collections
+from typing import Any, List
 
 # Default URLs to crawl if none provided via command line
 DEFAULT_URLS = [
@@ -61,7 +62,7 @@ DEFAULT_URLS = [
 ]
 
 
-def parse_arguments():
+def parse_arguments() -> Any:
     """Parse command line arguments for URLs to crawl."""
     parser = argparse.ArgumentParser(
         description="Crawl websites to find RSS/Atom feeds",
@@ -72,25 +73,23 @@ Examples:
   uv run main.py https://example.com               # Crawl single URL
   uv run main.py https://site1.com https://site2.com  # Crawl multiple URLs
   uv run main.py --urls https://site1.com,https://site2.com  # Using comma-separated list
-        """
+        """,
     )
 
     parser.add_argument(
-        'urls',
-        nargs='*',
-        help='URLs to crawl (if none provided, uses default URLs from file)'
+        "urls",
+        nargs="*",
+        help="URLs to crawl (if none provided, uses default URLs from file)",
     )
 
     parser.add_argument(
-        '--urls',
-        dest='urls_comma',
-        help='Comma-separated list of URLs to crawl'
+        "--urls", dest="urls_comma", help="Comma-separated list of URLs to crawl"
     )
 
     return parser.parse_args()
 
 
-def get_urls_to_crawl(args):
+def get_urls_to_crawl(args: Any) -> List[str]:
     """Determine which URLs to crawl based on command line arguments."""
     # If URLs provided as positional arguments
     if args.urls:
@@ -98,7 +97,7 @@ def get_urls_to_crawl(args):
 
     # If URLs provided as comma-separated string
     if args.urls_comma:
-        return [url.strip() for url in args.urls_comma.split(',') if url.strip()]
+        return [url.strip() for url in args.urls_comma.split(",") if url.strip()]
 
     # Fall back to default URLs
     return DEFAULT_URLS
@@ -109,7 +108,7 @@ def get_pretty_print(json_object: object):
 
 
 # @profile()
-def run_crawl(urls_to_crawl):
+def run_crawl(urls_to_crawl: List[str]) -> None:
     # user_agent = "Mozilla/5.0 (Compatible; Bot)"
     user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
     # user_agent = "curl/7.58.0"
@@ -180,7 +179,7 @@ def run_crawl(urls_to_crawl):
     pprint(list((x.score, x.url) for x in items))
 
 
-def create_allowed_domains(urls):
+def create_allowed_domains(urls: List[str]) -> List[str]:
     domain_patterns = []
     for url in urls:
         url = coerce_url(url)

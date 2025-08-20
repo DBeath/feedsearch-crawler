@@ -39,7 +39,7 @@ class CrawlerPriorityQueue(Queue):
         self._queue: list[Queueable] = []
         self._maxsize: int = maxsize
 
-    def _put(self, item: Queueable, heappush=heapq.heappush) -> None:
+    def _put(self, item: Queueable, heappush: Any = heapq.heappush) -> None:
         heappush(self._queue, item)
 
     def _get(self, heappop: Any = heapq.heappop) -> Queueable:
@@ -118,13 +118,13 @@ class Stats(Enum):
     # Total number of retried Requests
     REQUESTS_RETRIED = "requests_retried"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.value)
 
-    def __lt__(self, other: Any):
+    def __lt__(self, other: Any) -> bool:
         if not isinstance(other, Stats):
             return False
         return self.value < other.value
@@ -159,7 +159,7 @@ def coerce_url(
     return url
 
 
-def to_bytes(text: str, encoding: str = "utf-8", errors: str = "strict"):
+def to_bytes(text: str, encoding: str = "utf-8", errors: str = "strict") -> bytes:
     """Return the binary representation of `text`. If `text`
     is already a bytes object, return it as-is."""
     if not text:
@@ -207,7 +207,7 @@ def headers_to_dict(headers: Any) -> Dict[str, str]:
     return new_headers
 
 
-def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4"):
+def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4") -> None:
     """Ignore aiohttp #3535 issue with SSL data after close
      There appears to be an issue on Python 3.7 and aiohttp SSL that throws a
     ssl.SSLError fatal error (ssl.SSLError: [SSL: KRB5_S_INIT] application data
@@ -240,7 +240,7 @@ def ignore_aiohttp_ssl_error(loop: Any, aiohttpversion: str = "3.5.4"):
     orig_handler = loop.get_exception_handler()
 
     # noinspection PyUnresolvedReferences
-    def ignore_ssl_error(this_loop: Any, context: Any):
+    def ignore_ssl_error(this_loop: Any, context: Any) -> None:
         errors = ["SSL error", "Fatal error"]
         if any(x in context.get("message") for x in errors):
             # validate we have the right exception, transport and protocol

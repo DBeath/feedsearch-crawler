@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 
 class Downloader:
-    def __init__(self, request_session: ClientSession, middlewares: Optional[List[BaseDownloaderMiddleware]] = None) -> None:
+    def __init__(
+        self,
+        request_session: ClientSession,
+        middlewares: Optional[List[BaseDownloaderMiddleware]] = None,
+    ) -> None:
         self.request_session: ClientSession = request_session
         self.middlewares: List[BaseDownloaderMiddleware] = middlewares or []
 
@@ -52,7 +56,6 @@ class Downloader:
 
         try:
             async with self._create_request() as resp:
-
                 resp_received = time.perf_counter()
                 self.req_latency = int((resp_received - start) * 1000)
                 history.append(resp.url)
