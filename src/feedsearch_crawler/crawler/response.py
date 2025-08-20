@@ -30,6 +30,7 @@ class Response:
         redirect_history=None,
         content_length: int = 0,
         meta: Dict = {},
+        request=None,
     ):
         self.url = url
         self.encoding = encoding
@@ -47,6 +48,7 @@ class Response:
         self.content_length = content_length
         self.meta = meta
         self.origin: URL = url.origin()
+        self.request = request
 
     @property
     def ok(self) -> bool:

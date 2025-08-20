@@ -2,13 +2,16 @@ import asyncio
 import logging
 import json
 import time
+import os
+import argparse
 from pprint import pprint
 from feedsearch_crawler import search, FeedsearchSpider, output_opml, sort_urls
 from feedsearch_crawler.crawler import coerce_url
-from datetime import datetime
+from datetime import datetime, timezone
 import collections
 
-urls = [
+# Default URLs to crawl if none provided via command line
+DEFAULT_URLS = [
     # "arstechnica.com",
     "https://davidbeath.com",
     # "http://xkcd.com",
@@ -58,12 +61,55 @@ urls = [
 ]
 
 
+def parse_arguments():
+    """Parse command line arguments for URLs to crawl."""
+    parser = argparse.ArgumentParser(
+        description="Crawl websites to find RSS/Atom feeds",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  uv run main.py                                    # Use default URLs from file
+  uv run main.py https://example.com               # Crawl single URL
+  uv run main.py https://site1.com https://site2.com  # Crawl multiple URLs
+  uv run main.py --urls https://site1.com,https://site2.com  # Using comma-separated list
+        """
+    )
+
+    parser.add_argument(
+        'urls',
+        nargs='*',
+        help='URLs to crawl (if none provided, uses default URLs from file)'
+    )
+
+    parser.add_argument(
+        '--urls',
+        dest='urls_comma',
+        help='Comma-separated list of URLs to crawl'
+    )
+
+    return parser.parse_args()
+
+
+def get_urls_to_crawl(args):
+    """Determine which URLs to crawl based on command line arguments."""
+    # If URLs provided as positional arguments
+    if args.urls:
+        return args.urls
+
+    # If URLs provided as comma-separated string
+    if args.urls_comma:
+        return [url.strip() for url in args.urls_comma.split(',') if url.strip()]
+
+    # Fall back to default URLs
+    return DEFAULT_URLS
+
+
 def get_pretty_print(json_object: object):
     return json.dumps(json_object, sort_keys=True, indent=2, separators=(",", ": "))
 
 
 # @profile()
-def run_crawl():
+def run_crawl(urls_to_crawl):
     # user_agent = "Mozilla/5.0 (Compatible; Bot)"
     user_agent = "Mozilla/5.0 (Compatible; Feedsearch Bot)"
     # user_agent = "curl/7.58.0"
@@ -98,7 +144,7 @@ def run_crawl():
         delay=0,
         try_urls=True,
     )
-    crawler.start_urls = urls
+    crawler.start_urls = urls_to_crawl
     # crawler.allowed_domains = create_allowed_domains(urls)
     asyncio.run(crawler.crawl())
     # asyncio.run(crawler.crawl(urls[0]))
@@ -146,6 +192,16 @@ def create_allowed_domains(urls):
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    args = parse_arguments()
+    urls_to_crawl = get_urls_to_crawl(args)
+
+    # Log which URLs will be crawled
+    print(f"Crawling {len(urls_to_crawl)} URL(s):")
+    for url in urls_to_crawl:
+        print(f"  - {url}")
+    print()
+
     logger = logging.getLogger("feedsearch_crawler")
     logger.setLevel(logging.DEBUG)
     ch = logging.StreamHandler()
@@ -154,8 +210,11 @@ if __name__ == "__main__":
         "%(asctime)s - %(levelname)s - %(name)s - %(message)s [in %(pathname)s:%(lineno)d]"
     )
     ch.setFormatter(formatter)
+    # Create logs directory if it doesn't exist
+    os.makedirs("/home/dbeath/code/feedsearch-crawler/logs", exist_ok=True)
+
     fl = logging.FileHandler(
-        f"/home/dbeath/code/feedsearch-crawler/logs/feedsearch_crawl_{datetime.utcnow().isoformat()}"
+        f"/home/dbeath/code/feedsearch-crawler/logs/feedsearch_crawl_{datetime.now(timezone.utc).isoformat()}"
     )
     fl.setLevel((logging.DEBUG))
     fl.setFormatter(formatter)
@@ -163,6 +222,6 @@ if __name__ == "__main__":
     logger.addHandler(fl)
 
     start = time.perf_counter()
-    run_crawl()
+    run_crawl(urls_to_crawl)
     duration = int((time.perf_counter() - start) * 1000)
     print(f"Entire process ran in {duration}ms")

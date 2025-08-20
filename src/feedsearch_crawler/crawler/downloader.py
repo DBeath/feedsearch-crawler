@@ -9,7 +9,7 @@ from typing import List, Tuple, Any, Union, Optional, Dict
 
 import aiohttp
 import time
-from aiohttp import ClientSession, ClientTimeout, hdrs, ClientResponse
+from aiohttp import ClientSession, ClientTimeout, hdrs, ClientResponse, ClientRequest
 from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 from .lib import ContentLengthError, ContentReadError
@@ -17,22 +17,24 @@ from .lib import ContentLengthError, ContentReadError
 from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
+from feedsearch_crawler.crawler.middleware import BaseDownloaderMiddleware
 
 logger = logging.getLogger(__name__)
 
 
 class Downloader:
-    def __init__(self, request_session: ClientSession) -> None:
-        self.request_session = request_session
+    def __init__(self, request_session: ClientSession, middlewares: Optional[List[BaseDownloaderMiddleware]] = None) -> None:
+        self.request_session: ClientSession = request_session
+        self.middlewares: List[BaseDownloaderMiddleware] = middlewares or []
 
-    async def _fetch(self, request: Request) -> Response:
+    async def fetch(self, request: Request) -> Response:
         """
         Run HTTP Request and fetch HTTP Response.
 
         :return: Response object
         """
         # Delay the request if self.delay is > 0
-        await self.delay_request()
+        await self._delay_request()
 
         # Copy the Request history so that it isn't a pointer.
         history: List[URL] = copy.deepcopy(request.history)
@@ -44,11 +46,20 @@ class Downloader:
 
         response_status_code: int = 0
 
+        # Pass the request to the middleware before the request is sent
+        for middleware in self.middlewares:
+            await middleware.pre_request(request)
+
         try:
             async with self._create_request() as resp:
+
                 resp_received = time.perf_counter()
                 self.req_latency = int((resp_received - start) * 1000)
                 history.append(resp.url)
+
+                # Pass the request to the middleware
+                for middleware in self.middlewares:
+                    await middleware.process_request(request)
 
                 # Fail the response if the content length header is too large.
                 content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, "0"))
@@ -154,7 +165,7 @@ class Downloader:
 
             return response
 
-    def _create_request(self):
+    def _create_request(self) -> ClientRequest:
         """
         Create an asyncio HTTP Request.
 
@@ -222,7 +233,7 @@ class Downloader:
         resp._body = body  # type: ignore
         return len(body)
 
-    async def delay_request(self, delay: int = 0) -> None:
+    async def _delay_request(self, delay: int = 0) -> None:
         """
         Delay the request by sleeping.
         """

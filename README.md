@@ -127,3 +127,34 @@ In addition to the *url*, FeedInfo objects may have the following values:
 - **velocity**: *float*: Mean number of items per day in the feed at the current time.
 - **version**: *str*: Feed version [XML values](https://pythonhosted.org/feedparser/version-detection.html),
   or [JSON feed](https://jsonfeed.org/version/1).
+
+## Development
+
+This project uses [uv](https://docs.astral.sh/uv/) for package management and development.
+
+```shell
+uv sync
+uv run ruff check
+uv run ruff format
+uv run pytest
+```
+
+```shell
+# Use default URLs from file
+uv run main.py
+
+# Crawl single URL
+uv run main.py https://example.com
+
+# Crawl single URL with domain only
+uv run main.py example.com
+
+# Crawl multiple URLs
+uv run main.py https://site1.com https://site2.com
+
+# Use comma-separated format
+uv run main.py --urls "https://site1.com,https://site2.com"
+
+# Get help
+uv run main.py --help
+```

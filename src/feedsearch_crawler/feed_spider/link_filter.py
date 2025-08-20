@@ -121,10 +121,11 @@ class LinkFilter:
         has_author_info: bool = self.is_href_matching(href, author_regex)
         is_low_priority: bool = self.is_low_priority(href)
 
-        priority: int = Request.priority
+        # Default priority for new requests
+        priority: int = 100
         # A low priority url should be fetched last.
         if is_low_priority:
-            priority = Request.priority + 2
+            priority = priority + 2
         # Podcast pages are lower priority than authors or feeds.
         if is_podcast_url:
             priority = 5

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-@dataclass(slots=True, order=True)
+@dataclass(slots=True)
 class Queueable:
     item: Any = field(compare=False)
     # Default lowest queue priority is 100 (higher number means lower priority)
@@ -11,6 +11,31 @@ class Queueable:
 
     _queue_put_time: float | None = field(compare=False, default=None)
     _queue_get_time: float | None = field(compare=False, default=None)
+
+    def __lt__(self, other):
+        if not isinstance(other, Queueable):
+            return NotImplemented
+        return self.priority < other.priority
+
+    def __le__(self, other):
+        if not isinstance(other, Queueable):
+            return NotImplemented
+        return self.priority <= other.priority
+
+    def __gt__(self, other):
+        if not isinstance(other, Queueable):
+            return NotImplemented
+        return self.priority > other.priority
+
+    def __ge__(self, other):
+        if not isinstance(other, Queueable):
+            return NotImplemented
+        return self.priority >= other.priority
+
+    def __eq__(self, other):
+        if not isinstance(other, Queueable):
+            return NotImplemented
+        return self.priority == other.priority
 
     def get_queue_wait_time(self) -> int:
         """

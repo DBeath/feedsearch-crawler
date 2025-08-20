@@ -1,11 +1,14 @@
-[tool.poetry]
+[project]
 name = "feedsearch-crawler"
 version = "1.0.3"
 description = "Search sites for RSS, Atom, and JSON feeds"
-authors = ["David Beath <davidgbeath@gmail.com>"]
+authors = [
+    {name = "David Beath", email = "davidgbeath@gmail.com"}
+]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/DBeath/feedsearch-crawler"
+requires-python = ">=3.12"
 keywords = [
     "RSS",
     "Search",
@@ -21,9 +24,8 @@ classifiers = [
     "Operating System :: POSIX",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: MacOS :: MacOS X",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
     "Typing :: Typed",
     "Framework :: AsyncIO",
@@ -31,29 +33,32 @@ classifiers = [
 packages = [
     { include = "feedsearch_crawler" },
 ]
+dependencies = [
+    "aiohttp>=3.9.5",
+    "beautifulsoup4>=4.12.3",
+    "aiodns>=3.2.0",
+    "uvloop>=0.19.0",
+    "w3lib>=2.1.2",
+    "feedparser>=6.0.11",
+    "brotlipy>=0.7.0",
+    "python-dateutil>=2.9.0.post0",
+    "yarl>=1.9.4",
+    "asyncio>=3.4.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-aiohttp = "^3.9.5"
-beautifulsoup4 = "^4.12.3"
-aiodns = "^3.2.0"
-uvloop = "^0.19.0"
-w3lib = "^2.1.2"
-feedparser = "^6.0.11"
-brotlipy = "^0.7.0"
-python-dateutil = "^2.9.0.post0"
-yarl = "^1.9.4"
-asyncio = "^3.4.3"
+[project.scripts]
+feedsearch-crawler = "feedsearch_crawler:main"
 
-[tool.poetry.group.dev.dependencies]
-black = "^23.9.0"
-pytest = "^7.4.2"
-twine = "^4.0.2"
-pytest-asyncio = "^0.23.7"
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.1.0",
+    "ruff>=0.12.9",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build >= 0.7.19, <0.9.0"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -37,6 +37,12 @@ from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.trace import add_trace_config
+from feedsearch_crawler.crawler.middleware.robots import RobotsTxtMiddleware
+from feedsearch_crawler.crawler.middleware.throttle import ThrottleMiddleware
+from feedsearch_crawler.crawler.middleware.retry import RetryMiddleware
+from feedsearch_crawler.crawler.middleware.cookie import CookieMiddleware
+from feedsearch_crawler.crawler.middleware.content_type import ContentTypeMiddleware
+from feedsearch_crawler.crawler.middleware.monitoring import MonitoringMiddleware
 
 try:
     import uvloop
@@ -207,6 +213,15 @@ class Crawler(ABC):
             Stats.REQUESTS_RETRIED: 0,
         }
 
+        self.middlewares = [
+            RobotsTxtMiddleware(user_agent='Feedsearch-Crawler/1.0'),
+            ThrottleMiddleware(rate_per_sec=2),
+            RetryMiddleware(max_retries=3),
+            CookieMiddleware(),
+            ContentTypeMiddleware(),
+            MonitoringMiddleware(),
+        ]
+
     async def _handle_request(self, request: Request) -> None:
         """
         Handle fetching of Requests and processing of Request callbacks.
@@ -339,7 +354,9 @@ class Crawler(ABC):
         self.stats[Stats.REQUESTS_QUEUED] += 1
         logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
-        self._put_queue(Queueable(request, priority=priority))
+        # Request is already a Queueable, so just set its priority and add it directly
+        request.priority = priority
+        self._put_queue(request)
 
     def is_allowed_domain(self, url: URL) -> bool:
         """
