@@ -8,18 +8,20 @@ import asyncio
 class ThrottleMiddleware(BaseDownloaderMiddleware):
     def __init__(self, rate_per_sec: float) -> None:
         self.rate_per_sec = rate_per_sec
-        self.last_request: float = 0
+        self.host_timers: Dict[str, float] = {}  # Track per-host timing
 
     async def pre_request(self, request: Request) -> None:
         """Called before processing a request."""
         pass
 
     async def process_request(self, request: Request) -> None:
+        host = request.url.host or "unknown"
         now = asyncio.get_event_loop().time()
-        wait = max(0, (1 / self.rate_per_sec) - (now - self.last_request))
+        last_request = self.host_timers.get(host, 0)
+        wait = max(0, (1 / self.rate_per_sec) - (now - last_request))
         if wait > 0:
             await asyncio.sleep(wait)
-        self.last_request = asyncio.get_event_loop().time()
+        self.host_timers[host] = asyncio.get_event_loop().time()
 
     async def process_response(self, response: Response) -> None:
         """Called after processing a response."""

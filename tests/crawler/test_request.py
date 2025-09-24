@@ -1,5 +1,5 @@
 import pytest
-from feedsearch_crawler.crawler.refactored_request import Request
+from feedsearch_crawler.crawler.request import Request
 from yarl import URL
 
 

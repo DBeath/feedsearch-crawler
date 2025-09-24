@@ -37,17 +37,14 @@ class Downloader:
 
         :return: Response object
         """
-        # Delay the request if self.delay is > 0
-        await self._delay_request()
+        # Delay the request if request.delay is > 0
+        await self._delay_request(request.delay)
 
         # Copy the Request history so that it isn't a pointer.
         history: List[URL] = copy.deepcopy(request.history)
 
-        # Make sure that retry is reset.
-        self.should_retry = False
         response = None
         start = time.perf_counter()
-
         response_status_code: int = 0
 
         # Pass the request to the middleware before the request is sent
@@ -55,14 +52,21 @@ class Downloader:
             await middleware.pre_request(request)
 
         try:
-            async with self._create_request() as resp:
+            async with self._create_request(request) as resp:
                 resp_received = time.perf_counter()
-                self.req_latency = int((resp_received - start) * 1000)
+                req_latency = int((resp_received - start) * 1000)
                 history.append(resp.url)
 
                 # Pass the request to the middleware
                 for middleware in self.middlewares:
                     await middleware.process_request(request)
+
+                # Check content type early to avoid downloading irrelevant content
+                content_type = resp.headers.get(hdrs.CONTENT_TYPE, "").lower()
+                if not any(ct in content_type for ct in ['xml', 'rss', 'atom', 'json', 'html', 'text']):
+                    # Skip downloading body for irrelevant content types
+                    resp.close()
+                    return self._failed_response(request, 415, history)
 
                 # Fail the response if the content length header is too large.
                 content_length: int = int(resp.headers.get(hdrs.CONTENT_LENGTH, "0"))
@@ -79,17 +83,16 @@ class Downloader:
                         "Header Content-Length %d different from actual content-length %d: %s",
                         content_length,
                         actual_content_length,
-                        self,
+                        request,
                     )
 
                 # Set encoding automatically from response if not specified.
-                if not self.encoding:
-                    self.encoding = resp.get_encoding()
+                encoding = request.encoding or resp.get_encoding()
 
                 # Read response content
                 try:
                     # Read response content as text
-                    resp_text: str = await resp.text(encoding=self.encoding)
+                    resp_text: str = await resp.text(encoding=encoding)
 
                     # Attempt to read response content as JSON
                     resp_json: dict = await self._read_json(resp_text)
@@ -102,24 +105,29 @@ class Downloader:
                 if not resp.closed:
                     resp.close()
 
-                self.content_read = int((time.perf_counter() - resp_received) * 1000)
+                content_read = int((time.perf_counter() - resp_received) * 1000)
 
                 response = Response(
                     url=resp.url,
                     method=resp.method,
-                    encoding=self.encoding,
+                    encoding=encoding,
                     headers=resp.headers,
                     status_code=resp.status,
                     history=history,
                     text=resp_text,
                     data=resp._body,
                     json=resp_json,
-                    xml_parser=self._xml_parser,
+                    xml_parser=request.xml_parser,
                     cookies=resp.cookies,
                     redirect_history=resp.history,
                     content_length=actual_content_length,
-                    meta=copy.copy(self.cb_kwargs),
+                    meta=copy.copy(request.cb_kwargs),
+                    request=request,
                 )
+
+                # Pass the response to the middleware
+                for middleware in self.middlewares:
+                    await middleware.process_response(response)
 
                 # Raise exception after the Response object is created, because we only catch TimeoutErrors and
                 # asyncio.ClientResponseErrors, and there may be valid data otherwise.
@@ -136,7 +144,7 @@ class Downloader:
                 request,
             )
             response_status_code = 413
-        except ContentReadError as e:
+        except ContentReadError:
             response_status_code = 413
         except aiohttp.ClientResponseError as e:
             logger.debug("Failed fetch: url=%s reason=%s", request.url, e.message)
@@ -145,71 +153,100 @@ class Downloader:
             logger.debug("Failed fetch: url=%s reason=%s", request.url, e)
             if isinstance(e, CancelledError):
                 response_status_code = 499
-        finally:
-            self.has_run = True
-
-            if not response_status_code:
+            else:
                 response_status_code = 500
-
+            
+            # Pass the exception to the middleware
+            for middleware in self.middlewares:
+                await middleware.process_exception(request, e)
+        finally:
             # Make sure there is a valid Response object.
             if not response:
                 response = Response(
                     url=request.url,
                     method=request.method,
-                    encoding=self.encoding,
+                    encoding=request.encoding,
                     headers={},
                     history=history or [],
-                    status_code=response_status_code,
+                    status_code=response_status_code or 500,
+                    request=request,
                 )
 
             # Tell the crawler to retry this Request
-            if response_status_code in [429, 503, 408]:
+            if response.status_code in [429, 503, 408]:
                 request.set_retry()
 
             return response
 
-    def _create_request(self) -> ClientRequest:
+    def _create_request(self, request: Request) -> ClientRequest:
         """
         Create an asyncio HTTP Request.
 
+        :param request: Request object containing request details
         :return: asyncio HTTP Request
         """
-        if self.method.upper() == "GET":
+        # Convert timeout to ClientTimeout if it's a float
+        timeout = request.timeout
+        if isinstance(timeout, (int, float)):
+            timeout = ClientTimeout(total=float(timeout))
+        
+        if request.method.upper() == "GET":
             return self.request_session.get(
-                self.url, headers=self.headers, timeout=self.timeout, params=self.params
+                request.url, 
+                headers=request.headers, 
+                timeout=timeout, 
+                params=request.params
             )
-        elif self.method.upper() == "POST":
+        elif request.method.upper() == "POST":
             return self.request_session.post(
-                self.url,
-                headers=self.headers,
-                timeout=self.timeout,
-                params=self.params,
-                data=self.data,
-                json=self.json_data,
+                request.url,
+                headers=request.headers,
+                timeout=timeout,
+                params=request.params,
+                data=request.data,
+                json=request.json_data,
+            )
+        elif request.method.upper() == "PUT":
+            return self.request_session.put(
+                request.url,
+                headers=request.headers,
+                timeout=timeout,
+                params=request.params,
+                data=request.data,
+                json=request.json_data,
+            )
+        elif request.method.upper() == "DELETE":
+            return self.request_session.delete(
+                request.url,
+                headers=request.headers,
+                timeout=timeout,
+                params=request.params,
             )
         else:
             raise ValueError(
-                "HTTP method %s is not valid. Must be GET or POST", self.method
+                f"HTTP method {request.method} is not valid. Must be GET, POST, PUT, or DELETE"
             )
 
     def _failed_response(
-        self, status: int, history: List[URL], headers: Optional[Dict[str, str]] = None
+        self, request: Request, status: int, history: List[URL], headers: Optional[Dict[str, str]] = None
     ) -> Response:
         """
         Create a failed Response object with the provided Status Code.
 
+        :param request: Request object
         :param status: HTTP Status Code
         :param history: Response History as list of URLs
         :param headers: Response Headers
         :return: Failed Response object
         """
         return Response(
-            url=self.url,
-            method=self.method,
-            encoding=self.encoding,
+            url=request.url,
+            method=request.method,
+            encoding=request.encoding,
             headers=headers or {},
             history=history or [],
             status_code=status,
+            request=request,
         )
 
     async def _read_response(
@@ -223,7 +260,7 @@ class Downloader:
         """
         body: bytes = b""
         try:
-            async for chunk in resp.content.iter_chunked(1024):
+            async for chunk in resp.content.iter_chunked(8192):  # 8KB chunks for better performance
                 if not chunk:
                     break
                 body += chunk
@@ -236,10 +273,33 @@ class Downloader:
         resp._body = body  # type: ignore
         return len(body)
 
-    async def _delay_request(self, delay: int = 0) -> None:
+    @staticmethod
+    async def _read_json(resp_text: str) -> dict:
+        """
+        Attempt to read Response content as JSON.
+
+        :param resp_text: HTTP response content as text string
+        :return: JSON dict or empty dict
+        """
+        # If the text hasn't been parsed then we won't be able to parse JSON either.
+        if not resp_text:
+            return {}
+
+        stripped = resp_text.strip()
+        if not stripped:
+            return {}
+
+        try:
+            return json.loads(stripped)
+        except (ValueError, json.JSONDecodeError):
+            return {}
+
+    async def _delay_request(self, delay: float = 0) -> None:
         """
         Delay the request by sleeping.
+
+        :param delay: Time in seconds to delay
         """
         if delay > 0:
-            # Sleep for the delay plus up to one extra second of random time, to spread out requests.
-            await asyncio.sleep(delay + random())
+            # Sleep for the delay plus up to 100ms of random jitter to spread out requests.
+            await asyncio.sleep(delay + (random() * 0.1))

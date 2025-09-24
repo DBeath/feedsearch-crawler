@@ -25,6 +25,7 @@ from aiohttp import ClientTimeout, TraceConfig
 from yarl import URL
 
 from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
+from feedsearch_crawler.crawler.downloader import Downloader
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.lib import (
     CrawlerPriorityQueue,
@@ -93,7 +94,9 @@ class Crawler(ABC):
     # Task queue for Requests. Created on Crawl start.
     _request_queue: CrawlerPriorityQueue
     # Semaphore for controlling HTTP Request concurrency.
-    _semaphore: asyncio.Semaphore
+    _download_semaphore: asyncio.Semaphore
+    # Semaphore for controlling parsing concurrency.
+    _parse_semaphore: asyncio.Semaphore
 
     def __init__(
         self,
@@ -236,21 +239,30 @@ class Crawler(ABC):
 
             start = time.perf_counter()
 
-            # Fetch the request and run its callback
-            # results, response = await request.fetch_callback(self._semaphore)
-            results, response = await request.fetch_callback()
+            # Fetch the request using the downloader
+            async with self._download_semaphore:
+                response = await self._downloader.fetch(request)
+
+            # Run the callback if available (parsing can be done with separate concurrency limit)
+            callback_result = None
+            if response.ok and request.callback:
+                async with self._parse_semaphore:
+                    callback_result = request.callback(
+                        request=request, response=response, **request.cb_kwargs
+                    )
+            elif not response.ok and request.failure_callback:
+                async with self._parse_semaphore:
+                    callback_result = request.failure_callback(
+                        request=request, response=response, **request.cb_kwargs
+                    )
 
             dur = int((time.perf_counter() - start) * 1000)
             self._stats_request_durations.append(dur)
-            self._stats_request_latencies.append(request.req_latency)
             logger.debug(
-                "Fetched: url=%s dur=%dms latency=%dms read=%dms status=%s prev=%s",
+                "Fetched: url=%s dur=%dms status=%s",
                 response.url,
                 dur,
-                request.req_latency,
-                request.content_read,
                 response.status_code,
-                response.originator_url,
             )
 
             if response.ok:
@@ -270,8 +282,8 @@ class Crawler(ABC):
             await self._duplicate_filter.is_url_seen(response.url, response.method)
 
             # Add callback results to the queue for processing.
-            if results:
-                self._put_queue(CallbackResult(results, 0))
+            if callback_result:
+                self._put_queue(CallbackResult(callback_result, 0))
 
             # Add Request back to the queue for retrying.
             if request.should_retry:
@@ -478,7 +490,6 @@ class Crawler(ABC):
 
         request = Request(
             url=request_url,
-            request_session=self._session,
             history=history,
             callback=callback,
             xml_parser=self.parse_xml,
@@ -709,8 +720,9 @@ class Crawler(ABC):
         # Create the Request Queue within the asyncio loop.
         self._request_queue = CrawlerPriorityQueue()
 
-        # Create the Semaphore for controlling HTTP Request concurrency within the asyncio loop.
-        self._semaphore = asyncio.Semaphore(self.concurrency)
+        # Create semaphores for controlling different types of concurrency within the asyncio loop.
+        self._download_semaphore = asyncio.Semaphore(self.concurrency)
+        self._parse_semaphore = asyncio.Semaphore(self.concurrency * 2)  # Allow more parsing concurrency
 
         trace_configs: List[TraceConfig] = []
         if self._trace:
@@ -722,7 +734,16 @@ class Crawler(ABC):
             else DEFAULT_TOTAL_TIMEOUT
         )
         conn = aiohttp.TCPConnector(
-            limit=0, ssl=self._ssl, ttl_dns_cache=int(ttl_dns_cache)
+            limit=100,  # Total connection pool size
+            limit_per_host=self.concurrency,  # Per-host limit matches concurrency
+            ssl=self._ssl,
+            ttl_dns_cache=int(ttl_dns_cache),
+            enable_cleanup_closed=True,  # Clean up closed connections
+            keepalive_timeout=30,  # Keep connections alive for reuse
+            force_close=False,  # Reuse connections
+            use_dns_cache=True,  # Enable DNS caching
+            family=0,  # Allow both IPv4/IPv6 (socket.AF_UNSPEC)
+            happy_eyeballs_delay=0.25  # Fast IPv6 fallback
         )
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(
@@ -732,6 +753,12 @@ class Crawler(ABC):
             trace_configs=trace_configs,
         )
 
+        # Create the Downloader with the session and middleware
+        self._downloader = Downloader(
+            request_session=self._session,
+            middlewares=self.middlewares,
+        )
+
         # Create a Request for each start URL and add it to the Request Queue.
         for url in initial_urls:
             req = await self.follow(coerce_url(url), self.parse_response, delay=0)
@@ -739,10 +766,10 @@ class Crawler(ABC):
                 self._process_request(req)
 
         # Create workers to process the Request Queue.
-        # Create twice as many workers as potential concurrent requests, to help handle request callbacks without
-        # delay while other workers may be locked by the Semaphore.
+        # Optimize worker count - enough to handle requests and callbacks without excessive overhead
+        worker_count = max(self.concurrency, min(int(self.concurrency * 1.5), 20))
         self._workers = [
-            asyncio.create_task(self._work(i)) for i in range(self.concurrency * 2)
+            asyncio.create_task(self._work(i)) for i in range(worker_count)
         ]
 
         try:
