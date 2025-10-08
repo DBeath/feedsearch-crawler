@@ -6,6 +6,11 @@ from feedsearch_crawler.crawler.lib import coerce_url, to_bytes, to_string
 from feedsearch_crawler.crawler.queueable import CallbackResult
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
+from feedsearch_crawler.crawler.statistics import (
+    ErrorCategory,
+    StatsCollector,
+    StatisticsLevel,
+)
 
 __all__ = [
     "Crawler",
@@ -18,4 +23,7 @@ __all__ = [
     "to_string",
     "coerce_url",
     "CallbackResult",
+    "StatsCollector",
+    "StatisticsLevel",
+    "ErrorCategory",
 ]

@@ -5,6 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ### Development with uv
+
 This project uses [uv](https://docs.astral.sh/uv/) for package management and development:
 
 - `uv sync` - Install dependencies and sync the environment
@@ -15,6 +16,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for package management and de
 - `uv run pytest tests/crawler/test_request.py::TestRequest::test_method_name` - Run a specific test
 
 ### Running the Application
+
 - `uv run main.py` - Run with default URLs from file
 - `uv run main.py https://example.com` - Crawl single URL
 - `uv run main.py example.com` - Crawl single URL with domain only
@@ -23,6 +25,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for package management and de
 - `uv run main.py --help` - Get help
 
 ### Package Installation
+
 The library is available on PyPI: `pip install feedsearch-crawler`
 
 ## Architecture Overview
@@ -32,6 +35,7 @@ The library is available on PyPI: `pip install feedsearch-crawler`
 **feedsearch-crawler** is an asyncio-based RSS/Atom/JSON feed discovery crawler built on two main architectural layers:
 
 #### 1. Crawler Framework (`src/feedsearch_crawler/crawler/`)
+
 A generic asynchronous web crawler framework providing:
 
 - **Crawler**: Base class for web crawlers with request/response handling, middleware support, and concurrent processing
@@ -42,6 +46,7 @@ A generic asynchronous web crawler framework providing:
 - **Item/ItemParser**: Structured data extraction and processing
 
 #### 2. Feed Spider (`src/feedsearch_crawler/feed_spider/`)
+
 Specialized crawler for feed discovery built on the crawler framework:
 
 - **FeedsearchSpider**: Main spider class that orchestrates feed discovery
@@ -69,6 +74,7 @@ Specialized crawler for feed discovery built on the crawler framework:
 ### Dependencies
 
 Key dependencies include:
+
 - `aiohttp` for async HTTP operations
 - `beautifulsoup4` for HTML parsing
 - `feedparser` for feed validation and parsing
@@ -76,3 +82,8 @@ Key dependencies include:
 - `uvloop` for enhanced asyncio performance
 
 The architecture separates concerns between generic web crawling capabilities and feed-specific discovery logic, making the system both modular and extensible.
+
+## Summary instructions
+
+When you are using compact, please focus on test output and code changes.
+Creating, updating, and fixing tests should use the haiku model.

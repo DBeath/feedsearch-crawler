@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from statistics import mean
 from typing import AsyncGenerator, Tuple, List, Union, Dict, Any
 
@@ -135,7 +135,7 @@ class FeedInfoParser(ItemParser):
 
         try:
             dates = []
-            now_date = datetime.utcnow().date()
+            now_date = datetime.now(timezone.utc).date()
 
             entries = parsed.get("entries", [])
             item.item_count = len(entries)
@@ -190,7 +190,7 @@ class FeedInfoParser(ItemParser):
 
         try:
             dates = []
-            now_date: date = datetime.utcnow().date()
+            now_date: date = datetime.now(timezone.utc).date()
 
             entries = data.get("items", [])
             item.item_count = len(entries)

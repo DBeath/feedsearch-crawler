@@ -43,7 +43,7 @@ async def _create_test_server() -> TestServer:
 
     async def large_handler(request: web.Request) -> web.Response:
         body = b"x" * 2048
-        return web.Response(body=body, content_type="application/octet-stream")
+        return web.Response(body=body, content_type="text/plain")
 
     async def slow_handler(request: web.Request) -> web.Response:
         await asyncio.sleep(0.2)

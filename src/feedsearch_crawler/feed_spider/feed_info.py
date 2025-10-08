@@ -3,7 +3,7 @@ from typing import List, Union, Dict, Any
 
 from yarl import URL
 
-from feedsearch_crawler.crawler import Item, to_string
+from feedsearch_crawler.crawler import Item
 
 
 class FeedInfo(Item):
@@ -49,7 +49,7 @@ class FeedInfo(Item):
         }
 
     def __eq__(self, other: "FeedInfo") -> bool:
-        if not isinstance(other, "FeedInfo"):
+        if not isinstance(other, FeedInfo):
             return False
         return self.url == other.url
 

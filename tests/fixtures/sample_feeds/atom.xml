@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Sample Atom Feed</title>
+    <link href="https://example.com"/>
+    <link href="https://example.com/atom.xml" rel="self"/>
+    <updated>2025-01-01T12:00:00Z</updated>
+    <author>
+        <name>Feed Author</name>
+        <email>author@example.com</email>
+    </author>
+    <id>urn:uuid:12345678-1234-1234-1234-123456789abc</id>
+    <subtitle>A sample Atom 1.0 feed for testing feedsearch-crawler</subtitle>
+
+    <entry>
+        <title>First Atom Entry</title>
+        <link href="https://example.com/entries/first-atom-entry"/>
+        <id>urn:uuid:entry1-1111-1111-1111-111111111111</id>
+        <updated>2025-01-01T10:00:00Z</updated>
+        <summary>This is the first entry in our sample Atom feed. It demonstrates basic Atom entry structure.</summary>
+        <content type="html">
+            &lt;p&gt;This is the &lt;strong&gt;first entry&lt;/strong&gt; in our sample Atom feed.&lt;/p&gt;
+            &lt;p&gt;It demonstrates basic Atom entry structure with HTML content.&lt;/p&gt;
+        </content>
+        <author>
+            <name>Entry Author</name>
+            <email>entry.author@example.com</email>
+        </author>
+        <category term="technology"/>
+    </entry>
+
+    <entry>
+        <title>Second Atom Entry</title>
+        <link href="https://example.com/entries/second-atom-entry"/>
+        <id>urn:uuid:entry2-2222-2222-2222-222222222222</id>
+        <updated>2025-01-02T10:00:00Z</updated>
+        <summary>The second entry demonstrates how multiple entries appear in Atom feeds.</summary>
+        <content type="text">
+            This is the second entry in our Atom feed. It uses plain text content instead of HTML.
+            This entry helps test feed parsing with different content types.
+        </content>
+        <author>
+            <name>Another Author</name>
+        </author>
+        <category term="web-development"/>
+        <category term="testing"/>
+    </entry>
+
+    <entry>
+        <title>Third Atom Entry with Link Relations</title>
+        <link href="https://example.com/entries/third-atom-entry"/>
+        <link href="https://example.com/entries/third-atom-entry/comments" rel="replies" type="text/html"/>
+        <link href="https://example.com/media/related-video.mp4" rel="enclosure" type="video/mp4"/>
+        <id>urn:uuid:entry3-3333-3333-3333-333333333333</id>
+        <updated>2025-01-03T10:00:00Z</updated>
+        <summary>This entry demonstrates various link relations in Atom feeds.</summary>
+        <content type="xhtml">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+                <p>This entry demonstrates <em>XHTML content</em> in Atom feeds.</p>
+                <p>It also includes multiple link relations like replies and enclosures.</p>
+            </div>
+        </content>
+        <category term="multimedia"/>
+    </entry>
+</feed>

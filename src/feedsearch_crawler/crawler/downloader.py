@@ -2,19 +2,15 @@ import asyncio
 import copy
 import json
 import logging
-import uuid
-from asyncio import Semaphore, IncompleteReadError, LimitOverrunError, CancelledError
+from asyncio import IncompleteReadError, LimitOverrunError, CancelledError
 from random import random
-from typing import List, Tuple, Any, Union, Optional, Dict
+from typing import List, Tuple, Optional, Dict
 
 import aiohttp
-import time
 from aiohttp import ClientSession, ClientTimeout, hdrs, ClientResponse, ClientRequest
-from multidict import CIMultiDict, CIMultiDictProxy
 from yarl import URL
 from .lib import ContentLengthError, ContentReadError
 
-from feedsearch_crawler.crawler.queueable import Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.middleware import BaseDownloaderMiddleware
@@ -44,7 +40,6 @@ class Downloader:
         history: List[URL] = copy.deepcopy(request.history)
 
         response = None
-        start = time.perf_counter()
         response_status_code: int = 0
 
         # Pass the request to the middleware before the request is sent
@@ -53,8 +48,6 @@ class Downloader:
 
         try:
             async with self._create_request(request) as resp:
-                resp_received = time.perf_counter()
-                req_latency = int((resp_received - start) * 1000)
                 history.append(resp.url)
 
                 # Pass the request to the middleware
@@ -74,7 +67,7 @@ class Downloader:
                     raise ContentLengthError(request.max_content_length)
 
                 # Read the response content, and fail the response if the actual content size is too large.
-                actual_content_length = await self._read_response(
+                resp_data, actual_content_length = await self._read_response(
                     resp, request.max_content_length
                 )
 
@@ -91,8 +84,11 @@ class Downloader:
 
                 # Read response content
                 try:
-                    # Read response content as text
-                    resp_text: str = await resp.text(encoding=encoding)
+                    # Read response content as text, using the data we already read
+                    if resp_data:
+                        resp_text = resp_data.decode(encoding)
+                    else:
+                        resp_text = ""
 
                     # Attempt to read response content as JSON
                     resp_json: dict = await self._read_json(resp_text)
@@ -105,8 +101,6 @@ class Downloader:
                 if not resp.closed:
                     resp.close()
 
-                content_read = int((time.perf_counter() - resp_received) * 1000)
-
                 response = Response(
                     url=resp.url,
                     method=resp.method,
@@ -115,7 +109,7 @@ class Downloader:
                     status_code=resp.status,
                     history=history,
                     text=resp_text,
-                    data=resp._body,
+                    data=resp_data,
                     json=resp_json,
                     xml_parser=request.xml_parser,
                     cookies=resp.cookies,
@@ -251,12 +245,13 @@ class Downloader:
 
     async def _read_response(
         self, resp: ClientResponse, max_content_length: int
-    ) -> int:
+    ) -> Tuple[bytes, int]:
         """
         Read HTTP Response content as bytes.
 
         :param resp: asyncio HTTP Response
-        :return: Tuple (read status, content length in bytes)
+        :param max_content_length: Maximum allowed content length
+        :return: Tuple (body bytes, content length in bytes)
         """
         body: bytes = b""
         try:
@@ -270,8 +265,7 @@ class Downloader:
             logger.exception("Failed to read Response content: %s: %s", self, e)
             raise ContentReadError
 
-        resp._body = body  # type: ignore
-        return len(body)
+        return body, len(body)
 
     @staticmethod
     async def _read_json(resp_text: str) -> dict:

@@ -6,7 +6,6 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from fnmatch import fnmatch
-from statistics import harmonic_mean, median
 from typing import (
     Any,
     AsyncGenerator,
@@ -37,6 +36,11 @@ from feedsearch_crawler.crawler.lib import (
 from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
+from feedsearch_crawler.crawler.statistics import (
+    ErrorCategory,
+    StatsCollector,
+    StatisticsLevel,
+)
 from feedsearch_crawler.crawler.trace import add_trace_config
 from feedsearch_crawler.crawler.middleware.robots import RobotsMiddleware
 from feedsearch_crawler.crawler.middleware.throttle import ThrottleMiddleware
@@ -114,6 +118,9 @@ class Crawler(ABC):
         max_retries: int = 3,
         ssl: bool = False,
         trace: bool = False,
+        stats_level: StatisticsLevel = StatisticsLevel.STANDARD,
+        stats_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+        stats_callback_interval: float = 5.0,
         *args,
         **kwargs,
     ):
@@ -135,6 +142,9 @@ class Crawler(ABC):
         :param max_retries: Maximum number of retries for each failed HTTP request.
         :param ssl: Enables strict SSL checking.
         :param trace: Enables aiohttp trace debugging.
+        :param stats_level: Statistics collection level (MINIMAL/STANDARD/DETAILED).
+        :param stats_callback: Optional callback for real-time statistics updates.
+        :param stats_callback_interval: Seconds between statistics callback invocations.
         :param args: Additional positional arguments for subclasses.
         :param kwargs: Additional keyword arguments for subclasses.
         """
@@ -175,18 +185,15 @@ class Crawler(ABC):
         # URL Duplicate Filter instance.
         self._duplicate_filter = self.duplicate_filter_class()
 
-        # List of total durations in Milliseconds for the total handling time of all Requests.
-        self._stats_request_durations: list[int] = []
-        # List of total duration in Milliseconds of all HTTP requests.
-        self._stats_request_latencies: list[int] = []
-        # List of Content Length in bytes of all Responses.
-        self._stats_response_content_lengths: list[int] = []
-        # List of time in Milliseconds that each item spend on the queue.
-        self._stats_queue_wait_times: list[int] = []
-        # List of the size of the queue each time an item was popped off the queue.
-        self._stats_queue_sizes: list[int] = []
+        # New StatsCollector for efficient statistics tracking
+        self.stats_collector = StatsCollector(
+            level=stats_level,
+            callback=stats_callback,
+            callback_interval=stats_callback_interval,
+        )
 
-        # Initialise Crawl Statistics.
+        # Legacy stats dictionary (kept for backward compatibility)
+        # Will be populated from stats_collector.get_stats()
         self.stats: Dict[Stats, Any] = {
             Stats.REQUESTS_QUEUED: 0,
             Stats.REQUESTS_SUCCESSFUL: 0,
@@ -203,6 +210,11 @@ class Crawler(ABC):
             Stats.REQUESTS_DURATION_MIN: 0,
             Stats.REQUESTS_DURATION_TOTAL: 0,
             Stats.REQUESTS_DURATION_MEDIAN: 0,
+            Stats.REQUESTS_LATENCY_AVG: 0,
+            Stats.REQUESTS_LATENCY_MAX: 0,
+            Stats.REQUESTS_LATENCY_MIN: 0,
+            Stats.REQUESTS_LATENCY_MEDIAN: 0,
+            Stats.REQUESTS_LATENCY_TOTAL: 0,
             Stats.TOTAL_DURATION: 0,
             Stats.STATUS_CODES: {},
             Stats.QUEUE_WAIT_MAX: 0,
@@ -256,26 +268,39 @@ class Crawler(ABC):
                         request=request, response=response, **request.cb_kwargs
                     )
 
-            dur = int((time.perf_counter() - start) * 1000)
-            self._stats_request_durations.append(dur)
+            dur_ms = (time.perf_counter() - start) * 1000
+            latency_ms = getattr(response, 'latency_ms', dur_ms)
+
             logger.debug(
-                "Fetched: url=%s dur=%dms status=%s",
+                "Fetched: url=%s dur=%.2fms status=%s",
                 response.url,
-                dur,
+                dur_ms,
                 response.status_code,
             )
 
+            # Record in new stats collector
             if response.ok:
-                self.stats[Stats.REQUESTS_SUCCESSFUL] += 1
+                await self.stats_collector.record_request_successful(
+                    status_code=response.status_code,
+                    duration_ms=dur_ms,
+                    latency_ms=latency_ms,
+                    content_length=response.content_length,
+                    host=response.url.host,
+                )
             else:
-                self.stats[Stats.REQUESTS_FAILED] += 1
+                # Categorize error based on status code
+                error_category = ErrorCategory.OTHER
+                if response.status_code >= 500:
+                    error_category = ErrorCategory.HTTP_SERVER
+                elif response.status_code >= 400:
+                    error_category = ErrorCategory.HTTP_CLIENT
 
-            if response.status_code in self.stats[Stats.STATUS_CODES]:
-                self.stats[Stats.STATUS_CODES][response.status_code] += 1
-            else:
-                self.stats[Stats.STATUS_CODES][response.status_code] = 1
-
-            self._stats_response_content_lengths.append(response.content_length)
+                await self.stats_collector.record_request_failed(
+                    error_category=error_category,
+                    error_message=f"HTTP {response.status_code}",
+                    status_code=response.status_code,
+                    url=str(response.url),
+                )
 
             # Mark the Response URL as seen in the duplicate filter, as it may be different from the Request URL
             # due to redirects.
@@ -287,7 +312,7 @@ class Crawler(ABC):
 
             # Add Request back to the queue for retrying.
             if request.should_retry:
-                self.stats[Stats.REQUESTS_RETRIED] += 1
+                await self.stats_collector.record_request_retried()
                 self._put_queue(request)
 
         except asyncio.CancelledError as e:
@@ -347,7 +372,7 @@ class Crawler(ABC):
             # Items are handled by the implementing Class.
             elif isinstance(result, Item):
                 await self.process_item(result)
-                self.stats[Stats.ITEMS_PROCESSED] += 1
+                await self.stats_collector.record_item_processed()
         except Exception as e:
             logger.exception(e)
 
@@ -363,7 +388,8 @@ class Crawler(ABC):
 
         priority: int = request.priority or 100
 
-        self.stats[Stats.REQUESTS_QUEUED] += 1
+        # Record queued request (sync call for performance)
+        self.stats_collector.record_request_queued()
         logger.debug("Queue Add: %s", request)
         # Add the Request to the queue for processing.
         # Request is already a Queueable, so just set its priority and add it directly
@@ -485,7 +511,9 @@ class Crawler(ABC):
             return
 
         # Check if URL is not already seen, and add it to the duplicate filter seen list.
-        if await self._duplicate_filter.is_url_seen(request_url, method):
+        is_duplicate = await self._duplicate_filter.is_url_seen(request_url, method)
+        await self.stats_collector.record_url_seen(is_duplicate=is_duplicate)
+        if is_duplicate:
             return
 
         request = Request(
@@ -631,66 +659,74 @@ class Crawler(ABC):
 
     def record_statistics(self) -> None:
         """
-        Record statistics.
+        Record statistics and update legacy stats dict for backward compatibility.
         """
-        self.stats[Stats.REQUESTS_DURATION_TOTAL] = int(
-            sum(self._stats_request_durations)
-        )
-        self.stats[Stats.REQUESTS_DURATION_AVG] = int(
-            harmonic_mean(self._stats_request_durations)
-        )
-        self.stats[Stats.REQUESTS_DURATION_MAX] = int(
-            max(self._stats_request_durations)
-        )
-        self.stats[Stats.REQUESTS_DURATION_MIN] = int(
-            min(self._stats_request_durations)
-        )
+        # Get statistics from new collector
+        new_stats = self.stats_collector.get_stats()
+
+        # Map new stats to legacy Stats enum keys
+        summary = new_stats.get("summary", {})
+        requests = new_stats.get("requests", {})
+        items = new_stats.get("items", {})
+        urls = new_stats.get("urls", {})
+        performance = new_stats.get("performance", {})
+        content = new_stats.get("content", {})
+        queue = new_stats.get("queue", {})
+
+        # Update legacy stats dictionary
+        self.stats[Stats.REQUESTS_QUEUED] = requests.get("queued", 0)
+        self.stats[Stats.REQUESTS_SUCCESSFUL] = requests.get("successful", 0)
+        self.stats[Stats.REQUESTS_FAILED] = requests.get("failed", 0)
+        self.stats[Stats.REQUESTS_RETRIED] = requests.get("retried", 0)
+        self.stats[Stats.ITEMS_PROCESSED] = items.get("processed", 0)
+        self.stats[Stats.URLS_SEEN] = urls.get("seen", 0)
+        self.stats[Stats.TOTAL_DURATION] = int(summary.get("total_duration_sec", 0) * 1000)
+        self.stats[Stats.STATUS_CODES] = new_stats.get("status_codes", {})
+
+        # Request duration stats
+        req_dur = performance.get("request_duration_ms", {})
+        self.stats[Stats.REQUESTS_DURATION_AVG] = int(req_dur.get("mean", 0))
+        self.stats[Stats.REQUESTS_DURATION_MIN] = int(req_dur.get("min", 0))
+        self.stats[Stats.REQUESTS_DURATION_MAX] = int(req_dur.get("max", 0))
         self.stats[Stats.REQUESTS_DURATION_MEDIAN] = int(
-            median(self._stats_request_durations)
+            performance.get("request_duration_percentiles_ms", {}).get("p50", 0)
         )
 
-        self.stats[Stats.CONTENT_LENGTH_TOTAL] = int(
-            sum(self._stats_response_content_lengths)
-        )
-        self.stats[Stats.CONTENT_LENGTH_AVG] = int(
-            harmonic_mean(self._stats_response_content_lengths)
-        )
-        self.stats[Stats.CONTENT_LENGTH_MAX] = int(
-            max(self._stats_response_content_lengths)
-        )
-        self.stats[Stats.CONTENT_LENGTH_MIN] = int(
-            min(self._stats_response_content_lengths)
-        )
-        self.stats[Stats.CONTENT_LENGTH_MEDIAN] = int(
-            median(self._stats_response_content_lengths)
-        )
-
-        self.stats[Stats.URLS_SEEN] = len(self._duplicate_filter.fingerprints)
-
-        self.stats[Stats.QUEUE_WAIT_AVG] = harmonic_mean(self._stats_queue_wait_times)
-        self.stats[Stats.QUEUE_WAIT_MIN] = min(self._stats_queue_wait_times)
-        self.stats[Stats.QUEUE_WAIT_MAX] = max(self._stats_queue_wait_times)
-        self.stats[Stats.QUEUE_WAIT_MEDIAN] = median(self._stats_queue_wait_times)
-
-        self.stats[Stats.QUEUE_SIZE_MAX] = max(self._stats_queue_sizes)
-        self.stats[Stats.QUEUE_SIZE_AVG] = int(harmonic_mean(self._stats_queue_sizes))
-        self.stats[Stats.QUEUE_SIZE_MEDIAN] = int(median(self._stats_queue_sizes))
-
-        self.stats[Stats.REQUESTS_LATENCY_AVG] = harmonic_mean(
-            self._stats_request_latencies
-        )
-        self.stats[Stats.REQUESTS_LATENCY_MAX] = int(max(self._stats_request_latencies))
-        self.stats[Stats.REQUESTS_LATENCY_MIN] = int(min(self._stats_request_latencies))
+        # Request latency stats
+        req_lat = performance.get("request_latency_ms", {})
+        self.stats[Stats.REQUESTS_LATENCY_AVG] = int(req_lat.get("mean", 0))
+        self.stats[Stats.REQUESTS_LATENCY_MIN] = int(req_lat.get("min", 0))
+        self.stats[Stats.REQUESTS_LATENCY_MAX] = int(req_lat.get("max", 0))
         self.stats[Stats.REQUESTS_LATENCY_MEDIAN] = int(
-            median(self._stats_request_latencies)
+            performance.get("request_latency_percentiles_ms", {}).get("p50", 0)
         )
-        self.stats[Stats.REQUESTS_LATENCY_TOTAL] = int(
-            sum(self._stats_request_latencies)
-        )
+
+        # Content length stats
+        self.stats[Stats.CONTENT_LENGTH_TOTAL] = content.get("total_bytes", 0)
+        self.stats[Stats.CONTENT_LENGTH_AVG] = content.get("mean_bytes", 0)
+        self.stats[Stats.CONTENT_LENGTH_MIN] = content.get("min_bytes", 0)
+        self.stats[Stats.CONTENT_LENGTH_MAX] = content.get("max_bytes", 0)
+
+        # Queue stats
+        queue_wait = queue.get("wait_time_ms", {})
+        self.stats[Stats.QUEUE_WAIT_AVG] = queue_wait.get("mean", 0)
+        self.stats[Stats.QUEUE_WAIT_MIN] = queue_wait.get("min", 0)
+        self.stats[Stats.QUEUE_WAIT_MAX] = queue_wait.get("max", 0)
+
+        queue_size = queue.get("size", {})
+        self.stats[Stats.QUEUE_SIZE_AVG] = int(queue_size.get("mean", 0))
+        self.stats[Stats.QUEUE_SIZE_MAX] = int(queue_size.get("max", 0))
 
     def get_stats(self) -> Dict[str, Any]:
         """
-        Return crawl statistics as a sorted dictionary.
+        Return crawl statistics in new grouped format.
+        For legacy format, use get_legacy_stats().
+        """
+        return self.stats_collector.get_stats()
+
+    def get_legacy_stats(self) -> Dict[str, Any]:
+        """
+        Return crawl statistics in legacy flat format (backward compatibility).
         """
         stats = {str(k): v for k, v in self.stats.items()}
         return dict(OrderedDict(sorted(stats.items())).items())
@@ -705,7 +741,8 @@ class Crawler(ABC):
         # Fix for ssl errors
         ignore_aiohttp_ssl_error(asyncio.get_running_loop())
 
-        start = time.perf_counter()
+        # Start statistics collection
+        self.stats_collector.start()
 
         # Create start urls from the initial URL if provided.
         if not urls:
@@ -717,8 +754,9 @@ class Crawler(ABC):
         if not initial_urls:
             raise ValueError("crawler.start_urls are required")
 
-        # Create the Request Queue within the asyncio loop.
-        self._request_queue = CrawlerPriorityQueue()
+        # Create the Request Queue within the asyncio loop (unless already set by tests).
+        if not hasattr(self, '_request_queue') or self._request_queue is None:
+            self._request_queue = CrawlerPriorityQueue()
 
         # Create semaphores for controlling different types of concurrency within the asyncio loop.
         self._download_semaphore = asyncio.Semaphore(self.concurrency)
@@ -767,7 +805,7 @@ class Crawler(ABC):
 
         # Create workers to process the Request Queue.
         # Optimize worker count - enough to handle requests and callbacks without excessive overhead
-        worker_count = max(self.concurrency, min(int(self.concurrency * 1.5), 20))
+        worker_count = min(max(self.concurrency, int(self.concurrency * 1.5)), 20)
         self._workers = [
             asyncio.create_task(self._work(i)) for i in range(worker_count)
         ]
@@ -794,14 +832,14 @@ class Crawler(ABC):
         # The ClientSession is closed only after all work is completed.
         await self._session.close()
 
-        duration = int((time.perf_counter() - start) * 1000)
-        self.stats[Stats.TOTAL_DURATION] = duration
+        # Stop statistics collection
+        await self.stats_collector.stop()
 
         self.record_statistics()
 
         logger.info(
-            "Crawl finished: requests=%s time=%dms",
+            "Crawl finished: requests=%s time=%.2fs",
             self.stats[Stats.REQUESTS_QUEUED],
-            duration,
+            self.stats[Stats.TOTAL_DURATION] / 1000,
         )
         logger.debug("Stats: %s", self.stats)

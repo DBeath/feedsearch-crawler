@@ -1,5 +1,5 @@
 from yarl import URL
-from typing import Union, Any
+from typing import Union
 
 from feedsearch_crawler.crawler import Item
 

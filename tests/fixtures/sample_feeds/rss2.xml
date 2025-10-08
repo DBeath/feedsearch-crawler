@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+    <channel>
+        <title>Sample RSS 2.0 Feed</title>
+        <link>https://example.com</link>
+        <description>A sample RSS 2.0 feed for testing feedsearch-crawler</description>
+        <language>en-us</language>
+        <lastBuildDate>Wed, 01 Jan 2025 12:00:00 GMT</lastBuildDate>
+        <managingEditor>editor@example.com (Feed Editor)</managingEditor>
+        <webMaster>webmaster@example.com (Webmaster)</webMaster>
+
+        <item>
+            <title>First Test Article</title>
+            <link>https://example.com/articles/first-test-article</link>
+            <description>This is the first test article in our sample RSS feed. It contains some basic content for testing feed parsing.</description>
+            <author>author@example.com (John Author)</author>
+            <category>Technology</category>
+            <guid>https://example.com/articles/first-test-article</guid>
+            <pubDate>Wed, 01 Jan 2025 10:00:00 GMT</pubDate>
+        </item>
+
+        <item>
+            <title>Second Test Article</title>
+            <link>https://example.com/articles/second-test-article</link>
+            <description>This is the second test article. It demonstrates how multiple items appear in an RSS feed.</description>
+            <author>author2@example.com (Jane Author)</author>
+            <category>Web Development</category>
+            <category>Testing</category>
+            <guid>https://example.com/articles/second-test-article</guid>
+            <pubDate>Thu, 02 Jan 2025 10:00:00 GMT</pubDate>
+        </item>
+
+        <item>
+            <title>Third Test Article with Enclosure</title>
+            <link>https://example.com/articles/third-test-article</link>
+            <description>This article includes an enclosure, making it suitable for podcast testing.</description>
+            <author>podcast@example.com (Podcast Host)</author>
+            <category>Podcast</category>
+            <guid>https://example.com/articles/third-test-article</guid>
+            <pubDate>Fri, 03 Jan 2025 10:00:00 GMT</pubDate>
+            <enclosure url="https://example.com/media/episode1.mp3" length="24986239" type="audio/mpeg"/>
+        </item>
+    </channel>
+</rss>

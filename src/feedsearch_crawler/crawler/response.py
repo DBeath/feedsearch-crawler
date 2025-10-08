@@ -18,35 +18,35 @@ class Response:
         self,
         url: URL,
         method: str,
-        headers: Union[CIMultiDictProxy[str], dict],
+        headers: Union[CIMultiDictProxy[str], dict] = None,
         status_code: int = -1,
         encoding: str = "",
-        text: str = "",
-        json: Dict = {},
-        data: bytes = b"",
-        history: List[URL] = [],
+        text: str = None,
+        json: Dict = None,
+        data: bytes = None,
+        history: List[URL] = None,
         cookies=None,
         xml_parser=None,
         redirect_history=None,
         content_length: int = 0,
-        meta: Dict = {},
+        meta: Dict = None,
         request=None,
     ):
         self.url = url
-        self.encoding = encoding
+        self.encoding = encoding or ""
         self.method = method
-        self.text = text
-        self.json = json
-        self.data = data
-        self.history = history
-        self.headers = headers
+        self.text = text or ""
+        self.json = json or {}
+        self.data = data or b""
+        self.history = history or []
+        self.headers = headers or {}
         self.status_code = status_code
-        self.cookies = cookies
+        self.cookies = cookies or {}
         self.id = uuid.uuid4()
         self._xml_parser = xml_parser
-        self.redirect_history = redirect_history
+        self.redirect_history = redirect_history or []
         self.content_length = content_length
-        self.meta = meta
+        self.meta = meta or {}
         self.origin: URL = url.origin()
         self.request = request
 
@@ -57,6 +57,14 @@ class Response:
     @property
     def domain(self) -> Optional[str]:
         return self.url.host
+
+    @property
+    def host(self) -> Optional[str]:
+        return self.url.host
+
+    @property
+    def port(self) -> Optional[int]:
+        return self.url.port
 
     @property
     def scheme(self) -> str:
@@ -95,7 +103,12 @@ class Response:
                 return self._xml
 
         try:
-            self._xml = await self._xml_parser(self.text)
+            result = self._xml_parser(self.text)
+            # Handle both sync and async parsers
+            if hasattr(result, '__await__'):
+                self._xml = await result
+            else:
+                self._xml = result
         except Exception as e:
             logger.exception("Error parsing response xml: %s", e)
         return self._xml
@@ -128,3 +141,6 @@ class Response:
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({str(self.url)})"
+
+    def __str__(self) -> str:
+        return f"Response({self.url}) [{self.status_code}]"

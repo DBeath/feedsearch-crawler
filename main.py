@@ -5,10 +5,9 @@ import time
 import os
 import argparse
 from pprint import pprint
-from feedsearch_crawler import search, FeedsearchSpider, output_opml, sort_urls
+from feedsearch_crawler import FeedsearchSpider, output_opml, sort_urls
 from feedsearch_crawler.crawler import coerce_url
 from datetime import datetime, timezone
-import collections
 from typing import Any, List
 
 # Default URLs to crawl if none provided via command line

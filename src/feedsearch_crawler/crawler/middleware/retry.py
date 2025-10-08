@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List
 from feedsearch_crawler.crawler.middleware.base import BaseDownloaderMiddleware
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response

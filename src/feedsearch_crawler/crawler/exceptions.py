@@ -1,4 +1,3 @@
-from typing import Any
 from feedsearch_crawler.crawler.request import Request
 
 

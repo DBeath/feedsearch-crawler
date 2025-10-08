@@ -86,8 +86,8 @@ class FeedsearchSpider(Crawler):
             logger.debug("Max depth %d reached: %s", self.max_depth, response)
             return
 
-        # Make sure the Response XML has been parsed if it exists.
-        soup = await response.xml
+        # Parse HTML content using BeautifulSoup
+        soup = await self.parse_xml(response.text)
         if not soup:
             return
 
@@ -176,7 +176,7 @@ class FeedsearchSpider(Crawler):
         for feed in self.items:
             # Check each SiteMeta for a url host match
             site_meta = next(
-                (x for x in self.site_metas if x.host in feed.url.host), None
+                (x for x in self.site_metas if x.host in URL(feed.url).host), None
             )
             if site_meta:
                 feed.site_url = site_meta.url

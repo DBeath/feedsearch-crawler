@@ -1,0 +1,24 @@
+User-agent: *
+Disallow: /private/
+Disallow: /admin/
+Disallow: /cgi-bin/
+Disallow: /tmp/
+Allow: /
+
+User-agent: Googlebot
+Disallow: /private/
+Disallow: /admin/
+Allow: /
+
+User-agent: Feedsearch-Crawler
+Allow: /
+Crawl-delay: 1
+
+User-agent: BadBot
+Disallow: /
+
+# Sitemap
+Sitemap: https://example.com/sitemap.xml
+Sitemap: https://example.com/sitemap-news.xml
+
+# Comments - this is a test robots.txt for feedsearch-crawler testing

@@ -13,16 +13,16 @@ class Queueable:
     _queue_get_time: float | None = field(compare=False, default=None)
 
     def __lt__(self, other: "Queueable") -> bool:
-        return self.priority > other.priority
-
-    def __le__(self, other: "Queueable") -> bool:
-        return self.priority >= other.priority
-
-    def __gt__(self, other: "Queueable") -> bool:
         return self.priority < other.priority
 
-    def __ge__(self, other: "Queueable") -> bool:
+    def __le__(self, other: "Queueable") -> bool:
         return self.priority <= other.priority
+
+    def __gt__(self, other: "Queueable") -> bool:
+        return self.priority > other.priority
+
+    def __ge__(self, other: "Queueable") -> bool:
+        return self.priority >= other.priority
 
     def __eq__(self, other: "Queueable") -> bool:
         return self.priority == other.priority

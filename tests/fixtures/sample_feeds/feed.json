@@ -1,0 +1,84 @@
+{
+    "version": "https://jsonfeed.org/version/1",
+    "title": "Sample JSON Feed",
+    "home_page_url": "https://example.com",
+    "feed_url": "https://example.com/feed.json",
+    "description": "A sample JSON Feed for testing feedsearch-crawler",
+    "user_comment": "This is a sample feed for testing purposes",
+    "next_url": "https://example.com/feed.json?page=2",
+    "icon": "https://example.com/icon.png",
+    "favicon": "https://example.com/favicon.ico",
+    "author": {
+        "name": "Feed Author",
+        "url": "https://example.com/author",
+        "avatar": "https://example.com/author-avatar.jpg"
+    },
+    "language": "en-US",
+    "items": [
+        {
+            "id": "https://example.com/items/1",
+            "url": "https://example.com/articles/first-json-article",
+            "external_url": "https://external.com/article/1",
+            "title": "First JSON Feed Item",
+            "content_html": "<p>This is the <strong>first item</strong> in our sample JSON feed.</p><p>It demonstrates basic JSON Feed item structure with HTML content.</p>",
+            "content_text": "This is the first item in our sample JSON feed. It demonstrates basic JSON Feed item structure with plain text content.",
+            "summary": "The first test item in our JSON feed",
+            "image": "https://example.com/images/first-article.jpg",
+            "banner_image": "https://example.com/images/first-article-banner.jpg",
+            "date_published": "2025-01-01T10:00:00Z",
+            "date_modified": "2025-01-01T10:30:00Z",
+            "author": {
+                "name": "Item Author",
+                "url": "https://example.com/author/item-author",
+                "avatar": "https://example.com/avatars/item-author.jpg"
+            },
+            "tags": ["technology", "web-development", "json"]
+        },
+        {
+            "id": "https://example.com/items/2",
+            "url": "https://example.com/articles/second-json-article",
+            "title": "Second JSON Feed Item",
+            "content_text": "This is the second item in our JSON feed. It uses only plain text content to demonstrate different content types in JSON feeds.",
+            "summary": "The second test item demonstrating text-only content",
+            "date_published": "2025-01-02T10:00:00Z",
+            "author": {
+                "name": "Second Author"
+            },
+            "tags": ["testing", "content-types"]
+        },
+        {
+            "id": "https://example.com/items/3",
+            "url": "https://example.com/articles/third-json-article",
+            "title": "Third JSON Feed Item with Attachments",
+            "content_html": "<p>This item demonstrates <em>attachments</em> in JSON feeds.</p><p>Attachments can include various media types like audio, video, or documents.</p>",
+            "summary": "Demonstrates attachments in JSON Feed format",
+            "date_published": "2025-01-03T10:00:00Z",
+            "attachments": [
+                {
+                    "url": "https://example.com/media/podcast-episode.mp3",
+                    "mime_type": "audio/mpeg",
+                    "title": "Podcast Episode 1",
+                    "size_in_bytes": 24986239,
+                    "duration_in_seconds": 1547
+                },
+                {
+                    "url": "https://example.com/media/transcript.pdf",
+                    "mime_type": "application/pdf",
+                    "title": "Episode Transcript",
+                    "size_in_bytes": 157832
+                }
+            ],
+            "tags": ["podcast", "multimedia", "attachments"]
+        },
+        {
+            "id": "https://example.com/items/4",
+            "url": "https://example.com/articles/fourth-json-article",
+            "title": "Fourth JSON Feed Item - Expired",
+            "content_text": "This item demonstrates the date_expired field in JSON feeds. This content should be considered expired.",
+            "summary": "Demonstrates expired content in JSON feeds",
+            "date_published": "2024-06-01T10:00:00Z",
+            "date_expired": "2024-12-31T23:59:59Z",
+            "tags": ["expired", "testing"]
+        }
+    ]
+}

@@ -1,0 +1,495 @@
+"""Integration tests for FeedsearchSpider."""
+
+import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from yarl import URL
+
+from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
+from feedsearch_crawler.feed_spider.feed_info import FeedInfo
+from feedsearch_crawler.crawler.response import Response
+from feedsearch_crawler.crawler.request import Request
+
+
+class TestFeedsearchSpiderIntegration:
+    """Test complete feed discovery workflow."""
+
+    @pytest.mark.asyncio
+    async def test_spider_initialization(self):
+        """Test spider initialization with custom parameters."""
+        spider = FeedsearchSpider(
+            concurrency=5,
+            try_urls=True,
+            favicon_data_uri=False,
+            crawl_hosts=True,
+            full_crawl=False
+        )
+
+        assert spider.concurrency == 5
+        assert spider.try_urls is True
+        assert spider.favicon_data_uri is False
+        assert spider.crawl_hosts is True
+        assert spider.full_crawl is False
+
+        # Check that spider has required components
+        assert spider.site_meta_processor is not None
+        assert spider.feed_info_parser is not None
+        assert isinstance(spider.site_metas, set)
+        assert isinstance(spider.favicons, dict)
+        assert isinstance(spider.feeds_seen, dict)
+
+    @pytest.mark.asyncio
+    async def test_parse_html_response_with_feed_links(self, sample_html_with_feeds):
+        """Test parsing HTML page with feed links."""
+        spider = FeedsearchSpider()
+
+        # Mock the response
+        response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=sample_html_with_feeds
+        )
+
+        request = Request(url=URL("https://example.com/"))
+
+        # Parse the response
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should find feed links and create requests for them
+        assert len(results) > 0
+
+        # Check that we get requests for the feed URLs
+        feed_requests = [r for r in results if isinstance(r, Request)]
+        assert len(feed_requests) >= 3  # RSS, Atom, JSON feeds
+
+        feed_urls = [str(req.url) for req in feed_requests]
+        assert "https://example.com/rss.xml" in feed_urls
+        assert "https://example.com/atom.xml" in feed_urls
+        assert "https://example.com/feed.json" in feed_urls
+
+    @pytest.mark.asyncio
+    async def test_parse_rss_feed_response(self, sample_rss_feed):
+        """Test parsing RSS feed response."""
+        spider = FeedsearchSpider()
+
+        response = Response(
+            url=URL("https://example.com/rss.xml"),
+            method="GET",
+            headers={"Content-Type": "application/rss+xml"},
+            status_code=200,
+            history=[],
+            text=sample_rss_feed
+        )
+
+        request = Request(url=URL("https://example.com/rss.xml"))
+
+        # Parse the feed
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should produce a FeedInfo object
+        feed_infos = [r for r in results if isinstance(r, FeedInfo)]
+        assert len(feed_infos) >= 1
+
+        feed_info = feed_infos[0]
+        assert feed_info.url == URL("https://example.com/rss.xml")
+        assert "Test RSS Feed" in str(feed_info.title)
+
+    @pytest.mark.asyncio
+    async def test_parse_atom_feed_response(self, sample_atom_feed):
+        """Test parsing Atom feed response."""
+        spider = FeedsearchSpider()
+
+        response = Response(
+            url=URL("https://example.com/atom.xml"),
+            method="GET",
+            headers={"Content-Type": "application/atom+xml"},
+            status_code=200,
+            history=[],
+            text=sample_atom_feed
+        )
+
+        request = Request(url=URL("https://example.com/atom.xml"))
+
+        # Parse the feed
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should produce a FeedInfo object
+        feed_infos = [r for r in results if isinstance(r, FeedInfo)]
+        assert len(feed_infos) >= 1
+
+        feed_info = feed_infos[0]
+        assert feed_info.url == URL("https://example.com/atom.xml")
+        assert "Test Atom Feed" in str(feed_info.title)
+
+    @pytest.mark.asyncio
+    async def test_parse_json_feed_response(self, sample_json_feed):
+        """Test parsing JSON feed response."""
+        spider = FeedsearchSpider()
+
+        response = Response(
+            url=URL("https://example.com/feed.json"),
+            method="GET",
+            headers={"Content-Type": "application/json"},
+            status_code=200,
+            history=[],
+            text=sample_json_feed
+        )
+
+        request = Request(url=URL("https://example.com/feed.json"))
+
+        # Parse the feed
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should produce a FeedInfo object
+        feed_infos = [r for r in results if isinstance(r, FeedInfo)]
+        assert len(feed_infos) >= 1
+
+        feed_info = feed_infos[0]
+        assert feed_info.url == URL("https://example.com/feed.json")
+        assert "Test JSON Feed" in str(feed_info.title)
+
+    @pytest.mark.asyncio
+    async def test_site_metadata_extraction(self, sample_html_with_feeds):
+        """Test site metadata extraction from HTML."""
+        spider = FeedsearchSpider()
+
+        response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=sample_html_with_feeds
+        )
+
+        request = Request(url=URL("https://example.com/"))
+
+        # Parse the response
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should extract site metadata
+        # Check that site_metas set was populated
+        assert len(spider.site_metas) > 0
+
+    @pytest.mark.asyncio
+    async def test_try_urls_functionality(self):
+        """Test try_urls functionality."""
+        spider = FeedsearchSpider(try_urls=["/rss", "/feed", "/atom.xml"])
+
+        # Mock the start URLs creation to include try_urls
+        start_urls = spider.create_start_urls([URL("https://example.com")])
+
+        # Should include the original URL and try_urls paths
+        url_strings = [str(url) for url in start_urls]
+
+        # Should contain the base URL
+        assert "https://example.com" in url_strings or "http://example.com" in url_strings
+
+    @pytest.mark.asyncio
+    async def test_favicon_handling(self):
+        """Test favicon detection and processing."""
+        spider = FeedsearchSpider(favicon_data_uri=True)
+
+        html_with_favicon = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Site</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="alternate" type="application/rss+xml" href="/rss.xml">
+</head>
+<body>Test</body>
+</html>"""
+
+        response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=html_with_favicon
+        )
+
+        request = Request(url=URL("https://example.com/"))
+
+        # Parse the response
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should detect favicon
+        favicon_requests = [
+            r for r in results
+            if isinstance(r, Request) and "favicon" in str(r.url)
+        ]
+        assert len(favicon_requests) >= 1
+
+    @pytest.mark.asyncio
+    async def test_duplicate_feed_filtering(self):
+        """Test that duplicate feeds are filtered out."""
+        spider = FeedsearchSpider()
+
+        # Create two identical feed URLs
+        feed_url = URL("https://example.com/rss.xml")
+        feed_info1 = FeedInfo(url=feed_url, title="Test Feed")
+        feed_info2 = FeedInfo(url=feed_url, title="Test Feed")
+
+        # Process the first feed info
+        await spider.process_item(feed_info1)
+        initial_count = len(spider.items)
+
+        # Process the duplicate
+        await spider.process_item(feed_info2)
+        final_count = len(spider.items)
+
+        # Should not add duplicate
+        assert final_count == initial_count
+
+    @pytest.mark.asyncio
+    async def test_error_handling_in_parsing(self):
+        """Test error handling during response parsing."""
+        spider = FeedsearchSpider()
+
+        # Create malformed response
+        response = Response(
+            url=URL("https://example.com/malformed"),
+            method="GET",
+            headers={"Content-Type": "application/rss+xml"},
+            status_code=200,
+            history=[],
+            text="<malformed><xml>content</without_closing_tags>"
+        )
+
+        request = Request(url=URL("https://example.com/malformed"))
+
+        # Should handle parsing errors gracefully
+        results = []
+        try:
+            async for result in spider.parse_response(request, response):
+                results.append(result)
+        except Exception as e:
+            pytest.fail(f"Spider should handle malformed content gracefully: {e}")
+
+    @pytest.mark.asyncio
+    async def test_post_crawl_callback(self):
+        """Test post-crawl callback functionality."""
+        spider = FeedsearchSpider()
+
+        # Mock some site metadata and feeds
+        spider.site_metas.add("example.com")
+
+        feed_info = FeedInfo(
+            url=URL("https://example.com/rss.xml"),
+            title="Test Feed"
+        )
+        await spider.process_item(feed_info)
+
+        # Run the post-crawl callback
+        if spider.post_crawl_callback:
+            await spider.post_crawl_callback()
+
+        # Should populate feed metadata from site metadata
+        # This tests the populate_feed_site_meta functionality
+
+    @pytest.mark.asyncio
+    async def test_content_type_detection(self):
+        """Test content type detection and appropriate parsing."""
+        spider = FeedsearchSpider()
+
+        # Test different content types
+        test_cases = [
+            ("text/html", sample_html_with_feeds, "HTML"),
+            ("application/rss+xml", sample_rss_feed, "RSS"),
+            ("application/atom+xml", sample_atom_feed, "Atom"),
+            ("application/json", sample_json_feed, "JSON"),
+        ]
+
+        for content_type, content, expected_type in test_cases:
+            response = Response(
+                url=URL(f"https://example.com/{expected_type.lower()}"),
+                method="GET",
+                headers={"Content-Type": content_type},
+                status_code=200,
+                history=[],
+                text=content if callable(content) else content
+            )
+
+            request = Request(url=response.url)
+
+            # Parse the response
+            results = []
+            async for result in spider.parse_response(request, response):
+                results.append(result)
+
+            # Should produce appropriate results based on content type
+            assert len(results) > 0
+
+    @pytest.mark.asyncio
+    async def test_url_scoring_and_priority(self):
+        """Test URL scoring and priority handling."""
+        spider = FeedsearchSpider()
+
+        html_with_multiple_feeds = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Site</title>
+    <link rel="alternate" type="application/rss+xml" title="Main Feed" href="/feed.xml">
+    <link rel="alternate" type="application/rss+xml" title="Comments" href="/comments.xml">
+    <link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom.xml">
+</head>
+<body>Test</body>
+</html>"""
+
+        response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=html_with_multiple_feeds
+        )
+
+        request = Request(url=URL("https://example.com/"))
+
+        # Parse the response
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should create requests with different priorities
+        feed_requests = [r for r in results if isinstance(r, Request)]
+        assert len(feed_requests) >= 3
+
+        # Check that priorities are assigned
+        priorities = [getattr(req, 'priority', None) for req in feed_requests]
+        assert any(p is not None for p in priorities)
+
+
+class TestFeedsearchSpiderConfiguration:
+    """Test spider configuration options."""
+
+    def test_spider_with_crawl_hosts_disabled(self):
+        """Test spider behavior with crawl_hosts disabled."""
+        spider = FeedsearchSpider(crawl_hosts=False)
+        assert spider.crawl_hosts is False
+
+    def test_spider_with_full_crawl_enabled(self):
+        """Test spider behavior with full_crawl enabled."""
+        spider = FeedsearchSpider(full_crawl=True)
+        assert spider.full_crawl is True
+
+    def test_spider_with_custom_try_urls(self):
+        """Test spider with custom try_urls list."""
+        custom_paths = ["/feeds/all.rss", "/api/feed", "/blog.xml"]
+        spider = FeedsearchSpider(try_urls=custom_paths)
+        assert spider.try_urls == custom_paths
+
+    def test_spider_with_favicon_disabled(self):
+        """Test spider with favicon processing disabled."""
+        spider = FeedsearchSpider(favicon_data_uri=False)
+        assert spider.favicon_data_uri is False
+
+
+class TestFeedsearchSpiderErrorHandling:
+    """Test error handling and edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_empty_response_handling(self):
+        """Test handling of empty responses."""
+        spider = FeedsearchSpider()
+
+        response = Response(
+            url=URL("https://example.com/empty"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=""
+        )
+
+        request = Request(url=URL("https://example.com/empty"))
+
+        # Should handle empty content gracefully
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should not crash, but may not produce results
+        assert isinstance(results, list)
+
+    @pytest.mark.asyncio
+    async def test_invalid_url_handling(self):
+        """Test handling of invalid URLs in feed links."""
+        spider = FeedsearchSpider()
+
+        html_with_invalid_urls = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Site</title>
+    <link rel="alternate" type="application/rss+xml" href="invalid-url">
+    <link rel="alternate" type="application/rss+xml" href="">
+    <link rel="alternate" type="application/rss+xml" href="/valid-feed.xml">
+</head>
+<body>Test</body>
+</html>"""
+
+        response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={"Content-Type": "text/html"},
+            status_code=200,
+            history=[],
+            text=html_with_invalid_urls
+        )
+
+        request = Request(url=URL("https://example.com/"))
+
+        # Should handle invalid URLs gracefully
+        results = []
+        async for result in spider.parse_response(request, response):
+            results.append(result)
+
+        # Should still process valid URLs
+        valid_requests = [
+            r for r in results
+            if isinstance(r, Request) and "valid-feed" in str(r.url)
+        ]
+        assert len(valid_requests) >= 1
+
+    @pytest.mark.asyncio
+    async def test_network_error_resilience(self):
+        """Test resilience to network errors during crawling."""
+        spider = FeedsearchSpider()
+
+        # Test with a failed response
+        error_response = Response(
+            url=URL("https://example.com/error"),
+            method="GET",
+            headers={},
+            status_code=500,
+            history=[],
+            text="Internal Server Error"
+        )
+
+        request = Request(url=URL("https://example.com/error"))
+
+        # Should handle error responses gracefully
+        results = []
+        async for result in spider.parse_response(request, error_response):
+            results.append(result)
+
+        # Should not crash on error responses
+        assert isinstance(results, list)

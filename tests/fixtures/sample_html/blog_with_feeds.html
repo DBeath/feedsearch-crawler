@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Blog with Feeds</title>
+
+    <!-- Feed discovery links -->
+    <link rel="alternate" type="application/rss+xml" title="Main RSS Feed" href="/rss.xml">
+    <link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/atom.xml">
+    <link rel="alternate" type="application/json" title="JSON Feed" href="/feed.json">
+    <link rel="alternate" type="application/rss+xml" title="Comments RSS" href="/comments.rss">
+
+    <!-- Site metadata -->
+    <meta name="description" content="A sample blog website with multiple feed formats for testing">
+    <meta name="author" content="Test Blog Author">
+    <meta name="generator" content="Sample Blog Generator 1.0">
+
+    <!-- Favicon links -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+
+    <!-- OpenGraph metadata -->
+    <meta property="og:title" content="Sample Blog with Feeds">
+    <meta property="og:description" content="A sample blog website with multiple feed formats">
+    <meta property="og:url" content="https://example.com">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://example.com/og-image.jpg">
+
+    <!-- Twitter Card metadata -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Sample Blog with Feeds">
+    <meta name="twitter:description" content="A sample blog website with multiple feed formats">
+    <meta name="twitter:image" content="https://example.com/twitter-image.jpg">
+</head>
+<body>
+    <header>
+        <h1>Sample Blog</h1>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="/contact">Contact</a></li>
+                <li><a href="/rss.xml">RSS Feed</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <article>
+            <h2>Welcome to Our Sample Blog</h2>
+            <p>This is a sample blog website designed for testing feed discovery functionality.
+               It includes multiple feed formats including RSS, Atom, and JSON Feed.</p>
+
+            <p>You can subscribe to our content using any of the following feeds:</p>
+            <ul>
+                <li><a href="/rss.xml">RSS 2.0 Feed</a></li>
+                <li><a href="/atom.xml">Atom 1.0 Feed</a></li>
+                <li><a href="/feed.json">JSON Feed</a></li>
+            </ul>
+        </article>
+
+        <article>
+            <h2>Recent Blog Posts</h2>
+            <ul>
+                <li><a href="/posts/first-post">First Blog Post</a></li>
+                <li><a href="/posts/second-post">Second Blog Post</a></li>
+                <li><a href="/posts/third-post">Third Blog Post</a></li>
+            </ul>
+        </article>
+
+        <aside>
+            <h3>Subscribe</h3>
+            <p>Stay updated with our latest content:</p>
+            <a href="/rss.xml" class="feed-link">Subscribe via RSS</a>
+        </aside>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Sample Blog. All rights reserved.</p>
+        <p><a href="/privacy">Privacy Policy</a> | <a href="/terms">Terms of Service</a></p>
+    </footer>
+</body>
+</html>

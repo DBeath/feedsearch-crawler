@@ -32,7 +32,7 @@ class SiteMetaParser(ItemParser):
             if icon.url:
                 # Only follow favicon urls if we want to create a data uri
                 if self.crawler.favicon_data_uri:
-                    yield self.follow(
+                    yield await self.follow(
                         icon.url,
                         self.crawler.parse_favicon_data_uri,
                         cb_kwargs=dict(favicon=icon),
