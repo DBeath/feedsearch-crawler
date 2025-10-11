@@ -12,6 +12,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for package management and de
 - `uv run ruff check` - Run linting checks
 - `uv run ruff format` - Format code
 - `uv run pytest` - Run all tests
+- `uv run pytest --durations=20` - Show 20 slowest tests
 - `uv run pytest tests/crawler/test_request.py` - Run a specific test file
 - `uv run pytest tests/crawler/test_request.py::TestRequest::test_method_name` - Run a specific test
 
@@ -83,7 +84,257 @@ Key dependencies include:
 
 The architecture separates concerns between generic web crawling capabilities and feed-specific discovery logic, making the system both modular and extensible.
 
-## Summary instructions
+## Development Workflow
 
-When you are using compact, please focus on test output and code changes.
-Creating, updating, and fixing tests should use the haiku model.
+### Before Starting Any Work
+
+**ALWAYS do these steps first:**
+
+1. **Run existing tests** to establish baseline:
+   ```bash
+   uv run pytest
+   ```
+
+2. **Check git status** to understand current state:
+   ```bash
+   git status
+   ```
+
+3. **For test work, check performance**:
+   ```bash
+   uv run pytest --durations=20
+   ```
+
+4. **Search for existing patterns** before creating new code/tests
+
+### Making Changes
+
+**Validate incrementally - DO NOT batch changes:**
+
+1. Make a small, logical change
+2. Run tests immediately: `uv run pytest`
+3. Fix any warnings or errors BEFORE proceeding
+4. Repeat for next change
+
+**Never create multiple new tests without validating they pass first.**
+
+### Before Completing Work
+
+**Run these checks - ALL must pass with NO warnings:**
+
+1. Full test suite: `uv run pytest`
+2. Linting: `uv run ruff check`
+3. Check for warnings in test output
+4. Verify git status shows only intended changes
+5. Update CHANGELOG.md for user-visible changes
+
+## Testing Guidelines
+
+### Critical Rules - MUST Follow
+
+1. **Check existing tests FIRST** - Search tests/ directory before creating new ones
+2. **Read actual code** - Don't guess API signatures, read the implementation
+3. **Start with 2-3 simple tests** - Validate they pass, THEN expand
+4. **Run tests after EACH addition** - Never create 10+ tests without validation
+5. **Fix ALL warnings** - Zero tolerance for warnings in test output
+
+### Test Performance Requirements
+
+**Strict requirements - tests that violate these must be fixed:**
+
+- Individual tests: Must complete in **< 1 second**
+- Test files: Must complete in **< 5 seconds**
+- Full test suite: Must complete in **< 10 seconds**
+
+**Common performance pitfalls:**
+
+- Using production timeout defaults in tests (e.g., 30s)
+- MockCrawler inherits `total_timeout=30.0` - override with `total_timeout=0.1-1.0`
+- Awaiting real network calls instead of mocking
+- Creating actual crawler instances that run full workflows
+
+**Always use short timeouts in tests:**
+
+```python
+# ✅ CORRECT - Fast test timeout
+spider = FeedsearchSpider(concurrency=1, total_timeout=0.5)
+crawler = MockCrawler(total_timeout=0.1)
+
+# ❌ WRONG - Will wait 30 seconds
+spider = FeedsearchSpider(concurrency=1)  # Uses default 30s timeout
+```
+
+### Test Creation Workflow
+
+**Follow this exact order:**
+
+1. Search for similar tests in `tests/` directory
+2. Read the actual implementation to understand:
+   - Function signatures and return types
+   - Whether functions are sync or async
+   - Whether functions return values or are generators
+   - Required vs optional parameters
+3. Create 2-3 simple tests
+4. Run tests: `uv run pytest path/to/test_file.py`
+5. Fix any errors or warnings
+6. Only after tests pass, add more tests
+7. Repeat steps 4-6 for each addition
+
+### Common Test Anti-Patterns
+
+**DO NOT do these - they cause failures:**
+
+❌ Creating 10+ tests before running any
+❌ Guessing that a function returns a value when it yields
+❌ Guessing that a function is async when it's sync
+❌ Using `async for` on functions that aren't async generators
+❌ Creating string URLs when code expects URL objects
+❌ Using production defaults (timeouts, settings) in tests
+❌ Extensive mocking when simple integration tests work better
+
+**DO these instead:**
+
+✅ Create 2-3 tests, run them, validate, then continue
+✅ Read the actual code to see return types and signatures
+✅ Check if similar tests exist and copy their patterns
+✅ Use appropriate test fixtures (MockCrawler, etc.)
+✅ Use test-specific timeouts and settings
+✅ Simple integration tests over complex mocking
+
+### Understanding Async Code
+
+**Before creating async tests, verify:**
+
+```python
+# Is it async?
+async def foo():  # YES - use 'await foo()'
+
+# Is it an async generator?
+async def foo():
+    yield item  # YES - use 'async for item in foo()'
+
+# Check actual return type:
+async def parse_item(self, ...):
+    return item  # Returns single item, NOT a generator
+
+async def parse_response(self, ...):
+    yield item1
+    yield item2  # Is async generator
+```
+
+**Correct usage patterns:**
+
+```python
+# Async function returning value
+result = await spider.process_item(item)
+
+# Async generator
+async for item in spider.parse_response(request, response):
+    items.append(item)
+
+# Regular function
+result = spider.add_favicon(favicon)  # No await
+```
+
+### Coverage Improvement Strategy
+
+**Realistic expectations:**
+
+- Aim for 10-15 percentage point improvements per component
+- Some code (async orchestration, network I/O) is hard to unit test
+- Don't chase 100% coverage on integration workflows
+- Simple integration tests often beat complex mocks
+
+**Prioritization:**
+
+1. Low-coverage critical components first (spider.py, downloader.py)
+2. Test error paths and edge cases
+3. Stop at diminishing returns (over-mocking, fragile tests)
+
+## Code Quality Standards
+
+### Zero Tolerance Items
+
+**These MUST be fixed before completing work:**
+
+- ❌ Failing tests
+- ❌ Warnings in test output (deprecation, unawaited coroutines, etc.)
+- ❌ Linting errors from ruff
+- ❌ Unused imports or variables
+- ❌ Tests slower than performance requirements
+
+### Type Hints
+
+- All functions must have type hints for parameters and return values
+- Use `URL` from yarl, not `str` for URLs
+- Use proper async return types: `AsyncGenerator`, `Awaitable`, etc.
+- Check existing code for type patterns before creating new types
+
+### Code Style
+
+- Follow existing patterns in the codebase
+- Use ruff for formatting (automatically applied)
+- Maximum line length: 88 characters
+- Descriptive names for variables and functions
+
+## Common Pitfalls and Solutions
+
+### Pitfall: Slow Tests
+
+**Problem:** Test takes 30 seconds to run
+**Cause:** Using production `total_timeout=30.0` default
+**Solution:** Always set `total_timeout=0.1-1.0` in test instances
+
+### Pitfall: Unawaited Coroutine Warnings
+
+**Problem:** `RuntimeWarning: coroutine 'foo' was never awaited`
+**Cause:** Async function not awaited, or using wrong pattern
+**Solution:**
+- Check if function is async: `async def` → use `await`
+- Check if it's a generator: `yield` → use `async for`
+- Use `AsyncMock` for mock async functions
+
+### Pitfall: TypeError with URL Objects
+
+**Problem:** `TypeError: Constructor parameter should be str`
+**Cause:** Passing `None` or wrong type to `URL()` constructor
+**Solution:**
+- Check FeedInfo/SiteMeta URL fields - they should be URL objects
+- Use `URL("https://example.com")` not `"https://example.com"`
+- Handle None values before passing to URL()
+
+### Pitfall: All Tests Fail After Bulk Creation
+
+**Problem:** Created 10 tests, all fail with different errors
+**Cause:** Didn't validate incrementally, guessed at API behavior
+**Solution:**
+- DELETE the failing tests
+- Read the actual implementation code
+- Create 2 simple tests that you're confident about
+- Run and fix until they pass
+- Then add more tests one at a time
+
+## Compact Mode Instructions
+
+When using compact mode:
+
+- Focus output on test results and code changes only
+- Minimize explanatory text
+- Show only failures, warnings, and actionable errors
+- Use TodoWrite for multi-step tasks to track progress silently
+- Provide concise summaries at completion
+
+## Summary
+
+**The Golden Rules:**
+
+1. ✅ ALWAYS run tests before AND after changes
+2. ✅ ALWAYS read code before creating tests
+3. ✅ ALWAYS validate incrementally (not in batches)
+4. ✅ ALWAYS fix warnings (zero tolerance)
+5. ✅ ALWAYS use test-appropriate timeouts
+6. ✅ NEVER create >3 tests without validating they pass
+7. ✅ NEVER guess at API signatures - read the code
+8. ✅ NEVER ignore warnings - they become errors later
+
+**Result:** Clean code, passing tests, no warnings, fast test suite.
