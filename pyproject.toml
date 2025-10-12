@@ -51,6 +51,7 @@ feedsearch-crawler = "feedsearch_crawler:main"
 
 [dependency-groups]
 dev = [
+    "jsonschema>=4.25.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",
     "pytest-cov>=6.0.0",

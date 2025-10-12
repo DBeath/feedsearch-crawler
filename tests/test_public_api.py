@@ -11,7 +11,7 @@ from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 class TestSearchFunction:
     """Test the synchronous search function."""
 
-    @patch('feedsearch_crawler.search_async')
+    @patch("feedsearch_crawler.search_async")
     def test_search_single_url_string(self, mock_search_async):
         """Test search with a single URL string."""
         mock_feeds = [
@@ -19,12 +19,12 @@ class TestSearchFunction:
         ]
         mock_search_async.return_value = mock_feeds
 
-        with patch('asyncio.run', return_value=mock_feeds):
+        with patch("asyncio.run", return_value=mock_feeds):
             result = search("https://example.com")
 
         assert result == mock_feeds
 
-    @patch('feedsearch_crawler.search_async')
+    @patch("feedsearch_crawler.search_async")
     def test_search_with_try_urls(self, mock_search_async):
         """Test search with try_urls parameter."""
         mock_feeds = [
@@ -32,21 +32,21 @@ class TestSearchFunction:
         ]
         mock_search_async.return_value = mock_feeds
 
-        with patch('asyncio.run', return_value=mock_feeds):
+        with patch("asyncio.run", return_value=mock_feeds):
             result = search("https://example.com", try_urls=True)
 
         assert result == mock_feeds
 
-    @patch('feedsearch_crawler.search_async')
+    @patch("feedsearch_crawler.search_async")
     def test_search_list_of_urls(self, mock_search_async):
         """Test search with a list of URLs."""
         mock_feeds = [
             FeedInfo(url="https://example.com/feed.xml", title="Feed 1", score=10),
-            FeedInfo(url="https://example.org/rss.xml", title="Feed 2", score=8)
+            FeedInfo(url="https://example.org/rss.xml", title="Feed 2", score=8),
         ]
         mock_search_async.return_value = mock_feeds
 
-        with patch('asyncio.run', return_value=mock_feeds):
+        with patch("asyncio.run", return_value=mock_feeds):
             result = search(["https://example.com", "https://example.org"])
 
         assert len(result) == 2
@@ -58,7 +58,7 @@ class TestSearchAsyncFunction:
     @pytest.mark.asyncio
     async def test_search_async_single_url(self):
         """Test async search with a single URL."""
-        with patch('feedsearch_crawler.FeedsearchSpider') as mock_spider_class:
+        with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
             mock_spider = AsyncMock()
             mock_spider.items = [
                 FeedInfo(url="https://example.com/feed.xml", title="Test", score=10)
@@ -75,24 +75,21 @@ class TestSearchAsyncFunction:
     @pytest.mark.asyncio
     async def test_search_async_with_kwargs(self):
         """Test async search with additional keyword arguments."""
-        with patch('feedsearch_crawler.FeedsearchSpider') as mock_spider_class:
+        with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
             mock_spider = AsyncMock()
             mock_spider.items = []
             mock_spider.crawl = AsyncMock()
             mock_spider_class.return_value = mock_spider
 
             await search_async(
-                "https://example.com",
-                try_urls=True,
-                concurrency=5,
-                total_timeout=10.0
+                "https://example.com", try_urls=True, concurrency=5, total_timeout=10.0
             )
 
             mock_spider_class.assert_called_once()
             call_kwargs = mock_spider_class.call_args[1]
-            assert call_kwargs['try_urls'] is True
-            assert call_kwargs['concurrency'] == 5
-            assert call_kwargs['total_timeout'] == 10.0
+            assert call_kwargs["try_urls"] is True
+            assert call_kwargs["concurrency"] == 5
+            assert call_kwargs["total_timeout"] == 10.0
 
 
 class TestSortUrls:
@@ -156,7 +153,7 @@ class TestOutputOpml:
                 title="Test Feed",
                 description="A test feed",
                 site_url="https://example.com",
-                version="rss20"
+                version="rss20",
             )
         ]
 
@@ -164,9 +161,9 @@ class TestOutputOpml:
 
         assert isinstance(opml, bytes)
         assert b'<opml version="2.0">' in opml
-        assert b'<title>Feeds</title>' in opml
-        assert b'https://example.com/feed.xml' in opml
-        assert b'Test Feed' in opml
+        assert b"<title>Feeds</title>" in opml
+        assert b"https://example.com/feed.xml" in opml
+        assert b"Test Feed" in opml
 
     def test_output_opml_multiple_feeds(self):
         """Test OPML output with multiple feeds."""
@@ -178,9 +175,9 @@ class TestOutputOpml:
 
         opml = output_opml(feeds)
 
-        assert b'Feed 1' in opml
-        assert b'Feed 2' in opml
-        assert b'Feed 3' in opml
+        assert b"Feed 1" in opml
+        assert b"Feed 2" in opml
+        assert b"Feed 3" in opml
 
     def test_output_opml_with_all_fields(self):
         """Test OPML output with all FeedInfo fields populated."""
@@ -190,16 +187,16 @@ class TestOutputOpml:
                 title="Complete Feed",
                 description="Feed description",
                 site_url="https://example.com",
-                version="atom10"
+                version="atom10",
             )
         ]
 
         opml = output_opml(feeds)
 
-        assert b'Complete Feed' in opml
-        assert b'Feed description' in opml
-        assert b'https://example.com' in opml
-        assert b'atom10' in opml
+        assert b"Complete Feed" in opml
+        assert b"Feed description" in opml
+        assert b"https://example.com" in opml
+        assert b"atom10" in opml
 
     def test_output_opml_missing_optional_fields(self):
         """Test OPML output when optional fields are missing."""
@@ -210,7 +207,7 @@ class TestOutputOpml:
         opml = output_opml(feeds)
 
         assert isinstance(opml, bytes)
-        assert b'https://example.com/feed.xml' in opml
+        assert b"https://example.com/feed.xml" in opml
 
     def test_output_opml_skips_feeds_without_url(self):
         """Test that feeds without URL are skipped."""
@@ -222,9 +219,9 @@ class TestOutputOpml:
 
         opml = output_opml(feeds)
 
-        assert b'Valid Feed' in opml
-        assert b'Invalid Feed' not in opml
-        assert b'Empty URL' not in opml
+        assert b"Valid Feed" in opml
+        assert b"Invalid Feed" not in opml
+        assert b"Empty URL" not in opml
 
     def test_output_opml_empty_list(self):
         """Test OPML output with empty feed list."""
@@ -232,21 +229,19 @@ class TestOutputOpml:
 
         assert isinstance(opml, bytes)
         assert b'<opml version="2.0">' in opml
-        assert b'<title>Feeds</title>' in opml
+        assert b"<title>Feeds</title>" in opml
         # Should have structure but no feed entries
 
     def test_output_opml_xml_structure(self):
         """Test that OPML has correct XML structure."""
-        feeds = [
-            FeedInfo(url="https://example.com/feed.xml", title="Test")
-        ]
+        feeds = [FeedInfo(url="https://example.com/feed.xml", title="Test")]
 
         opml = output_opml(feeds)
 
         # Check for required OPML structure elements
-        assert b'<opml' in opml
-        assert b'<head>' in opml
-        assert b'<body>' in opml
-        assert b'<outline' in opml
+        assert b"<opml" in opml
+        assert b"<head>" in opml
+        assert b"<body>" in opml
+        assert b"<outline" in opml
         assert b'type="rss"' in opml
-        assert b'xmlUrl=' in opml
+        assert b"xmlUrl=" in opml

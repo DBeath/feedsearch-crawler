@@ -19,7 +19,7 @@ class TestRobotsMiddlewareBasic:
         request = Request(url=URL("https://example.com/feed.xml"))
 
         # Mock failed robots.txt load
-        with patch.object(middleware, '_load_robots_txt') as mock_load:
+        with patch.object(middleware, "_load_robots_txt") as mock_load:
             mock_load.return_value = None
             middleware.cache["https://example.com/robots.txt"] = None
 
@@ -170,9 +170,9 @@ Sitemap: https://example.com/sitemap-news.xml
 """
         # Parse sitemaps
         sitemaps = []
-        for line in robots_txt_content.split('\n'):
-            if line.strip().startswith('Sitemap:'):
-                sitemap_url = line.split(':', 1)[1].strip()
+        for line in robots_txt_content.split("\n"):
+            if line.strip().startswith("Sitemap:"):
+                sitemap_url = line.split(":", 1)[1].strip()
                 sitemaps.append(sitemap_url)
 
         assert len(sitemaps) == 2
@@ -187,9 +187,9 @@ Sitemap: https://example.com/sitemap2.xml
 Sitemap: https://example.com/sitemap3.xml
 """
         sitemaps = [
-            line.split(':', 1)[1].strip()
-            for line in robots_txt_content.split('\n')
-            if line.strip().startswith('Sitemap:')
+            line.split(":", 1)[1].strip()
+            for line in robots_txt_content.split("\n")
+            if line.strip().startswith("Sitemap:")
         ]
 
         assert len(sitemaps) == 3
@@ -200,9 +200,9 @@ Sitemap: https://example.com/sitemap3.xml
 Sitemap: https://example.com/sitemap_index.xml
 """
         sitemaps = [
-            line.split(':', 1)[1].strip()
-            for line in robots_txt_content.split('\n')
-            if line.strip().startswith('Sitemap:')
+            line.split(":", 1)[1].strip()
+            for line in robots_txt_content.split("\n")
+            if line.strip().startswith("Sitemap:")
         ]
 
         assert len(sitemaps) == 1
@@ -229,11 +229,12 @@ class TestSitemapXMLParsing:
 </urlset>"""
         # Parse URLs from sitemap
         from xml.etree import ElementTree as ET
+
         root = ET.fromstring(sitemap_xml)
 
         # Extract URLs
-        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        urls = [loc.text for loc in root.findall('.//ns:loc', namespace)]
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        urls = [loc.text for loc in root.findall(".//ns:loc", namespace)]
 
         assert len(urls) == 2
         assert "feed.xml" in urls[0]
@@ -253,13 +254,14 @@ class TestSitemapXMLParsing:
     </sitemap>
 </sitemapindex>"""
         from xml.etree import ElementTree as ET
+
         root = ET.fromstring(sitemap_index)
 
-        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        sitemaps = [loc.text for loc in root.findall('.//ns:sitemap/ns:loc', namespace)]
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        sitemaps = [loc.text for loc in root.findall(".//ns:sitemap/ns:loc", namespace)]
 
         assert len(sitemaps) == 2
-        assert all('sitemap' in s for s in sitemaps)
+        assert all("sitemap" in s for s in sitemaps)
 
     def test_sitemap_feed_url_filtering(self):
         """Test filtering sitemap URLs for potential feeds."""
@@ -272,14 +274,15 @@ class TestSitemapXMLParsing:
         ]
 
         # Filter for feed-like URLs
-        feed_keywords = ['rss', 'feed', 'atom', 'xml']
+        feed_keywords = ["rss", "feed", "atom", "xml"]
         potential_feeds = [
-            url for url in sitemap_urls
+            url
+            for url in sitemap_urls
             if any(keyword in url.lower() for keyword in feed_keywords)
         ]
 
         assert len(potential_feeds) >= 3
-        assert any('feed' in url for url in potential_feeds)
+        assert any("feed" in url for url in potential_feeds)
 
     def test_sitemap_lastmod_extraction(self):
         """Test extraction of lastmod dates from sitemap."""
@@ -291,11 +294,12 @@ class TestSitemapXMLParsing:
     </url>
 </urlset>"""
         from xml.etree import ElementTree as ET
+
         root = ET.fromstring(sitemap_xml)
 
-        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        url_elem = root.find('.//ns:url', namespace)
-        lastmod = url_elem.find('ns:lastmod', namespace).text
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        url_elem = root.find(".//ns:url", namespace)
+        lastmod = url_elem.find("ns:lastmod", namespace).text
 
         assert lastmod == "2025-01-15"
 
@@ -309,10 +313,11 @@ class TestSitemapXMLParsing:
     </url>
 </urlset>"""
         from xml.etree import ElementTree as ET
+
         root = ET.fromstring(sitemap_xml)
 
-        namespace = {'ns': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        priority = root.find('.//ns:priority', namespace).text
+        namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+        priority = root.find(".//ns:priority", namespace).text
 
         assert float(priority) == 0.9
 
@@ -326,7 +331,7 @@ class TestRobotsMiddlewareErrorHandling:
         middleware = RobotsMiddleware(user_agent="TestBot")
         request = Request(url=URL("https://example.com/feed"))
 
-        with patch.object(middleware, '_load_robots_txt') as mock_load:
+        with patch.object(middleware, "_load_robots_txt") as mock_load:
             # Simulate loading error
             mock_load.side_effect = Exception("Network error")
 
@@ -364,9 +369,9 @@ class TestRobotsIntegrationScenarios:
         robots_txt = "Sitemap: https://example.com/sitemap.xml"
         sitemap_url = None
 
-        for line in robots_txt.split('\n'):
-            if 'Sitemap:' in line:
-                sitemap_url = line.split(':', 1)[1].strip()
+        for line in robots_txt.split("\n"):
+            if "Sitemap:" in line:
+                sitemap_url = line.split(":", 1)[1].strip()
                 break
 
         assert sitemap_url == "https://example.com/sitemap.xml"
@@ -374,7 +379,7 @@ class TestRobotsIntegrationScenarios:
     def test_crawl_respects_robots_disallow(self):
         """Test that crawler respects robots.txt disallow directives."""
         # Simulate checking if URL is allowed
-        disallowed_paths = ['/private/', '/admin/']
+        disallowed_paths = ["/private/", "/admin/"]
         test_url = "/private/feed.xml"
 
         is_disallowed = any(path in test_url for path in disallowed_paths)
@@ -382,7 +387,7 @@ class TestRobotsIntegrationScenarios:
 
     def test_crawl_respects_robots_allow(self):
         """Test that crawler respects robots.txt allow directives."""
-        disallowed_paths = ['/private/', '/admin/']
+        disallowed_paths = ["/private/", "/admin/"]
         test_url = "/feed.xml"
 
         is_disallowed = any(path in test_url for path in disallowed_paths)
@@ -394,12 +399,14 @@ class TestRobotsIntegrationScenarios:
         sitemap_urls = [
             "https://example.com/feed.xml",
             "https://example.com/blog/rss",
-            "https://example.com/news/atom.xml"
+            "https://example.com/news/atom.xml",
         ]
 
         # These would be added to initial crawl queue
-        feed_urls = [url for url in sitemap_urls if any(
-            keyword in url for keyword in ['feed', 'rss', 'atom']
-        )]
+        feed_urls = [
+            url
+            for url in sitemap_urls
+            if any(keyword in url for keyword in ["feed", "rss", "atom"])
+        ]
 
         assert len(feed_urls) == 3

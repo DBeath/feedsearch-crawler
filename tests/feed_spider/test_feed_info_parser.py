@@ -17,6 +17,7 @@ from feedsearch_crawler.feed_spider.lib import ParseTypes
 def feed_parser():
     """Create a FeedInfoParser instance."""
     from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
+
     spider = FeedsearchSpider(concurrency=2, favicon_data_uri=False)
     parser = FeedInfoParser(crawler=spider)
     return parser
@@ -110,18 +111,16 @@ def sample_json_feed():
                 "id": "1",
                 "title": "JSON Item 1",
                 "url": "https://example.com/item1",
-                "date_published": "2025-01-01T12:00:00Z"
+                "date_published": "2025-01-01T12:00:00Z",
             },
             {
                 "id": "2",
                 "title": "JSON Item 2",
                 "url": "https://example.com/item2",
-                "date_modified": "2025-01-02T12:00:00Z"
-            }
+                "date_modified": "2025-01-02T12:00:00Z",
+            },
         ],
-        "hubs": [
-            {"url": "https://hub.example.com"}
-        ]
+        "hubs": [{"url": "https://hub.example.com"}],
     }
 
 
@@ -135,7 +134,7 @@ class TestFeedInfoParserInitialization:
         response = Response(
             url=URL("https://example.com/feed.xml"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         with pytest.raises(ValueError, match="type keyword argument is required"):
@@ -153,7 +152,7 @@ class TestFeedInfoParserInitialization:
             encoding="utf-8",
             headers={"Content-Type": "application/rss+xml"},
             history=[URL("https://example.com")],
-            content_length=len(sample_rss_data)
+            content_length=len(sample_rss_data),
         )
 
         items = []
@@ -180,7 +179,7 @@ class TestFeedInfoParserInitialization:
             json=sample_json_feed,
             headers={"Content-Type": "application/json"},
             history=[URL("https://example.com")],
-            content_length=500
+            content_length=500,
         )
 
         items = []
@@ -229,9 +228,7 @@ class TestParseXML:
     def test_parse_xml_podcast(self, feed_parser, sample_podcast_data):
         """Test parsing podcast RSS feed."""
         item = FeedInfo(url=URL("https://example.com/podcast.xml"))
-        result = feed_parser.parse_xml(
-            item, sample_podcast_data, "utf-8", {}
-        )
+        result = feed_parser.parse_xml(item, sample_podcast_data, "utf-8", {})
 
         assert result is True
         assert item.is_podcast is True
@@ -265,14 +262,16 @@ class TestParseXML:
         """Test handling bozo flag with character encoding override."""
         item = FeedInfo(url=URL("https://example.com/feed.xml"))
 
-        with patch('feedsearch_crawler.feed_spider.feed_info_parser.FeedInfoParser.parse_raw_data') as mock_parse:
+        with patch(
+            "feedsearch_crawler.feed_spider.feed_info_parser.FeedInfoParser.parse_raw_data"
+        ) as mock_parse:
             # Simulate bozo with CharacterEncodingOverride
             mock_parse.return_value = {
-                'bozo': 1,
-                'bozo_exception': feedparser.CharacterEncodingOverride(''),
-                'feed': {'title': 'Test'},
-                'entries': [{'title': 'Entry 1'}],
-                'version': 'rss20'
+                "bozo": 1,
+                "bozo_exception": feedparser.CharacterEncodingOverride(""),
+                "feed": {"title": "Test"},
+                "entries": [{"title": "Entry 1"}],
+                "version": "rss20",
             }
 
             result = feed_parser.parse_xml(item, b"data", "utf-8", {})
@@ -284,12 +283,14 @@ class TestParseXML:
         """Test handling bozo flag with unknown character encoding."""
         item = FeedInfo(url=URL("https://example.com/feed.xml"))
 
-        with patch('feedsearch_crawler.feed_spider.feed_info_parser.FeedInfoParser.parse_raw_data') as mock_parse:
+        with patch(
+            "feedsearch_crawler.feed_spider.feed_info_parser.FeedInfoParser.parse_raw_data"
+        ) as mock_parse:
             mock_parse.return_value = {
-                'bozo': 1,
-                'bozo_exception': feedparser.CharacterEncodingUnknown(''),
-                'feed': {},
-                'entries': []
+                "bozo": 1,
+                "bozo_exception": feedparser.CharacterEncodingUnknown(""),
+                "feed": {},
+                "entries": [],
             }
 
             result = feed_parser.parse_xml(item, b"data", "utf-8", {})
@@ -338,7 +339,7 @@ class TestParseJSON:
         invalid_feed = {
             "version": "1.0",  # Invalid version
             "title": "Test",
-            "items": [{"id": "1"}]
+            "items": [{"id": "1"}],
         }
 
         result = feed_parser.parse_json(item, invalid_feed)
@@ -351,7 +352,7 @@ class TestParseJSON:
         item = FeedInfo(url=URL("https://example.com/feed.json"))
         empty_feed = {
             "version": "https://jsonfeed.org/version/1",
-            "title": "Empty Feed"
+            "title": "Empty Feed",
         }
 
         result = feed_parser.parse_json(item, empty_feed)
@@ -366,8 +367,8 @@ class TestParseJSON:
             "title": "Test",
             "items": [
                 {"id": "1", "date_published": "2025-01-01T12:00:00Z"},
-                {"id": "2", "date_modified": "2025-01-02T12:00:00Z"}
-            ]
+                {"id": "2", "date_modified": "2025-01-02T12:00:00Z"},
+            ],
         }
 
         result = feed_parser.parse_json(item, feed_data)
@@ -385,16 +386,16 @@ class TestParseRawData:
         result = FeedInfoParser.parse_raw_data(sample_rss_data, "utf-8", {})
 
         assert result is not None
-        assert 'feed' in result
-        assert 'entries' in result
+        assert "feed" in result
+        assert "entries" in result
 
     def test_parse_raw_data_string(self, sample_rss_data):
         """Test parsing string data."""
-        string_data = sample_rss_data.decode('utf-8')
+        string_data = sample_rss_data.decode("utf-8")
         result = FeedInfoParser.parse_raw_data(string_data, "utf-8", {})
 
         assert result is not None
-        assert 'feed' in result
+        assert "feed" in result
 
     def test_parse_raw_data_no_encoding(self, sample_rss_data):
         """Test parsing with no encoding specified."""
@@ -406,7 +407,7 @@ class TestParseRawData:
         """Test parsing with headers."""
         headers = {
             "content-type": "application/rss+xml",
-            "content-encoding": "gzip"  # Should be removed
+            "content-encoding": "gzip",  # Should be removed
         }
         result = FeedInfoParser.parse_raw_data(sample_rss_data, "utf-8", headers)
 
@@ -418,23 +419,19 @@ class TestHelperMethods:
 
     def test_feed_title(self, feed_parser):
         """Test extracting feed title."""
-        feed_dict = {'title': 'Test Feed Title'}
+        feed_dict = {"title": "Test Feed Title"}
         title = feed_parser.feed_title(feed_dict)
-        assert title == 'Test Feed Title'
+        assert title == "Test Feed Title"
 
     def test_feed_description(self, feed_parser):
         """Test extracting feed description."""
-        feed_dict = {'subtitle': 'Test Description'}
+        feed_dict = {"subtitle": "Test Description"}
         description = feed_parser.feed_description(feed_dict)
-        assert description == 'Test Description'
+        assert description == "Test Description"
 
     def test_entry_velocity_calculation(self, feed_parser):
         """Test entry velocity calculation."""
-        dates = [
-            datetime(2025, 1, 1),
-            datetime(2025, 1, 2),
-            datetime(2025, 1, 3)
-        ]
+        dates = [datetime(2025, 1, 1), datetime(2025, 1, 2), datetime(2025, 1, 3)]
         velocity = feed_parser.entry_velocity(dates)
         assert velocity > 0
 
@@ -451,28 +448,22 @@ class TestHelperMethods:
     def test_is_podcast_with_enclosures(self, feed_parser):
         """Test podcast detection."""
         parsed_feed = {
-            'namespaces': {'itunes': 'http://www.itunes.com/dtds/podcast-1.0.dtd'},
-            'entries': [
-                {
-                    'enclosures': [
-                        {'type': 'audio/mpeg'}
-                    ]
-                }
-            ]
+            "namespaces": {"itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"},
+            "entries": [{"enclosures": [{"type": "audio/mpeg"}]}],
         }
         result = feed_parser.is_podcast(parsed_feed)
         assert result is True
 
     def test_is_podcast_no_enclosures(self, feed_parser):
         """Test non-podcast feed."""
-        parsed_feed = {'entries': [{'title': 'Entry'}]}
+        parsed_feed = {"entries": [{"title": "Entry"}]}
         result = feed_parser.is_podcast(parsed_feed)
         assert result is False
 
     def test_header_links_websub(self):
         """Test parsing WebSub header links."""
         headers = {
-            'Link': '<https://hub.example.com>; rel="hub", <https://example.com/feed>; rel="self"'
+            "Link": '<https://hub.example.com>; rel="hub", <https://example.com/feed>; rel="self"'
         }
         hubs, self_url = FeedInfoParser.header_links(headers)
         # Function may return empty if parse_header_links doesn't recognize format
@@ -493,7 +484,7 @@ class TestHelperMethods:
         """Test self URL validation."""
         item = FeedInfo(
             url=URL("https://example.com/feed.xml"),
-            self_url=URL("https://example.com/feed.xml")
+            self_url=URL("https://example.com/feed.xml"),
         )
         feed_parser.validate_self_url(item)
         # Should not raise any errors
@@ -512,7 +503,7 @@ class TestEdgeCases:
             data=b"invalid",
             encoding="utf-8",
             headers={},
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []
@@ -527,21 +518,21 @@ class TestEdgeCases:
     def test_entry_dates_extraction(self):
         """Test entry dates extraction."""
         entries = [
-            {'published': '2025-01-01T12:00:00Z'},
-            {'updated': '2025-01-02T12:00:00Z'}
+            {"published": "2025-01-01T12:00:00Z"},
+            {"updated": "2025-01-02T12:00:00Z"},
         ]
         now = datetime.now(timezone.utc).date()
 
-        dates = list(FeedInfoParser.entry_dates(entries, ['published', 'updated'], now))
+        dates = list(FeedInfoParser.entry_dates(entries, ["published", "updated"], now))
 
         assert len(dates) >= 0  # May filter out future dates
 
     def test_websub_links_extraction(self, feed_parser):
         """Test WebSub links extraction from feed dict."""
         feed_dict = {
-            'links': [
-                {'rel': 'hub', 'href': 'https://hub.example.com'},
-                {'rel': 'self', 'href': 'https://example.com/feed'}
+            "links": [
+                {"rel": "hub", "href": "https://hub.example.com"},
+                {"rel": "self", "href": "https://example.com/feed"},
             ]
         }
 

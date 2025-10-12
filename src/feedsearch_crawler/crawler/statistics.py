@@ -22,31 +22,34 @@ logger = logging.getLogger(__name__)
 
 class StatisticsLevel(Enum):
     """Level of detail for statistics collection."""
-    MINIMAL = "minimal"      # Only counters, no memory overhead
-    STANDARD = "standard"    # Counters + streaming aggregates
-    DETAILED = "detailed"    # Full tracking with percentiles
+
+    MINIMAL = "minimal"  # Only counters, no memory overhead
+    STANDARD = "standard"  # Counters + streaming aggregates
+    DETAILED = "detailed"  # Full tracking with percentiles
 
 
 class ErrorCategory(Enum):
     """Categories of errors that can occur during crawling."""
-    NETWORK = "network"           # DNS, connection errors
-    TIMEOUT = "timeout"           # Request timeouts
-    HTTP_CLIENT = "http_client"   # 4xx errors
-    HTTP_SERVER = "http_server"   # 5xx errors
-    PARSING = "parsing"           # Content parsing errors
-    VALIDATION = "validation"     # Content validation errors
-    ROBOTS = "robots"             # Blocked by robots.txt
-    OTHER = "other"               # Uncategorized errors
+
+    NETWORK = "network"  # DNS, connection errors
+    TIMEOUT = "timeout"  # Request timeouts
+    HTTP_CLIENT = "http_client"  # 4xx errors
+    HTTP_SERVER = "http_server"  # 5xx errors
+    PARSING = "parsing"  # Content parsing errors
+    VALIDATION = "validation"  # Content validation errors
+    ROBOTS = "robots"  # Blocked by robots.txt
+    OTHER = "other"  # Uncategorized errors
 
 
 @dataclass
 class StreamingStats:
     """Streaming statistics calculator for memory-efficient aggregates."""
+
     count: int = 0
     sum_: float = 0.0
     sum_squares: float = 0.0
-    min_: float = float('inf')
-    max_: float = float('-inf')
+    min_: float = float("inf")
+    max_: float = float("-inf")
 
     def add(self, value: float) -> None:
         """Add a value to the streaming statistics."""
@@ -79,6 +82,7 @@ class StreamingStats:
 @dataclass
 class PercentileTracker:
     """Track values for percentile calculation with bounded memory."""
+
     max_samples: int = 10000
     samples: List[float] = field(default_factory=list)
     total_count: int = 0
@@ -86,6 +90,7 @@ class PercentileTracker:
     def add(self, value: float) -> None:
         """Add a value, maintaining max_samples limit."""
         import random
+
         self.total_count += 1
         if len(self.samples) < self.max_samples:
             self.samples.append(value)
@@ -209,6 +214,7 @@ class StatsCollector:
     def start(self) -> None:
         """Start statistics collection."""
         import time
+
         self.start_time = time.time()
         if self.callback:
             self._should_stop = False
@@ -222,6 +228,7 @@ class StatsCollector:
     async def stop(self) -> None:
         """Stop statistics collection and finalize."""
         import time
+
         self.end_time = time.time()
         self._should_stop = True
         if self._callback_task and not self._callback_task.done():
@@ -313,7 +320,7 @@ class StatsCollector:
 
             # Trim to max size
             if len(self.recent_errors) > self.max_recent_errors:
-                self.recent_errors = self.recent_errors[-self.max_recent_errors:]
+                self.recent_errors = self.recent_errors[-self.max_recent_errors :]
 
     async def record_request_retried(self) -> None:
         """Record a request retry."""
@@ -348,6 +355,7 @@ class StatsCollector:
         content, errors, and queue sections.
         """
         import time
+
         current_time = self.end_time if self.end_time is not None else time.time()
         total_duration = current_time - self.start_time if self.start_time else 0.0
 
@@ -363,7 +371,9 @@ class StatsCollector:
                 "total_requests": total_requests,
                 "success_rate": round(success_rate, 3),
                 "requests_per_second": (
-                    round(total_requests / total_duration, 2) if total_duration > 0 else 0.0
+                    round(total_requests / total_duration, 2)
+                    if total_duration > 0
+                    else 0.0
                 ),
             },
             "requests": {
@@ -422,7 +432,9 @@ class StatsCollector:
                 if total_duration > 0:
                     bytes_per_sec = cl.sum_ / total_duration
                     stats["content"]["bytes_per_second"] = int(bytes_per_sec)
-                    stats["content"]["megabytes_per_second"] = round(bytes_per_sec / 1024 / 1024, 2)
+                    stats["content"]["megabytes_per_second"] = round(
+                        bytes_per_sec / 1024 / 1024, 2
+                    )
 
             if self.queue_wait_stats and self.queue_wait_stats.count > 0:
                 qw = self.queue_wait_stats
@@ -446,7 +458,10 @@ class StatsCollector:
 
         # Add percentiles if in detailed mode
         if self.level == StatisticsLevel.DETAILED:
-            if self.request_duration_percentiles and self.request_duration_percentiles.samples:
+            if (
+                self.request_duration_percentiles
+                and self.request_duration_percentiles.samples
+            ):
                 perc = self.request_duration_percentiles.get_percentiles()
                 if "performance" not in stats:
                     stats["performance"] = {}
@@ -454,7 +469,10 @@ class StatsCollector:
                     k: round(v, 2) for k, v in perc.items()
                 }
 
-            if self.request_latency_percentiles and self.request_latency_percentiles.samples:
+            if (
+                self.request_latency_percentiles
+                and self.request_latency_percentiles.samples
+            ):
                 perc = self.request_latency_percentiles.get_percentiles()
                 if "performance" not in stats:
                     stats["performance"] = {}

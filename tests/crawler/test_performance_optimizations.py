@@ -21,8 +21,8 @@ class TestTCPConnectorOptimizations:
         """Test that TCPConnector is configured with optimization parameters."""
         crawler = MockCrawler(concurrency=8)
 
-        with patch('aiohttp.TCPConnector') as mock_connector:
-            with patch('aiohttp.ClientSession') as mock_session_class:
+        with patch("aiohttp.TCPConnector") as mock_connector:
+            with patch("aiohttp.ClientSession") as mock_session_class:
                 # Mock the session and its context manager
                 mock_session = AsyncMock()
                 mock_session_class.return_value = mock_session
@@ -32,6 +32,7 @@ class TestTCPConnectorOptimizations:
 
                 # Create a mock request queue
                 from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                 mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                 mock_queue.join = AsyncMock()
                 crawler._request_queue = mock_queue
@@ -43,30 +44,30 @@ class TestTCPConnectorOptimizations:
                 mock_connector.assert_called_once()
                 call_kwargs = mock_connector.call_args[1]
 
-                assert call_kwargs['limit'] == 100
-                assert call_kwargs['limit_per_host'] == 8  # matches concurrency
-                assert call_kwargs['enable_cleanup_closed'] is True
-                assert call_kwargs['keepalive_timeout'] == 30
-                assert call_kwargs['force_close'] is False
-                assert call_kwargs['use_dns_cache'] is True
-                assert call_kwargs['family'] == 0  # AF_UNSPEC
-                assert call_kwargs['happy_eyeballs_delay'] == 0.25
+                assert call_kwargs["limit"] == 100
+                assert call_kwargs["limit_per_host"] == 8  # matches concurrency
+                assert call_kwargs["enable_cleanup_closed"] is True
+                assert call_kwargs["keepalive_timeout"] == 30
+                assert call_kwargs["force_close"] is False
+                assert call_kwargs["use_dns_cache"] is True
+                assert call_kwargs["family"] == 0  # AF_UNSPEC
+                assert call_kwargs["happy_eyeballs_delay"] == 0.25
 
     @pytest.mark.asyncio
     async def test_connection_pool_sizing(self):
         """Test connection pool sizing matches concurrency requirements."""
         test_cases = [
-            (1, 100, 1),    # Low concurrency
+            (1, 100, 1),  # Low concurrency
             (10, 100, 10),  # Medium concurrency
             (50, 100, 50),  # High concurrency
-            (150, 100, 150), # Very high concurrency (limit still 100 total)
+            (150, 100, 150),  # Very high concurrency (limit still 100 total)
         ]
 
         for concurrency, expected_limit, expected_per_host in test_cases:
             crawler = MockCrawler(concurrency=concurrency)
 
-            with patch('aiohttp.TCPConnector') as mock_connector:
-                with patch('aiohttp.ClientSession') as mock_session_class:
+            with patch("aiohttp.TCPConnector") as mock_connector:
+                with patch("aiohttp.ClientSession") as mock_session_class:
                     mock_session = AsyncMock()
                     mock_session_class.return_value = mock_session
                     mock_session.__aenter__.return_value = mock_session
@@ -75,6 +76,7 @@ class TestTCPConnectorOptimizations:
 
                     # Create a mock request queue
                     from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                     mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                     mock_queue.join = AsyncMock()
                     crawler._request_queue = mock_queue
@@ -82,8 +84,8 @@ class TestTCPConnectorOptimizations:
                     await crawler.crawl([URL("https://example.com")])
 
                     call_kwargs = mock_connector.call_args[1]
-                    assert call_kwargs['limit'] == expected_limit
-                    assert call_kwargs['limit_per_host'] == expected_per_host
+                    assert call_kwargs["limit"] == expected_limit
+                    assert call_kwargs["limit_per_host"] == expected_per_host
 
 
 class TestSemaphoreOptimizations:
@@ -94,8 +96,8 @@ class TestSemaphoreOptimizations:
         """Test that separate download and parse semaphores are created."""
         crawler = MockCrawler(concurrency=5)
 
-        with patch('aiohttp.ClientSession') as mock_session_class:
-            with patch('aiohttp.TCPConnector'):
+        with patch("aiohttp.ClientSession") as mock_session_class:
+            with patch("aiohttp.TCPConnector"):
                 mock_session = AsyncMock()
                 mock_session_class.return_value = mock_session
                 mock_session.__aenter__.return_value = mock_session
@@ -104,6 +106,7 @@ class TestSemaphoreOptimizations:
 
                 # Create a mock request queue
                 from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                 mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                 mock_queue.join = AsyncMock()
                 crawler._request_queue = mock_queue
@@ -111,8 +114,8 @@ class TestSemaphoreOptimizations:
                 await crawler.crawl([URL("https://example.com")])
 
                 # Check that both semaphores exist with correct values
-                assert hasattr(crawler, '_download_semaphore')
-                assert hasattr(crawler, '_parse_semaphore')
+                assert hasattr(crawler, "_download_semaphore")
+                assert hasattr(crawler, "_parse_semaphore")
                 assert crawler._download_semaphore._value == 5  # matches concurrency
                 assert crawler._parse_semaphore._value == 10  # concurrency * 2
 
@@ -128,7 +131,7 @@ class TestSemaphoreOptimizations:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         mock_downloader.fetch.return_value = mock_response
 
@@ -152,7 +155,7 @@ class TestSemaphoreOptimizations:
 
         # Verify semaphores were used (checked by ensuring the operation completed)
         assert crawler._download_semaphore._value == 2  # Should be back to full
-        assert crawler._parse_semaphore._value == 4     # Should be back to full
+        assert crawler._parse_semaphore._value == 4  # Should be back to full
 
 
 class TestWorkerPoolOptimizations:
@@ -162,8 +165,8 @@ class TestWorkerPoolOptimizations:
     async def test_optimized_worker_count(self):
         """Test that worker count is optimized based on concurrency."""
         test_cases = [
-            (1, 1),    # max(1, min(1.5, 20)) = max(1, 1) = 1
-            (5, 7),    # max(5, min(7.5, 20)) = max(5, 7) = 7
+            (1, 1),  # max(1, min(1.5, 20)) = max(1, 1) = 1
+            (5, 7),  # max(5, min(7.5, 20)) = max(5, 7) = 7
             (10, 15),  # max(10, min(15, 20)) = max(10, 15) = 15
             (15, 20),  # max(15, min(22.5, 20)) = max(15, 20) = 20
             (25, 20),  # max(25, min(37.5, 20)) = max(25, 20) = 25 -> but capped at 20
@@ -172,8 +175,8 @@ class TestWorkerPoolOptimizations:
         for concurrency, expected_workers in test_cases:
             crawler = MockCrawler(concurrency=concurrency)
 
-            with patch('aiohttp.ClientSession') as mock_session_class:
-                with patch('aiohttp.TCPConnector'):
+            with patch("aiohttp.ClientSession") as mock_session_class:
+                with patch("aiohttp.TCPConnector"):
                     mock_session = AsyncMock()
                     mock_session_class.return_value = mock_session
                     mock_session.__aenter__.return_value = mock_session
@@ -182,6 +185,7 @@ class TestWorkerPoolOptimizations:
 
                     # Create a mock request queue
                     from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                     mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                     mock_queue.join = AsyncMock()
                     crawler._request_queue = mock_queue
@@ -204,7 +208,7 @@ class TestContentTypeOptimizations:
 
         # Just verify the content type filtering logic works
         content_type = "image/jpeg"
-        feed_types = ['xml', 'rss', 'atom', 'json', 'html', 'text']
+        feed_types = ["xml", "rss", "atom", "json", "html", "text"]
 
         # Should not match any feed types
         matches_feed_type = any(ct in content_type.lower() for ct in feed_types)
@@ -223,10 +227,10 @@ class TestContentTypeOptimizations:
             "application/json",
             "text/xml",
             "text/html",
-            "application/xml"
+            "application/xml",
         ]
 
-        feed_types = ['xml', 'rss', 'atom', 'json', 'html', 'text']
+        feed_types = ["xml", "rss", "atom", "json", "html", "text"]
 
         for content_type in feed_content_types:
             # Should match at least one feed type
@@ -269,7 +273,9 @@ class TestChunkSizeOptimizations:
         mock_response.content.iter_chunked = mock_iter_chunked
 
         # Test the _read_response method
-        body_data, content_length = await downloader._read_response(mock_response, max_content_length=10000)
+        body_data, content_length = await downloader._read_response(
+            mock_response, max_content_length=10000
+        )
 
         # Verify content was read correctly
         expected_body = b"chunk1" * 100 + b"chunk2" * 100
@@ -327,10 +333,7 @@ class TestPerHostThrottlingOptimizations:
 
         # Create requests to different hosts
         hosts = ["host1.com", "host2.com", "host3.com", "host4.com"]
-        requests = [
-            Request(url=URL(f"https://{host}/page"))
-            for host in hosts
-        ]
+        requests = [Request(url=URL(f"https://{host}/page")) for host in hosts]
 
         # Process all requests concurrently
         start_time = asyncio.get_event_loop().time()
@@ -358,10 +361,7 @@ class TestPerHostThrottlingOptimizations:
         middleware = ThrottleMiddleware(rate_per_sec=10)  # 100ms delay
 
         host = "example.com"
-        requests = [
-            Request(url=URL(f"https://{host}/page{i}"))
-            for i in range(3)
-        ]
+        requests = [Request(url=URL(f"https://{host}/page{i}")) for i in range(3)]
 
         start_time = asyncio.get_event_loop().time()
 
@@ -373,7 +373,9 @@ class TestPerHostThrottlingOptimizations:
 
         # Should take at least 200ms (2 delays of 100ms each, first is immediate)
         expected_min_time = 2 * (1 / 10)  # 200ms
-        assert total_time >= expected_min_time * 0.9  # 90% tolerance for timing variations
+        assert (
+            total_time >= expected_min_time * 0.9
+        )  # 90% tolerance for timing variations
 
 
 class TestPerformanceIntegration:
@@ -386,8 +388,8 @@ class TestPerformanceIntegration:
 
         start_time = asyncio.get_event_loop().time()
 
-        with patch('aiohttp.ClientSession') as mock_session_class:
-            with patch('aiohttp.TCPConnector'):
+        with patch("aiohttp.ClientSession") as mock_session_class:
+            with patch("aiohttp.TCPConnector"):
                 mock_session = AsyncMock()
                 mock_session_class.return_value = mock_session
                 mock_session.__aenter__.return_value = mock_session
@@ -396,6 +398,7 @@ class TestPerformanceIntegration:
 
                 # Create a mock request queue for quick completion
                 from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                 mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                 mock_queue.join = AsyncMock()
                 crawler._request_queue = mock_queue
@@ -420,8 +423,7 @@ class TestPerformanceIntegration:
 
         # Check throttling configuration
         throttle_middleware = next(
-            m for m in crawler.middlewares
-            if type(m).__name__ == "ThrottleMiddleware"
+            m for m in crawler.middlewares if type(m).__name__ == "ThrottleMiddleware"
         )
-        assert hasattr(throttle_middleware, 'host_timers')  # Per-host tracking
+        assert hasattr(throttle_middleware, "host_timers")  # Per-host tracking
         assert throttle_middleware.rate_per_sec == 2  # Reasonable rate

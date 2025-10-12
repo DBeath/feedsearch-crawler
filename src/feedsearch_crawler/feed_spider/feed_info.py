@@ -17,7 +17,7 @@ class FeedInfo(Item):
     is_podcast: bool = False
     is_push: bool = False
     item_count: int = 0
-    last_updated: datetime
+    last_updated: Union[datetime, None] = None
     score: int = 0
     self_url: Union[URL, None] = None
     site_name: str = ""
@@ -35,6 +35,7 @@ class FeedInfo(Item):
             "site_name": self.site_name,
             "site_url": str(self.site_url) if self.site_url else None,
             "favicon": str(self.favicon) if self.favicon else None,
+            "favicon_data_uri": self.favicon_data_uri,
             "version": self.version,
             "score": self.score,
             "velocity": self.velocity,
@@ -43,9 +44,12 @@ class FeedInfo(Item):
             else None,
             "item_count": self.item_count,
             "is_push": self.is_push,
+            "is_podcast": self.is_podcast,
             "hubs": self.hubs,
             "self_url": str(self.self_url) if self.self_url else None,
             "bozo": self.bozo,
+            "content_type": self.content_type,
+            "content_length": self.content_length,
         }
 
     def __eq__(self, other: "FeedInfo") -> bool:

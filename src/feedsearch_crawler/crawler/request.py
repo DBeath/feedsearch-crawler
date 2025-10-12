@@ -92,15 +92,15 @@ class Request(Queueable):
     def callback(self):
         """Get the success callback function."""
         return self._callback
-    
+
     @property
     def success_callback(self):
         """Get the success callback function."""
         return self._callback
-    
+
     @property
     def failure_callback(self):
-        """Get the failure callback function.""" 
+        """Get the failure callback function."""
         return self._failure_callback
 
     @property

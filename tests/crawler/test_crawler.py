@@ -34,7 +34,7 @@ class TestCrawlerInitialization:
             max_depth=3,
             delay=1.0,
             user_agent="CustomBot/1.0",
-            allowed_domains=["example.com", "test.com"]
+            allowed_domains=["example.com", "test.com"],
         )
         assert crawler.concurrency == 5
         assert crawler.max_depth == 3
@@ -56,8 +56,12 @@ class TestCrawlerInitialization:
         # Check that default middlewares are loaded
         middleware_types = [type(m).__name__ for m in crawler.middlewares]
         expected_middlewares = [
-            "RobotsMiddleware", "ThrottleMiddleware", "RetryMiddleware",
-            "CookieMiddleware", "ContentTypeMiddleware", "MonitoringMiddleware"
+            "RobotsMiddleware",
+            "ThrottleMiddleware",
+            "RetryMiddleware",
+            "CookieMiddleware",
+            "ContentTypeMiddleware",
+            "MonitoringMiddleware",
         ]
 
         for expected in expected_middlewares:
@@ -83,7 +87,9 @@ class TestCrawlerDomainFiltering:
         assert crawler.is_allowed_domain(URL("https://sub.example.com"))
         assert crawler.is_allowed_domain(URL("https://any.example.com"))
         assert crawler.is_allowed_domain(URL("https://test.org"))
-        assert not crawler.is_allowed_domain(URL("https://example.com"))  # No wildcard match
+        assert not crawler.is_allowed_domain(
+            URL("https://example.com")
+        )  # No wildcard match
         assert not crawler.is_allowed_domain(URL("https://other.org"))
 
     def test_invalid_url_domain_check(self):
@@ -105,11 +111,13 @@ class TestCrawlerStartUrls:
 
     def test_create_start_urls_with_schemes(self):
         crawler = MockCrawler()
-        urls = crawler.create_start_urls([
-            "https://example.com",
-            "http://test.org",
-            "ftp://files.com"  # Should be converted to http
-        ])
+        urls = crawler.create_start_urls(
+            [
+                "https://example.com",
+                "http://test.org",
+                "ftp://files.com",  # Should be converted to http
+            ]
+        )
 
         assert URL("https://example.com") in urls
         assert URL("http://test.org") in urls
@@ -117,11 +125,9 @@ class TestCrawlerStartUrls:
 
     def test_create_start_urls_deduplication(self):
         crawler = MockCrawler()
-        urls = crawler.create_start_urls([
-            "example.com",
-            "http://example.com",
-            "https://example.com"
-        ])
+        urls = crawler.create_start_urls(
+            ["example.com", "http://example.com", "https://example.com"]
+        )
 
         # Should deduplicate to unique URLs
         url_strings = [str(u) for u in urls]
@@ -138,10 +144,7 @@ class TestCrawlerFollowMethod:
         async def dummy_callback(request, response):
             pass
 
-        request = await crawler.follow(
-            URL("https://example.com/test"),
-            dummy_callback
-        )
+        request = await crawler.follow(URL("https://example.com/test"), dummy_callback)
 
         assert request is not None
         assert request.url == URL("https://example.com/test")
@@ -156,16 +159,14 @@ class TestCrawlerFollowMethod:
             method="GET",
             headers={},
             status_code=200,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         async def dummy_callback(request, response):
             pass
 
         request = await crawler.follow(
-            "/relative/path",
-            dummy_callback,
-            response=base_response
+            "/relative/path", dummy_callback, response=base_response
         )
 
         assert request is not None
@@ -177,10 +178,7 @@ class TestCrawlerFollowMethod:
         async def dummy_callback(request, response):
             pass
 
-        request = await crawler.follow(
-            URL("https://blocked.com/test"),
-            dummy_callback
-        )
+        request = await crawler.follow(URL("https://blocked.com/test"), dummy_callback)
 
         assert request is None  # Should be blocked
 
@@ -193,16 +191,14 @@ class TestCrawlerFollowMethod:
             method="GET",
             headers={},
             status_code=200,
-            history=[URL("https://example.com"), URL("https://example.com/level1")]
+            history=[URL("https://example.com"), URL("https://example.com/level1")],
         )
 
         async def dummy_callback(request, response):
             pass
 
         request = await crawler.follow(
-            URL("https://example.com/too-deep"),
-            dummy_callback,
-            response=base_response
+            URL("https://example.com/too-deep"), dummy_callback, response=base_response
         )
 
         assert request is None  # Should be blocked by depth
@@ -214,9 +210,7 @@ class TestCrawlerFollowMethod:
             pass
 
         request = await crawler.follow(
-            URL("https://example.com/priority"),
-            dummy_callback,
-            priority=50
+            URL("https://example.com/priority"), dummy_callback, priority=50
         )
 
         assert request is not None
@@ -232,27 +226,27 @@ class TestCrawlerWorkflow:
         crawler = MockCrawler(total_timeout=0.1)
 
         # Mock the session creation to avoid actual network setup
-        with patch('aiohttp.ClientSession') as mock_session_class:
+        with patch("aiohttp.ClientSession") as mock_session_class:
             mock_session = AsyncMock()
             mock_session_class.return_value = mock_session
             mock_session.__aenter__.return_value = mock_session
             mock_session.__aexit__.return_value = None
             mock_session.closed = False
 
-            with patch('aiohttp.TCPConnector'):
+            with patch("aiohttp.TCPConnector"):
                 await crawler.crawl(["https://example.com"])
 
         # Check that semaphores were created
-        assert hasattr(crawler, '_download_semaphore')
-        assert hasattr(crawler, '_parse_semaphore')
+        assert hasattr(crawler, "_download_semaphore")
+        assert hasattr(crawler, "_parse_semaphore")
         assert crawler._download_semaphore._value == crawler.concurrency
         assert crawler._parse_semaphore._value == crawler.concurrency * 2
 
     async def test_worker_count_optimization(self):
         # Test different concurrency levels
         test_cases = [
-            (1, 1),    # min(1 * 1.5, 20) = 1, max(1, 1) = 1
-            (5, 7),    # min(5 * 1.5, 20) = 7, max(5, 7) = 7
+            (1, 1),  # min(1 * 1.5, 20) = 1, max(1, 1) = 1
+            (5, 7),  # min(5 * 1.5, 20) = 7, max(5, 7) = 7
             (10, 15),  # min(10 * 1.5, 20) = 15, max(10, 15) = 15
             (20, 20),  # min(20 * 1.5, 20) = 20, max(20, 20) = 20
         ]
@@ -261,8 +255,8 @@ class TestCrawlerWorkflow:
             crawler = MockCrawler(concurrency=concurrency)
 
             # Mock the session and connector
-            with patch('aiohttp.ClientSession') as mock_session_class:
-                with patch('aiohttp.TCPConnector'):
+            with patch("aiohttp.ClientSession") as mock_session_class:
+                with patch("aiohttp.TCPConnector"):
                     mock_session = AsyncMock()
                     mock_session_class.return_value = mock_session
                     mock_session.__aenter__.return_value = mock_session
@@ -271,6 +265,7 @@ class TestCrawlerWorkflow:
 
                     # Create a mock request queue
                     from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                     mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                     mock_queue.join = AsyncMock()
                     crawler._request_queue = mock_queue
@@ -283,8 +278,8 @@ class TestCrawlerWorkflow:
     async def test_tcp_connector_configuration(self):
         crawler = MockCrawler(concurrency=5)
 
-        with patch('aiohttp.TCPConnector') as mock_connector_class:
-            with patch('aiohttp.ClientSession') as mock_session_class:
+        with patch("aiohttp.TCPConnector") as mock_connector_class:
+            with patch("aiohttp.ClientSession") as mock_session_class:
                 mock_connector = MagicMock()
                 mock_connector_class.return_value = mock_connector
 
@@ -296,6 +291,7 @@ class TestCrawlerWorkflow:
 
                 # Create a mock request queue
                 from feedsearch_crawler.crawler.lib import CrawlerPriorityQueue
+
                 mock_queue = AsyncMock(spec=CrawlerPriorityQueue)
                 mock_queue.join = AsyncMock()
                 crawler._request_queue = mock_queue
@@ -306,12 +302,12 @@ class TestCrawlerWorkflow:
                 mock_connector_class.assert_called_once()
                 call_kwargs = mock_connector_class.call_args[1]
 
-                assert call_kwargs['limit'] == 100
-                assert call_kwargs['limit_per_host'] == 5  # matches concurrency
-                assert call_kwargs['enable_cleanup_closed'] is True
-                assert call_kwargs['keepalive_timeout'] == 30
-                assert call_kwargs['force_close'] is False
-                assert call_kwargs['use_dns_cache'] is True
+                assert call_kwargs["limit"] == 100
+                assert call_kwargs["limit_per_host"] == 5  # matches concurrency
+                assert call_kwargs["enable_cleanup_closed"] is True
+                assert call_kwargs["keepalive_timeout"] == 30
+                assert call_kwargs["force_close"] is False
+                assert call_kwargs["use_dns_cache"] is True
 
 
 @pytest.mark.asyncio
@@ -323,6 +319,7 @@ class TestCrawlerStatistics:
 
         # Check that all stat keys are initialized
         from feedsearch_crawler.crawler.lib import Stats
+
         for stat in Stats:
             assert stat in crawler.stats
 
@@ -369,7 +366,7 @@ class TestCrawlerRequestProcessing:
         crawler = MockCrawler()
 
         # Mock the queue
-        with patch.object(crawler, '_put_queue') as mock_put_queue:
+        with patch.object(crawler, "_put_queue") as mock_put_queue:
             request = Request(url=URL("https://example.com"))
             crawler._process_request(request)
 
@@ -381,7 +378,7 @@ class TestCrawlerRequestProcessing:
         crawler = MockCrawler()
 
         # Should not crash with None request
-        with patch.object(crawler, '_put_queue') as mock_put_queue:
+        with patch.object(crawler, "_put_queue") as mock_put_queue:
             crawler._process_request(None)
             mock_put_queue.assert_not_called()
 
@@ -405,7 +402,7 @@ class TestCrawlerCallbackHandling:
         crawler = MockCrawler()
         request = Request(url=URL("https://example.com"))
 
-        with patch.object(crawler, '_process_request') as mock_process:
+        with patch.object(crawler, "_process_request") as mock_process:
             await crawler._process_request_callback_result(request)
             mock_process.assert_called_once_with(request)
 
@@ -414,6 +411,7 @@ class TestCrawlerCallbackHandling:
 
         # Create a deeply nested callback result that would cause recursion
         from feedsearch_crawler.crawler.queueable import CallbackResult
+
         deep_result = CallbackResult(MockItem("test"), callback_recursion=20)
 
         # Should handle gracefully without infinite recursion

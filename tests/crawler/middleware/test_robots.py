@@ -29,7 +29,9 @@ class TestRobotsMiddleware:
         middleware = RobotsMiddleware(user_agent="TestBot")
 
         # Mock the RobotFileParser
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True
             mock_robotparser.return_value = mock_rp
@@ -46,7 +48,9 @@ class TestRobotsMiddleware:
         middleware = RobotsMiddleware(user_agent="TestBot")
 
         # Mock the RobotFileParser to disallow the request
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = False  # Blocked
             mock_robotparser.return_value = mock_rp
@@ -65,7 +69,9 @@ class TestRobotsMiddleware:
         middleware = RobotsMiddleware(user_agent="TestBot")
 
         # Mock the robots.txt fetching
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True
             mock_robotparser.return_value = mock_rp
@@ -86,7 +92,9 @@ class TestRobotsMiddleware:
         """Test that different hosts have separate robots.txt handling."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True
             mock_robotparser.return_value = mock_rp
@@ -107,7 +115,9 @@ class TestRobotsMiddleware:
         middleware = RobotsMiddleware(user_agent="TestBot")
 
         # Mock robots.txt fetching to fail
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.read.side_effect = Exception("Network error")
             mock_rp.can_fetch.return_value = True  # Default to allow on error
@@ -123,8 +133,11 @@ class TestRobotsMiddleware:
         """Test that user-agent specific rules are respected."""
         middleware = RobotsMiddleware(user_agent="SpecificBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
+
             # Mock that our specific bot can access /special/ but not other paths
             def can_fetch_mock(user_agent, url):
                 if "/special/" in url:
@@ -151,7 +164,9 @@ class TestRobotsMiddleware:
         """Test that crawl-delay from robots.txt is respected."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True
             mock_rp.crawl_delay.return_value = 2.0  # 2 second delay
@@ -170,7 +185,9 @@ class TestRobotsMiddleware:
         """Test handling of sitemap directives in robots.txt."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True
             mock_rp.site_maps.return_value = ["https://example.com/sitemap.xml"]
@@ -192,7 +209,7 @@ class TestRobotsMiddleware:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
 
         # Should not raise exceptions
@@ -214,7 +231,9 @@ class TestRobotsMiddleware:
         """Test handling of malformed robots.txt files."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             # Simulate malformed robots.txt parsing
             mock_rp.read.side_effect = ValueError("Malformed robots.txt")
@@ -231,7 +250,9 @@ class TestRobotsMiddleware:
         """Test handling of empty robots.txt files."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        with patch('feedsearch_crawler.crawler.middleware.robots.RobotFileParser') as mock_robotparser:
+        with patch(
+            "feedsearch_crawler.crawler.middleware.robots.RobotFileParser"
+        ) as mock_robotparser:
             mock_rp = MagicMock()
             mock_rp.can_fetch.return_value = True  # Empty robots.txt allows everything
             mock_robotparser.return_value = mock_rp

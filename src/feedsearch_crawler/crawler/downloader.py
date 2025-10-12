@@ -56,7 +56,10 @@ class Downloader:
 
                 # Check content type early to avoid downloading irrelevant content
                 content_type = resp.headers.get(hdrs.CONTENT_TYPE, "").lower()
-                if not any(ct in content_type for ct in ['xml', 'rss', 'atom', 'json', 'html', 'text']):
+                if not any(
+                    ct in content_type
+                    for ct in ["xml", "rss", "atom", "json", "html", "text"]
+                ):
                     # Skip downloading body for irrelevant content types
                     resp.close()
                     return self._failed_response(request, 415, history)
@@ -149,7 +152,7 @@ class Downloader:
                 response_status_code = 499
             else:
                 response_status_code = 500
-            
+
             # Pass the exception to the middleware
             for middleware in self.middlewares:
                 await middleware.process_exception(request, e)
@@ -183,13 +186,13 @@ class Downloader:
         timeout = request.timeout
         if isinstance(timeout, (int, float)):
             timeout = ClientTimeout(total=float(timeout))
-        
+
         if request.method.upper() == "GET":
             return self.request_session.get(
-                request.url, 
-                headers=request.headers, 
-                timeout=timeout, 
-                params=request.params
+                request.url,
+                headers=request.headers,
+                timeout=timeout,
+                params=request.params,
             )
         elif request.method.upper() == "POST":
             return self.request_session.post(
@@ -222,7 +225,11 @@ class Downloader:
             )
 
     def _failed_response(
-        self, request: Request, status: int, history: List[URL], headers: Optional[Dict[str, str]] = None
+        self,
+        request: Request,
+        status: int,
+        history: List[URL],
+        headers: Optional[Dict[str, str]] = None,
     ) -> Response:
         """
         Create a failed Response object with the provided Status Code.
@@ -255,7 +262,9 @@ class Downloader:
         """
         body: bytes = b""
         try:
-            async for chunk in resp.content.iter_chunked(8192):  # 8KB chunks for better performance
+            async for chunk in resp.content.iter_chunked(
+                8192
+            ):  # 8KB chunks for better performance
                 if not chunk:
                     break
                 body += chunk

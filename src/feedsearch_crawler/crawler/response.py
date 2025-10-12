@@ -105,7 +105,7 @@ class Response:
         try:
             result = self._xml_parser(self.text)
             # Handle both sync and async parsers
-            if hasattr(result, '__await__'):
+            if hasattr(result, "__await__"):
                 self._xml = await result
             else:
                 self._xml = result

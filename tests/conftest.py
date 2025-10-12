@@ -63,21 +63,23 @@ def sample_atom_feed() -> str:
 @pytest.fixture
 def sample_json_feed() -> str:
     """Sample JSON Feed for testing."""
-    return json.dumps({
-        "version": "https://jsonfeed.org/version/1",
-        "title": "Test JSON Feed",
-        "home_page_url": "https://example.com",
-        "feed_url": "https://example.com/feed.json",
-        "items": [
-            {
-                "id": "1",
-                "title": "Test JSON Item",
-                "url": "https://example.com/json-item1",
-                "summary": "First JSON test item",
-                "date_published": "2025-01-01T12:00:00Z"
-            }
-        ]
-    })
+    return json.dumps(
+        {
+            "version": "https://jsonfeed.org/version/1",
+            "title": "Test JSON Feed",
+            "home_page_url": "https://example.com",
+            "feed_url": "https://example.com/feed.json",
+            "items": [
+                {
+                    "id": "1",
+                    "title": "Test JSON Item",
+                    "url": "https://example.com/json-item1",
+                    "summary": "First JSON test item",
+                    "date_published": "2025-01-01T12:00:00Z",
+                }
+            ],
+        }
+    )
 
 
 @pytest.fixture
@@ -232,8 +234,8 @@ class MockCrawler(Crawler):
 
     def __init__(self, **kwargs):
         # Set default test timeout if not specified
-        if 'total_timeout' not in kwargs:
-            kwargs['total_timeout'] = 0.5
+        if "total_timeout" not in kwargs:
+            kwargs["total_timeout"] = 0.5
         super().__init__(**kwargs)
         self.processed_items = []
         self.parsed_responses = []
@@ -253,21 +255,13 @@ class MockCrawler(Crawler):
 @pytest.fixture
 async def crawler_instance():
     """Create a test crawler instance."""
-    return MockCrawler(
-        concurrency=2,
-        total_timeout=5.0,
-        request_timeout=2.0
-    )
+    return MockCrawler(concurrency=2, total_timeout=5.0, request_timeout=2.0)
 
 
 @pytest.fixture
 async def feedsearch_spider():
     """Create a test FeedsearchSpider instance."""
-    spider = FeedsearchSpider(
-        concurrency=2,
-        total_timeout=5.0,
-        request_timeout=2.0
-    )
+    spider = FeedsearchSpider(concurrency=2, total_timeout=5.0, request_timeout=2.0)
     return spider
 
 
@@ -278,7 +272,7 @@ def mock_dns_resolution():
 
     def mock_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
         # Return localhost for all domains
-        return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', port))]
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", port))]
 
     original = socket.getaddrinfo
     socket.getaddrinfo = mock_getaddrinfo
@@ -293,9 +287,9 @@ def no_network_calls(monkeypatch):
 
     async def mock_request(self, method, url, **kwargs):
         # Allow requests to localhost and 127.0.0.1 for test servers
-        if hasattr(url, 'host') and url.host in ('localhost', '127.0.0.1'):
+        if hasattr(url, "host") and url.host in ("localhost", "127.0.0.1"):
             return await original_request(self, method, url, **kwargs)
-        elif isinstance(url, str) and ('localhost' in url or '127.0.0.1' in url):
+        elif isinstance(url, str) and ("localhost" in url or "127.0.0.1" in url):
             return await original_request(self, method, url, **kwargs)
         else:
             raise RuntimeError("Real network calls are not allowed in tests!")

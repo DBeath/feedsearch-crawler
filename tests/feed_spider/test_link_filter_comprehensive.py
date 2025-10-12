@@ -16,14 +16,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/rss">RSS Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -35,14 +35,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/feed/">Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -54,14 +54,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/atom.xml">Atom Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -71,14 +71,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/?feed=rss2">Feed Query</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -91,14 +91,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/podcast">Podcast</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -110,14 +110,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<link href="/feed.xml" type="application/rss+xml" />'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('link')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("link")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -129,14 +129,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<link href="/atom" type="application/atom+xml" />'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('link')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("link")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -148,14 +148,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<link href="/feed.json" type="application/json" />'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('link')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("link")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -165,14 +165,14 @@ class TestLinkFilterURLPatterns:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<link href="/oembed" type="application/json+oembed" />'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('link')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("link")
 
         result = filter.should_follow_link(link)
         # Should return None because oembed is excluded
@@ -187,14 +187,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/feed.jpg">Not a feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -204,14 +204,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/document.pdf">PDF</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -221,14 +221,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/wp-admin/feed">WP Admin</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -238,14 +238,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/wp-includes/rss.php">WP Includes</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -255,14 +255,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="mailto:test@example.com">Email</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -272,14 +272,14 @@ class TestLinkFilterInvalidContent:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/feed?comment=123">Comment</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -293,14 +293,14 @@ class TestLinkFilterPriority:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/archive/feed">Archive Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         if result:
@@ -314,14 +314,14 @@ class TestLinkFilterPriority:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/author/john">Author</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         if result:
@@ -337,14 +337,14 @@ class TestLinkFilterFullCrawl:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=True)
 
         html = '<a href="/about">About</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None  # Should follow in full_crawl mode
@@ -354,14 +354,14 @@ class TestLinkFilterFullCrawl:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/about">About</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None  # Should not follow
@@ -375,14 +375,14 @@ class TestLinkFilterQueryStringHandling:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/rss?utm_source=twitter">RSS</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -395,14 +395,14 @@ class TestLinkFilterQueryStringHandling:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/?feed=rss2">Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -419,14 +419,14 @@ class TestLinkFilterEdgeCases:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
-        html = '<a>No Href</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        html = "<a>No Href</a>"
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -436,14 +436,14 @@ class TestLinkFilterEdgeCases:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="javascript:void(0)">JavaScript</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is None
@@ -453,14 +453,14 @@ class TestLinkFilterEdgeCases:
         response = Response(
             url=URL("https://example.com/blog"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com/blog"))
         filter = LinkFilter(response, request, full_crawl=False)
 
         html = '<a href="/feed">Feed</a>'
-        soup = BeautifulSoup(html, 'html.parser')
-        link = soup.find('a')
+        soup = BeautifulSoup(html, "html.parser")
+        link = soup.find("a")
 
         result = filter.should_follow_link(link)
         assert result is not None
@@ -477,12 +477,13 @@ class TestHelperMethods:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request)
 
         from feedsearch_crawler.feed_spider.regexes import feedlike_regex
+
         assert filter.is_href_matching("/rss", feedlike_regex) is True
         assert filter.is_href_matching("/about", feedlike_regex) is False
 
@@ -491,7 +492,7 @@ class TestHelperMethods:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request)
@@ -505,7 +506,7 @@ class TestHelperMethods:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request)
@@ -518,7 +519,7 @@ class TestHelperMethods:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request)
@@ -531,7 +532,7 @@ class TestHelperMethods:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         request = Request(url=URL("https://example.com"))
         filter = LinkFilter(response, request)

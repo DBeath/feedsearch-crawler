@@ -269,7 +269,7 @@ class Crawler(ABC):
                     )
 
             dur_ms = (time.perf_counter() - start) * 1000
-            latency_ms = getattr(response, 'latency_ms', dur_ms)
+            latency_ms = getattr(response, "latency_ms", dur_ms)
 
             logger.debug(
                 "Fetched: url=%s dur=%.2fms status=%s",
@@ -680,7 +680,9 @@ class Crawler(ABC):
         self.stats[Stats.REQUESTS_RETRIED] = requests.get("retried", 0)
         self.stats[Stats.ITEMS_PROCESSED] = items.get("processed", 0)
         self.stats[Stats.URLS_SEEN] = urls.get("seen", 0)
-        self.stats[Stats.TOTAL_DURATION] = int(summary.get("total_duration_sec", 0) * 1000)
+        self.stats[Stats.TOTAL_DURATION] = int(
+            summary.get("total_duration_sec", 0) * 1000
+        )
         self.stats[Stats.STATUS_CODES] = new_stats.get("status_codes", {})
 
         # Request duration stats
@@ -755,12 +757,14 @@ class Crawler(ABC):
             raise ValueError("crawler.start_urls are required")
 
         # Create the Request Queue within the asyncio loop (unless already set by tests).
-        if not hasattr(self, '_request_queue') or self._request_queue is None:
+        if not hasattr(self, "_request_queue") or self._request_queue is None:
             self._request_queue = CrawlerPriorityQueue()
 
         # Create semaphores for controlling different types of concurrency within the asyncio loop.
         self._download_semaphore = asyncio.Semaphore(self.concurrency)
-        self._parse_semaphore = asyncio.Semaphore(self.concurrency * 2)  # Allow more parsing concurrency
+        self._parse_semaphore = asyncio.Semaphore(
+            self.concurrency * 2
+        )  # Allow more parsing concurrency
 
         trace_configs: List[TraceConfig] = []
         if self._trace:
@@ -781,7 +785,7 @@ class Crawler(ABC):
             force_close=False,  # Reuse connections
             use_dns_cache=True,  # Enable DNS caching
             family=0,  # Allow both IPv4/IPv6 (socket.AF_UNSPEC)
-            happy_eyeballs_delay=0.25  # Fast IPv6 fallback
+            happy_eyeballs_delay=0.25,  # Fast IPv6 fallback
         )
         # Create the ClientSession for HTTP Requests within the asyncio loop.
         self._session = aiohttp.ClientSession(

@@ -20,7 +20,9 @@ class TestThrottleMiddleware:
         # Create requests to different hosts
         request1 = Request(url=URL("https://example.com/page1"))
         request2 = Request(url=URL("https://different.com/page1"))
-        request3 = Request(url=URL("https://example.com/page2"))  # Same host as request1
+        request3 = Request(
+            url=URL("https://example.com/page2")
+        )  # Same host as request1
 
         start_time = asyncio.get_event_loop().time()
 
@@ -110,10 +112,7 @@ class TestThrottleMiddleware:
         middleware = ThrottleMiddleware(rate_per_sec=5)  # 200ms delay
 
         host = "example.com"
-        requests = [
-            Request(url=URL(f"https://{host}/page{i}"))
-            for i in range(3)
-        ]
+        requests = [Request(url=URL(f"https://{host}/page{i}")) for i in range(3)]
 
         start_time = asyncio.get_event_loop().time()
 

@@ -50,14 +50,14 @@ class TestSiteMetaParserInitialization:
 
         # Create parser for HTML
         async def mock_parser(text):
-            return BeautifulSoup(text, 'html.parser')
+            return BeautifulSoup(text, "html.parser")
 
         response = Response(
             url=URL("https://example.com"),
             method="GET",
             text=sample_html_with_metadata,
             xml_parser=mock_parser,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []
@@ -77,7 +77,7 @@ class TestSiteMetaParserInitialization:
             method="GET",
             text="",
             xml_parser=None,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []
@@ -96,7 +96,7 @@ class TestFindSiteURL:
         html = """<html><head>
             <link rel="canonical" href="https://example.com/page" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com/different")
 
         result = site_meta_parser.find_site_url(soup, url)
@@ -108,7 +108,7 @@ class TestFindSiteURL:
         html = """<html><head>
             <meta property="og:url" content="https://example.com/" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://test.com")
 
         result = site_meta_parser.find_site_url(soup, url)
@@ -120,7 +120,7 @@ class TestFindSiteURL:
         html = """<html><head>
             <link rel="canonical" href="/" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com/page")
 
         result = site_meta_parser.find_site_url(soup, url)
@@ -131,7 +131,7 @@ class TestFindSiteURL:
     def test_find_site_url_fallback_to_origin(self, site_meta_parser):
         """Test fallback to URL origin when no metadata found."""
         html = """<html><head><title>Test</title></head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com/some/deep/path")
 
         result = site_meta_parser.find_site_url(soup, url)
@@ -143,7 +143,7 @@ class TestFindSiteURL:
         html = """<html><head>
             <link rel="canonical" href="not-a-valid-url" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
 
         result = site_meta_parser.find_site_url(soup, url)
@@ -160,7 +160,7 @@ class TestFindSiteName:
         html = """<html><head>
             <meta property="og:site_name" content="Example Site" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -171,7 +171,7 @@ class TestFindSiteName:
         html = """<html><head>
             <meta property="og:title" content="Example Title" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -182,7 +182,7 @@ class TestFindSiteName:
         html = """<html><head>
             <meta property="application:name" content="App Name" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -193,7 +193,7 @@ class TestFindSiteName:
         html = """<html><head>
             <meta property="twitter:app:name:iphone" content="Twitter App" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -204,7 +204,7 @@ class TestFindSiteName:
         html = """<html><head>
             <title>Page Title</title>
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -217,7 +217,7 @@ class TestFindSiteName:
             <meta property="og:title" content="OG Title" />
             <title>Title Tag</title>
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -227,7 +227,7 @@ class TestFindSiteName:
     def test_find_site_name_empty_when_none(self, site_meta_parser):
         """Test empty string returned when no name found."""
         html = """<html><head></head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
 
         result = site_meta_parser.find_site_name(soup)
 
@@ -240,7 +240,7 @@ class TestFindSiteIconURLs:
     def test_find_site_icon_favicon_ico(self, site_meta_parser):
         """Test default favicon.ico is always included."""
         html = """<html><head></head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com/page")
         host = "example.com"
 
@@ -254,7 +254,7 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="icon" href="/custom-icon.png" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -267,7 +267,7 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="shortcut icon" href="/shortcut.ico" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -281,7 +281,7 @@ class TestFindSiteIconURLs:
             <link rel="icon" href="/icon.png" />
             <link rel="shortcut icon" href="/shortcut.ico" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -295,14 +295,16 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="icon" href="/images/icon.png" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com/page")
         host = "example.com"
 
         result = site_meta_parser.find_site_icon_urls(soup, url, host)
 
         # Should join relative URL with base
-        icons_with_path = [icon for icon in result if "images/icon.png" in str(icon.url)]
+        icons_with_path = [
+            icon for icon in result if "images/icon.png" in str(icon.url)
+        ]
         assert len(icons_with_path) > 0
 
     def test_find_site_icon_absolute_url(self, site_meta_parser):
@@ -310,7 +312,7 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="icon" href="https://cdn.example.com/icon.png" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -323,7 +325,7 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="icon" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -337,7 +339,7 @@ class TestFindSiteIconURLs:
         html = """<html><head>
             <link rel="icon" href="/icon.png" />
         </head></html>"""
-        soup = BeautifulSoup(html, 'html.parser')
+        soup = BeautifulSoup(html, "html.parser")
         url = URL("https://example.com")
         host = "example.com"
 
@@ -365,7 +367,7 @@ class TestSiteMetaIntegration:
 </html>"""
 
         async def mock_parser(text):
-            return BeautifulSoup(text, 'html.parser')
+            return BeautifulSoup(text, "html.parser")
 
         request = Request(url=URL("https://example.com"))
         response = Response(
@@ -373,7 +375,7 @@ class TestSiteMetaIntegration:
             method="GET",
             text=html,
             xml_parser=mock_parser,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []
@@ -393,7 +395,7 @@ class TestSiteMetaIntegration:
         html = """<html><head><title>Test</title></head><body></body></html>"""
 
         async def mock_parser(text):
-            return BeautifulSoup(text, 'html.parser')
+            return BeautifulSoup(text, "html.parser")
 
         request = Request(url=URL("https://example.com"))
         response = Response(
@@ -401,7 +403,7 @@ class TestSiteMetaIntegration:
             method="GET",
             text=html,
             xml_parser=mock_parser,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []
@@ -423,7 +425,7 @@ class TestSiteMetaIntegration:
         </head></html>"""
 
         async def mock_parser(text):
-            return BeautifulSoup(text, 'html.parser')
+            return BeautifulSoup(text, "html.parser")
 
         request = Request(url=URL("https://example.com"))
         response = Response(
@@ -431,7 +433,7 @@ class TestSiteMetaIntegration:
             method="GET",
             text=html,
             xml_parser=mock_parser,
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
 
         items = []

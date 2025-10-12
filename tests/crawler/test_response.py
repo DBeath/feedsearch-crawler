@@ -21,7 +21,7 @@ class TestResponseInitialization:
             method="GET",
             headers={"Content-Type": "text/html"},
             status_code=200,
-            history=[url]
+            history=[url],
         )
 
         assert response.url == url
@@ -55,7 +55,7 @@ class TestResponseInitialization:
             redirect_history=redirect_history,
             content_length=100,
             meta={"custom": "metadata"},
-            request=request
+            request=request,
         )
 
         assert response.url == url
@@ -78,11 +78,7 @@ class TestResponseInitialization:
         """Test default values for optional parameters."""
         url = URL("https://example.com/test")
         response = Response(
-            url=url,
-            method="GET",
-            headers={},
-            status_code=200,
-            history=[]
+            url=url, method="GET", headers={}, status_code=200, history=[]
         )
 
         assert response.encoding == ""
@@ -100,17 +96,20 @@ class TestResponseInitialization:
 class TestResponseStatusChecks:
     """Test Response status checking methods."""
 
-    @pytest.mark.parametrize("status_code,expected_ok", [
-        (200, True),
-        (201, True),
-        (204, True),
-        (299, True),
-        (300, False),
-        (301, False),
-        (400, False),
-        (404, False),
-        (500, False),
-    ])
+    @pytest.mark.parametrize(
+        "status_code,expected_ok",
+        [
+            (200, True),
+            (201, True),
+            (204, True),
+            (299, True),
+            (300, False),
+            (301, False),
+            (400, False),
+            (404, False),
+            (500, False),
+        ],
+    )
     def test_ok_property(self, status_code, expected_ok):
         """Test the ok property for various status codes."""
         response = Response(
@@ -118,7 +117,7 @@ class TestResponseStatusChecks:
             method="GET",
             headers={},
             status_code=status_code,
-            history=[]
+            history=[],
         )
         assert response.ok == expected_ok
 
@@ -131,7 +130,7 @@ class TestResponseStatusChecks:
                 method="GET",
                 headers={},
                 status_code=code,
-                history=[]
+                history=[],
             )
             assert response.ok is True
 
@@ -144,7 +143,7 @@ class TestResponseStatusChecks:
                 method="GET",
                 headers={},
                 status_code=code,
-                history=[]
+                history=[],
             )
             assert response.ok is False
 
@@ -157,7 +156,7 @@ class TestResponseStatusChecks:
                 method="GET",
                 headers={},
                 status_code=code,
-                history=[]
+                history=[],
             )
             assert response.ok is False
 
@@ -169,11 +168,7 @@ class TestResponseUrlProperties:
         """Test the origin property."""
         url = URL("https://example.com/path/to/resource?param=value#fragment")
         response = Response(
-            url=url,
-            method="GET",
-            headers={},
-            status_code=200,
-            history=[]
+            url=url, method="GET", headers={}, status_code=200, history=[]
         )
 
         expected_origin = URL("https://example.com")
@@ -186,7 +181,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert https_response.scheme == "https"
 
@@ -195,7 +190,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert http_response.scheme == "http"
 
@@ -206,7 +201,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert response.host == "api.example.com"
 
@@ -218,7 +213,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert https_response.port == 443
 
@@ -227,7 +222,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert http_response.port == 80
 
@@ -237,7 +232,7 @@ class TestResponseUrlProperties:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
         assert custom_port_response.port == 8080
 
@@ -248,6 +243,7 @@ class TestResponseXMLParsing:
     @pytest.mark.asyncio
     async def test_xml_parsing_with_parser(self):
         """Test XML parsing when parser is provided."""
+
         def mock_xml_parser(text):
             return {"parsed": True, "content": text}
 
@@ -259,7 +255,7 @@ class TestResponseXMLParsing:
             status_code=200,
             history=[],
             text=xml_content,
-            xml_parser=mock_xml_parser
+            xml_parser=mock_xml_parser,
         )
 
         parsed_xml = await response.xml
@@ -277,7 +273,7 @@ class TestResponseXMLParsing:
             status_code=200,
             history=[],
             text=xml_content,
-            xml_parser=None
+            xml_parser=None,
         )
 
         # Should return None when no parser is available
@@ -286,6 +282,7 @@ class TestResponseXMLParsing:
     @pytest.mark.asyncio
     async def test_xml_parsing_with_empty_text(self):
         """Test XML parsing with empty text."""
+
         def mock_xml_parser(text):
             return {"parsed": True, "content": text}
 
@@ -296,7 +293,7 @@ class TestResponseXMLParsing:
             status_code=200,
             history=[],
             text="",
-            xml_parser=mock_xml_parser
+            xml_parser=mock_xml_parser,
         )
 
         # Should still call parser with empty string
@@ -318,7 +315,7 @@ class TestResponseContentHandling:
             status_code=200,
             history=[],
             text=content,
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         assert response.text == content
@@ -333,7 +330,7 @@ class TestResponseContentHandling:
             headers={"Content-Type": "application/json"},
             status_code=200,
             history=[],
-            json=json_data
+            json=json_data,
         )
 
         assert response.json == json_data
@@ -349,7 +346,7 @@ class TestResponseContentHandling:
             headers={"Content-Type": "application/octet-stream"},
             status_code=200,
             history=[],
-            data=binary_data
+            data=binary_data,
         )
 
         assert response.data == binary_data
@@ -364,7 +361,7 @@ class TestResponseContentHandling:
             status_code=200,
             history=[],
             text=content,
-            content_length=len(content)
+            content_length=len(content),
         )
 
         assert response.content_length == len(content)
@@ -378,7 +375,7 @@ class TestResponseHeaders:
         headers = {
             "Content-Type": "text/html",
             "Content-Length": "1024",
-            "X-Custom-Header": "custom-value"
+            "X-Custom-Header": "custom-value",
         }
 
         response = Response(
@@ -386,7 +383,7 @@ class TestResponseHeaders:
             method="GET",
             headers=headers,
             status_code=200,
-            history=[]
+            history=[],
         )
 
         assert response.headers["Content-Type"] == "text/html"
@@ -400,7 +397,7 @@ class TestResponseHeaders:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
 
         assert response.headers == {}
@@ -412,7 +409,9 @@ class TestResponseMetadata:
     def test_response_with_request(self):
         """Test response associated with a request."""
         url = URL("https://example.com/test")
-        request = Request(url=url, method="POST", headers={"Authorization": "Bearer token"})
+        request = Request(
+            url=url, method="POST", headers={"Authorization": "Bearer token"}
+        )
 
         response = Response(
             url=url,
@@ -420,7 +419,7 @@ class TestResponseMetadata:
             headers={"Content-Type": "application/json"},
             status_code=201,
             history=[url],
-            request=request
+            request=request,
         )
 
         assert response.request == request
@@ -433,7 +432,7 @@ class TestResponseMetadata:
             "crawl_depth": 3,
             "source": "sitemap",
             "timestamp": datetime.now(),
-            "custom_data": {"key": "value"}
+            "custom_data": {"key": "value"},
         }
 
         response = Response(
@@ -442,7 +441,7 @@ class TestResponseMetadata:
             headers={},
             status_code=200,
             history=[],
-            meta=metadata
+            meta=metadata,
         )
 
         assert response.meta == metadata
@@ -458,11 +457,7 @@ class TestResponseMetadata:
         history = [initial_url, redirect_url, final_url]
 
         response = Response(
-            url=final_url,
-            method="GET",
-            headers={},
-            status_code=200,
-            history=history
+            url=final_url, method="GET", headers={}, status_code=200, history=history
         )
 
         assert response.history == history
@@ -486,15 +481,15 @@ class TestResponseEdgeCases:
             data=None,
             json=None,
             cookies=None,
-            meta=None
+            meta=None,
         )
 
         # Should handle None values gracefully with defaults
         assert response.headers is not None  # Should default to empty dict
         assert response.history is not None  # Should default to empty list
-        assert response.text is not None     # Should default to empty string
-        assert response.data is not None     # Should default to empty bytes
-        assert response.json is not None     # Should default to empty dict
+        assert response.text is not None  # Should default to empty string
+        assert response.data is not None  # Should default to empty bytes
+        assert response.json is not None  # Should default to empty dict
 
     def test_response_string_representation(self):
         """Test response string representation."""
@@ -503,7 +498,7 @@ class TestResponseEdgeCases:
             method="GET",
             headers={},
             status_code=200,
-            history=[]
+            history=[],
         )
 
         str_repr = str(response)
@@ -515,15 +510,14 @@ class TestResponseEdgeCases:
         # Should be a valid representation
         assert "Response" in repr_repr
 
+
 class TestResponseAdditionalCoverage:
     """Additional tests for comprehensive coverage."""
 
     def test_domain_property(self):
         """Test the domain property."""
         response = Response(
-            url=URL("https://example.com:8080/path"),
-            method="GET",
-            history=[]
+            url=URL("https://example.com:8080/path"), method="GET", history=[]
         )
         assert response.domain == "example.com"
 
@@ -532,20 +526,13 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://final.com"),
             method="GET",
-            history=[
-                URL("https://original.com"),
-                URL("https://redirect.com")
-            ]
+            history=[URL("https://original.com"), URL("https://redirect.com")],
         )
         assert response.previous_domain == "redirect.com"
 
     def test_previous_domain_empty_history(self):
         """Test previous_domain property with empty history."""
-        response = Response(
-            url=URL("https://example.com"),
-            method="GET",
-            history=[]
-        )
+        response = Response(url=URL("https://example.com"), method="GET", history=[])
         assert response.previous_domain == ""
 
     def test_originator_url_with_multiple_redirects(self):
@@ -556,8 +543,8 @@ class TestResponseAdditionalCoverage:
             history=[
                 URL("https://original.com"),
                 URL("https://redirect1.com"),
-                URL("https://redirect2.com")
-            ]
+                URL("https://redirect2.com"),
+            ],
         )
         assert response.originator_url == URL("https://redirect1.com")
 
@@ -566,17 +553,13 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://final.com"),
             method="GET",
-            history=[URL("https://original.com")]
+            history=[URL("https://original.com")],
         )
         assert response.originator_url is None
 
     def test_originator_url_no_history(self):
         """Test originator_url with no history."""
-        response = Response(
-            url=URL("https://example.com"),
-            method="GET",
-            history=[]
-        )
+        response = Response(url=URL("https://example.com"), method="GET", history=[])
         assert response.originator_url is None
 
     @pytest.mark.asyncio
@@ -594,7 +577,7 @@ class TestResponseAdditionalCoverage:
             method="GET",
             text="<xml>test</xml>",
             xml_parser=mock_parser,
-            history=[]
+            history=[],
         )
 
         # First call should parse
@@ -609,6 +592,7 @@ class TestResponseAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_xml_decode_data_when_no_text(self):
         """Test xml property decodes data when text is missing."""
+
         async def mock_parser(text):
             return {"parsed": text}
 
@@ -619,7 +603,7 @@ class TestResponseAdditionalCoverage:
             data=b"<xml>decoded</xml>",
             encoding="utf-8",
             xml_parser=mock_parser,
-            history=[]
+            history=[],
         )
 
         result = await response.xml
@@ -629,6 +613,7 @@ class TestResponseAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_xml_decode_error_handling(self):
         """Test xml property handles decode errors gracefully."""
+
         async def mock_parser(text):
             return {"parsed": text}
 
@@ -636,10 +621,10 @@ class TestResponseAdditionalCoverage:
             url=URL("https://example.com"),
             method="GET",
             text="",
-            data=b'\xff\xfe',  # Invalid UTF-8
+            data=b"\xff\xfe",  # Invalid UTF-8
             encoding="utf-8",
             xml_parser=mock_parser,
-            history=[]
+            history=[],
         )
 
         result = await response.xml
@@ -648,6 +633,7 @@ class TestResponseAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_xml_parser_sync(self):
         """Test xml property with synchronous parser."""
+
         def sync_parser(text):
             return {"sync": "result"}
 
@@ -656,7 +642,7 @@ class TestResponseAdditionalCoverage:
             method="GET",
             text="<xml>test</xml>",
             xml_parser=sync_parser,
-            history=[]
+            history=[],
         )
 
         result = await response.xml
@@ -665,6 +651,7 @@ class TestResponseAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_xml_parser_exception(self):
         """Test xml property handles parser exceptions."""
+
         def error_parser(text):
             raise ValueError("Parse error")
 
@@ -673,7 +660,7 @@ class TestResponseAdditionalCoverage:
             method="GET",
             text="<xml>test</xml>",
             xml_parser=error_parser,
-            history=[]
+            history=[],
         )
 
         result = await response.xml
@@ -687,8 +674,8 @@ class TestResponseAdditionalCoverage:
             history=[
                 URL("https://url1.com"),
                 URL("https://url2.com"),
-                URL("https://url3.com")
-            ]
+                URL("https://url3.com"),
+            ],
         )
         assert response.is_max_depth_reached(3) is True
 
@@ -697,26 +684,18 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://example.com"),
             method="GET",
-            history=[URL("https://url1.com")]
+            history=[URL("https://url1.com")],
         )
         assert response.is_max_depth_reached(5) is False
 
     def test_is_max_depth_reached_zero(self):
         """Test is_max_depth_reached with zero max_depth."""
-        response = Response(
-            url=URL("https://example.com"),
-            method="GET",
-            history=[]
-        )
+        response = Response(url=URL("https://example.com"), method="GET", history=[])
         assert response.is_max_depth_reached(0) is False
 
     def test_is_original_domain_first_response(self):
         """Test is_original_domain for first response in chain."""
-        response = Response(
-            url=URL("https://example.com"),
-            method="GET",
-            history=[]
-        )
+        response = Response(url=URL("https://example.com"), method="GET", history=[])
         assert response.is_original_domain() is True
 
     def test_is_original_domain_single_redirect(self):
@@ -724,7 +703,7 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://example.com/page"),
             method="GET",
-            history=[URL("https://example.com")]
+            history=[URL("https://example.com")],
         )
         assert response.is_original_domain() is True
 
@@ -733,10 +712,7 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://www.example.com"),
             method="GET",
-            history=[
-                URL("https://example.com"),
-                URL("https://api.example.com")
-            ]
+            history=[URL("https://example.com"), URL("https://api.example.com")],
         )
         assert response.is_original_domain() is True
 
@@ -745,9 +721,6 @@ class TestResponseAdditionalCoverage:
         response = Response(
             url=URL("https://different.com"),
             method="GET",
-            history=[
-                URL("https://example.com"),
-                URL("https://redirect.com")
-            ]
+            history=[URL("https://example.com"), URL("https://redirect.com")],
         )
         assert response.is_original_domain() is False

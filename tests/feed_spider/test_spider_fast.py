@@ -36,7 +36,7 @@ class TestFeedsearchSpiderFast:
         feed_info = FeedInfo(
             url="https://example.com/feed.xml",
             title="Test Feed",
-            description="Test Description"
+            description="Test Description",
         )
 
         assert feed_info.url == "https://example.com/feed.xml"
@@ -96,7 +96,7 @@ class TestFeedsearchSpiderFast:
             try_urls=False,
             favicon_data_uri=True,
             crawl_hosts=False,
-            full_crawl=True
+            full_crawl=True,
         )
 
         assert spider.concurrency == 5

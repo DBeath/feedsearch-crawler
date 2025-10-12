@@ -20,10 +20,7 @@ class TestRetryMiddleware:
 
     def test_middleware_initialization_custom(self):
         """Test custom initialization."""
-        middleware = RetryMiddleware(
-            max_retries=5,
-            retry_statuses=[429, 503]
-        )
+        middleware = RetryMiddleware(max_retries=5, retry_statuses=[429, 503])
         assert middleware.max_retries == 5
         assert middleware.retry_statuses == [429, 503]
 
@@ -48,7 +45,7 @@ class TestRetryMiddleware:
                 headers={},
                 status_code=status_code,
                 history=[],
-                request=fresh_request
+                request=fresh_request,
             )
 
             with pytest.raises(RetryRequestException):
@@ -76,7 +73,7 @@ class TestRetryMiddleware:
                 headers={},
                 status_code=status_code,
                 history=[],
-                request=fresh_request
+                request=fresh_request,
             )
 
             # Should not raise exception
@@ -97,7 +94,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,  # Normally retriable
             history=[],
-            request=request
+            request=request,
         )
 
         # Should not raise RetryRequestException
@@ -118,7 +115,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=429,
             history=[],
-            request=request
+            request=request,
         )
 
         with pytest.raises(RetryRequestException) as exc_info:
@@ -131,10 +128,7 @@ class TestRetryMiddleware:
     async def test_custom_retry_status_codes(self):
         """Test custom retry status codes configuration."""
         # Only retry on 429 (rate limit)
-        middleware = RetryMiddleware(
-            max_retries=2,
-            retry_statuses=[429]
-        )
+        middleware = RetryMiddleware(max_retries=2, retry_statuses=[429])
 
         request = Request(url=URL("https://example.com"))
         request.retries = 0
@@ -146,7 +140,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=429,
             history=[],
-            request=request
+            request=request,
         )
 
         with pytest.raises(RetryRequestException):
@@ -162,7 +156,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,
             history=[],
-            request=fresh_request
+            request=fresh_request,
         )
 
         # Should not raise exception
@@ -183,7 +177,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,
             history=[],
-            request=request
+            request=request,
         )
 
         with pytest.raises(RetryRequestException) as exc_info:
@@ -209,7 +203,7 @@ class TestRetryMiddleware:
                 headers={},
                 status_code=503,
                 history=[],
-                request=request
+                request=request,
             )
 
             with pytest.raises(RetryRequestException):
@@ -224,7 +218,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,
             history=[],
-            request=request
+            request=request,
         )
 
         # Should not raise exception
@@ -273,7 +267,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,
             history=[],
-            request=request
+            request=request,
         )
 
         # Should not retry even on retriable status
@@ -294,7 +288,7 @@ class TestRetryMiddleware:
             headers={},
             status_code=503,
             history=[],
-            request=request
+            request=request,
         )
 
         with pytest.raises(RetryRequestException):

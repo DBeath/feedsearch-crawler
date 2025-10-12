@@ -178,7 +178,9 @@ class TestStatsCollectorStandard:
 
         # Should have content stats
         assert "content" in stats
-        assert stats["content"]["total_bytes"] == 10 * 1000 + sum(i * 100 for i in range(10))
+        assert stats["content"]["total_bytes"] == 10 * 1000 + sum(
+            i * 100 for i in range(10)
+        )
 
         await collector.stop()
 
@@ -259,7 +261,10 @@ class TestStatsCollectorDetailed:
         assert "host2.com" in stats["hosts"]
         assert stats["hosts"]["host1.com"]["requests"] == 5
         assert stats["hosts"]["host2.com"]["requests"] == 3
-        assert stats["hosts"]["host1.com"]["mean_duration_ms"] < stats["hosts"]["host2.com"]["mean_duration_ms"]
+        assert (
+            stats["hosts"]["host1.com"]["mean_duration_ms"]
+            < stats["hosts"]["host2.com"]["mean_duration_ms"]
+        )
 
         await collector.stop()
 
@@ -280,10 +285,16 @@ class TestErrorCategorization:
             ErrorCategory.TIMEOUT, "Request timeout", url="http://slow.com"
         )
         await collector.record_request_failed(
-            ErrorCategory.HTTP_CLIENT, "404 Not Found", status_code=404, url="http://missing.com"
+            ErrorCategory.HTTP_CLIENT,
+            "404 Not Found",
+            status_code=404,
+            url="http://missing.com",
         )
         await collector.record_request_failed(
-            ErrorCategory.HTTP_SERVER, "500 Internal Error", status_code=500, url="http://broken.com"
+            ErrorCategory.HTTP_SERVER,
+            "500 Internal Error",
+            status_code=500,
+            url="http://broken.com",
         )
 
         stats = collector.get_stats()
@@ -331,8 +342,12 @@ class TestStatusCodeTracking:
         await collector.record_request_successful(200, 100.0, 50.0, 1000)
         await collector.record_request_successful(200, 100.0, 50.0, 1000)
         await collector.record_request_successful(201, 100.0, 50.0, 1000)
-        await collector.record_request_failed(ErrorCategory.HTTP_CLIENT, "Not found", status_code=404)
-        await collector.record_request_failed(ErrorCategory.HTTP_SERVER, "Server error", status_code=500)
+        await collector.record_request_failed(
+            ErrorCategory.HTTP_CLIENT, "Not found", status_code=404
+        )
+        await collector.record_request_failed(
+            ErrorCategory.HTTP_SERVER, "Server error", status_code=500
+        )
 
         stats = collector.get_stats()
 
@@ -397,7 +412,9 @@ class TestSummaryMetrics:
 
         # Record requests with content
         for i in range(10):
-            await collector.record_request_successful(200, 100.0, 50.0, 10000)  # 10KB each
+            await collector.record_request_successful(
+                200, 100.0, 50.0, 10000
+            )  # 10KB each
 
         await collector.stop()
 
@@ -570,7 +587,9 @@ class TestThreadSafety:
         tasks = []
         for i in range(50):
             collector.record_request_queued()  # Sync call
-            tasks.append(collector.record_request_successful(200, 100.0, 50.0, 1000, "host.com"))
+            tasks.append(
+                collector.record_request_successful(200, 100.0, 50.0, 1000, "host.com")
+            )
             tasks.append(collector.record_item_processed())
             tasks.append(collector.record_url_seen(is_duplicate=(i % 2 == 0)))
 

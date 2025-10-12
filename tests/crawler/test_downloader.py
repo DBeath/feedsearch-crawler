@@ -85,7 +85,10 @@ async def test_downloader_success_and_middleware_calls() -> None:
             # Middleware assertions
             assert middleware.pre_requests and middleware.pre_requests[0] is req
             assert middleware.process_requests and middleware.process_requests[0] is req
-            assert middleware.process_responses_urls and middleware.process_responses_urls[0] == url
+            assert (
+                middleware.process_responses_urls
+                and middleware.process_responses_urls[0] == url
+            )
     finally:
         await server.close()
 
@@ -131,7 +134,9 @@ async def test_downloader_timeout_sets_408_and_marks_retry() -> None:
 
 
 @pytest.mark.asyncio
-async def test_downloader_process_exception_called_on_unexpected_error(monkeypatch) -> None:
+async def test_downloader_process_exception_called_on_unexpected_error(
+    monkeypatch,
+) -> None:
     server = await _create_test_server()
     try:
         async with aiohttp.ClientSession() as session:
@@ -150,6 +155,8 @@ async def test_downloader_process_exception_called_on_unexpected_error(monkeypat
             resp = await downloader.fetch(req)
 
             assert resp.status_code == 500
-            assert middleware.exceptions and isinstance(middleware.exceptions[0], RuntimeError)
+            assert middleware.exceptions and isinstance(
+                middleware.exceptions[0], RuntimeError
+            )
     finally:
         await server.close()
