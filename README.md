@@ -4,12 +4,18 @@
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/feedsearch-crawler.svg)
 ![PyPI - License](https://img.shields.io/pypi/l/feedsearch-crawler.svg)
 
-Feedsearch Crawler is a Python library for searching websites for [RSS](https://en.wikipedia.org/wiki/RSS), [Atom](https://en.wikipedia.org/wiki/Atom_(Web_standard)), and [JSON](https://jsonfeed.org/) feeds.
+**feedsearch-crawler** is a Python library for discovering [RSS](https://en.wikipedia.org/wiki/RSS), [Atom](https://en.wikipedia.org/wiki/Atom_(Web_standard)), and [JSON](https://jsonfeed.org/) feeds on websites.
+
+## About
+
+This is a **library package** designed to be integrated into other Python applications. It provides a simple API for feed discovery that can be embedded into web scrapers, content aggregators, RSS readers, or API services.
 
 It is a continuation of my work on [Feedsearch](https://github.com/DBeath/feedsearch), which is itself a continuation of the work done by [Dan Foreman-Mackey](http://dfm.io/) on [Feedfinder2](https://github.com/dfm/feedfinder2), which in turn is based on [feedfinder](http://www.aaronsw.com/2002/feedfinder/) - originally written by [Mark Pilgrim](http://en.wikipedia.org/wiki/Mark_Pilgrim_(software_developer)) and subsequently maintained by
 [Aaron Swartz](http://en.wikipedia.org/wiki/Aaron_Swartz) until his untimely death.
 
-Feedsearch Crawler differs with all of the above in that it is now built as an asynchronous [Web crawler](https://en.wikipedia.org/wiki/Web_crawler) for [Python 3.7](https://www.python.org/downloads/release/python-370/) and above, using [asyncio](https://docs.python.org/3/library/asyncio.html) and [aiohttp](https://aiohttp.readthedocs.io/en/stable/), to allow much more rapid scanning of possible feed urls.
+Feedsearch Crawler differs from previous versions in that it is now built as an asynchronous [Web crawler](https://en.wikipedia.org/wiki/Web_crawler) using [asyncio](https://docs.python.org/3/library/asyncio.html) and [aiohttp](https://aiohttp.readthedocs.io/en/stable/), allowing much more rapid scanning of potential feed URLs.
+
+## Real-World Usage
 
 An implementation using this library to provide a public Feed Search API is available at <https://feedsearch.dev>
 
@@ -23,7 +29,9 @@ The library is available on [PyPI](https://pypi.org/project/feedsearch-crawler/)
 pip install feedsearch-crawler
 ```
 
-The library requires Python 3.7+.
+**Requirements:**
+- Python 3.12 or higher
+- No additional system dependencies
 
 ## Usage
 

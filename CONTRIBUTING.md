@@ -6,6 +6,22 @@ Thank you for considering contributing to feedsearch-crawler! This document prov
 
 This project follows a simple code of conduct: be respectful, constructive, and professional in all interactions.
 
+## Important: This is a Library Package
+
+**feedsearch-crawler** is a library designed to be consumed by other Python projects, not an end-user application. This means:
+
+- **Stability is critical**: Breaking changes affect all downstream users
+- **Dependencies matter**: Every dependency we add impacts all users' projects
+- **API surface is sacred**: Public APIs must maintain backward compatibility
+- **Size matters**: Package size affects installation time and Docker images
+- **Consider optional dependencies**: For features that not all users need
+
+When contributing, please consider:
+- Will this change break existing user code?
+- Does this add a necessary dependency, or can we avoid it?
+- Is this a public API change that needs deprecation warnings?
+- Does this increase package size significantly?
+
 ## How to Contribute
 
 ### Reporting Bugs
