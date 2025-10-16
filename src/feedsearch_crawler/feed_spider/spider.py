@@ -1,6 +1,6 @@
 import base64
 import logging
-from typing import Union, Any, List, Set, AsyncGenerator
+from typing import Any, AsyncGenerator, List, Set, Union
 
 import bs4
 from yarl import URL
@@ -87,7 +87,7 @@ class FeedsearchSpider(Crawler):
             return
 
         # Parse HTML content using BeautifulSoup
-        soup = await self.parse_xml(response.text)
+        soup = await self.parse_response_content(response.text)
         if not soup:
             return
 
@@ -133,13 +133,17 @@ class FeedsearchSpider(Crawler):
         if response.url == url_origin or request.url == request_url_origin:
             yield self.site_meta_processor.parse_item(request, response)
 
-    async def parse_xml(self, response_text: str) -> Any:
+    async def parse_response_content(self, response_text: str) -> Any:
         """
-        Parse Response text as XML.
-        Used to allow implementations to provide their own XML parser.
+        Parse Response content as HTML/XML.
+        Used to allow implementations to provide their own HTML parser.
+
+        This method uses html.parser intentionally because it needs to parse
+        both HTML pages (to extract links) and handle XML gracefully.
+        Actual RSS/Atom/XML feeds are parsed by FeedInfoParser using feedparser.
 
         :param response_text: Response text as string.
-        :return: None
+        :return: BeautifulSoup object
         """
         return bs4.BeautifulSoup(response_text, self.htmlparser)
 

@@ -243,7 +243,7 @@ class MockCrawler(Crawler):
     async def process_item(self, item):
         self.processed_items.append(item)
 
-    async def parse_xml(self, response_text: str):
+    async def parse_response_content(self, response_text: str):
         return {"parsed": True, "content": response_text[:100]}
 
     async def parse_response(self, request, response):

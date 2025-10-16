@@ -346,13 +346,18 @@ def parse_robots_txt(robots_txt: str, user_agent: str) -> List[str]:
 
 
 def parse_sitemap(sitemap_xml: str) -> List[str]:
-    """Parses a sitemap XML file and returns the URLs of any RSS or Atom feeds.
+    """Parses a sitemap XML file and returns URLs of potential RSS/Atom/JSON feeds.
+
+    Enhanced to filter for feed-like URLs using multiple patterns:
+    - URLs ending with .rss, .xml, .atom
+    - URLs containing /rss, /feed, /atom in the path
+    - URLs with feed-related segments like rss., feed., atom.
 
     Args:
       sitemap_xml: The sitemap XML file, as a string.
 
     Returns:
-      A list of URLs of the RSS or Atom feeds that are included in the sitemap.
+      A list of URLs that are likely to be feeds.
     """
 
     # Create a regex pattern to match the "loc" elements in the sitemap
@@ -361,14 +366,30 @@ def parse_sitemap(sitemap_xml: str) -> List[str]:
     # Create a list to store the URLs of the feeds
     feed_urls: List[str] = []
 
+    # Feed-like URL patterns to match
+    feed_patterns = [
+        "/rss",
+        "/feed",
+        "/atom",
+        ".rss",
+        ".xml",
+        ".atom",
+        "rss.",
+        "feed.",
+        "atom.",
+        "/feeds/",
+        "-feed",
+        "_feed",
+    ]
+
     # Use the regex pattern to find all the "loc" elements in the sitemap
     for loc_element in loc_pattern.finditer(sitemap_xml):
         # Get the URL from the "loc" element
         url = loc_element.group(1)
-        # If the URL ends with ".rss" or ".xml", it's an RSS feed URL
-        # If the URL ends with ".atom", it's an Atom feed URL
-        if url.endswith(".rss") or url.endswith(".xml") or url.endswith(".atom"):
-            # Add it to the list of feed URLs
+        url_lower = url.lower()
+
+        # Check if URL matches any feed pattern
+        if any(pattern in url_lower for pattern in feed_patterns):
             feed_urls.append(url)
 
     # Return the list of feed URLs

@@ -1,5 +1,10 @@
 # Build Size Comparison: Current vs Pydantic
 
+**Created:** 2025-01-16
+**Updated:** 2025-01-16
+
+---
+
 This document compares the package size and dependency footprint of the current implementation versus adopting Pydantic V2 for serialization.
 
 ## Current Implementation

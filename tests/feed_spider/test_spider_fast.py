@@ -2,8 +2,8 @@
 
 import pytest
 
-from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
+from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
 
 
 class TestFeedsearchSpiderFast:
@@ -24,7 +24,7 @@ class TestFeedsearchSpiderFast:
         spider = FeedsearchSpider()
 
         # Test that HTML can be parsed without errors
-        soup = await spider.parse_xml(sample_html_with_feeds)
+        soup = await spider.parse_response_content(sample_html_with_feeds)
         assert soup is not None
 
         # Verify feed links are found

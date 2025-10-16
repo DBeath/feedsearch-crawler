@@ -361,6 +361,53 @@ result = spider.add_favicon(favicon)  # No await
 - Maximum line length: 88 characters
 - Descriptive names for variables and functions
 
+## Documentation Organization
+
+### Documentation Files
+
+**All planning and summary documents MUST be placed in the `docs/` folder.**
+
+**Required format for all documentation:**
+
+```markdown
+# Document Title
+
+**Created:** YYYY-MM-DD
+**Updated:** YYYY-MM-DD
+
+---
+
+[Document content starts here]
+```
+
+**When to create documentation:**
+
+- Implementation plans for complex features
+- Implementation summaries after completing features
+- Architecture decision records (ADRs)
+- Migration guides for breaking changes
+- Performance analysis and comparisons
+
+**When updating existing documentation:**
+
+- Update the **Updated:** date to the current date
+- Leave the **Created:** date unchanged
+- Add change notes if the update is significant
+
+**Example documentation files:**
+
+- `docs/ROBOTS_SITEMAP_IMPLEMENTATION_PLAN.md` - Planning document with options analysis
+- `docs/ROBOTS_SITEMAP_IMPLEMENTATION_SUMMARY.md` - Implementation summary with results
+- `docs/BUILD_SIZE_COMPARISON.md` - Dependency size comparison analysis
+
+**Documentation standards:**
+
+- Use clear, descriptive titles
+- Include table of contents for documents >200 lines
+- Use code examples where helpful
+- Include performance metrics if relevant
+- Link to related files and documentation
+
 ## Common Pitfalls and Solutions
 
 ### Pitfall: Slow Tests

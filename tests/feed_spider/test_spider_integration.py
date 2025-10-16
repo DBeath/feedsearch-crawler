@@ -3,11 +3,11 @@
 import pytest
 from yarl import URL
 
-from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
 from feedsearch_crawler.crawler import Request, Response
+from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
-from feedsearch_crawler.feed_spider.favicon import Favicon
+from feedsearch_crawler.feed_spider.spider import FeedsearchSpider
 
 
 @pytest.mark.asyncio
@@ -119,20 +119,30 @@ class TestFeedsearchSpiderBasics:
 
         assert spider.favicons[favicon1.url].data_uri == "data:image/png;base64,test"
 
-    async def test_spider_xml_parsing(self):
-        """Test spider XML parsing."""
+    async def test_spider_parse_html(self):
+        """Test spider HTML parsing with parse_xml method.
+
+        Note: parse_xml() uses html.parser intentionally because it parses
+        both HTML pages (to extract links) and needs to handle XML gracefully.
+        Actual feed XML is parsed by FeedInfoParser using feedparser.
+        """
         spider = FeedsearchSpider(concurrency=1, total_timeout=1.0)
 
-        xml_text = """<?xml version="1.0"?>
-        <root>
-            <item>Test</item>
-        </root>"""
+        html_text = """<html>
+        <body>
+            <a href="/feed.xml">Feed</a>
+        </body>
+        </html>"""
 
-        result = await spider.parse_xml(xml_text)
+        result = await spider.parse_response_content(html_text)
 
         assert result is not None
         # BeautifulSoup parses it, so we can check it's a BS object
         assert hasattr(result, "name")
+        # Should find the link
+        link = result.find("a")
+        assert link is not None
+        assert link.get("href") == "/feed.xml"
 
     async def test_spider_populate_feed_site_meta(self):
         """Test post-crawl callback that populates feed metadata."""

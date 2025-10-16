@@ -23,8 +23,8 @@ import aiohttp
 from aiohttp import ClientTimeout, TraceConfig
 from yarl import URL
 
-from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.downloader import Downloader
+from feedsearch_crawler.crawler.duplicatefilter import DuplicateFilter
 from feedsearch_crawler.crawler.item import Item
 from feedsearch_crawler.crawler.lib import (
     CrawlerPriorityQueue,
@@ -33,21 +33,21 @@ from feedsearch_crawler.crawler.lib import (
     ignore_aiohttp_ssl_error,
     parse_href_to_url,
 )
+from feedsearch_crawler.crawler.middleware.content_type import ContentTypeMiddleware
+from feedsearch_crawler.crawler.middleware.cookie import CookieMiddleware
+from feedsearch_crawler.crawler.middleware.monitoring import MonitoringMiddleware
+from feedsearch_crawler.crawler.middleware.retry import RetryMiddleware
+from feedsearch_crawler.crawler.middleware.robots import RobotsMiddleware
+from feedsearch_crawler.crawler.middleware.throttle import ThrottleMiddleware
 from feedsearch_crawler.crawler.queueable import CallbackResult, Queueable
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.statistics import (
     ErrorCategory,
-    StatsCollector,
     StatisticsLevel,
+    StatsCollector,
 )
 from feedsearch_crawler.crawler.trace import add_trace_config
-from feedsearch_crawler.crawler.middleware.robots import RobotsMiddleware
-from feedsearch_crawler.crawler.middleware.throttle import ThrottleMiddleware
-from feedsearch_crawler.crawler.middleware.retry import RetryMiddleware
-from feedsearch_crawler.crawler.middleware.cookie import CookieMiddleware
-from feedsearch_crawler.crawler.middleware.content_type import ContentTypeMiddleware
-from feedsearch_crawler.crawler.middleware.monitoring import MonitoringMiddleware
 
 try:
     import uvloop
@@ -118,6 +118,7 @@ class Crawler(ABC):
         max_retries: int = 3,
         ssl: bool = False,
         trace: bool = False,
+        respect_robots: bool = True,
         stats_level: StatisticsLevel = StatisticsLevel.STANDARD,
         stats_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         stats_callback_interval: float = 5.0,
@@ -142,6 +143,7 @@ class Crawler(ABC):
         :param max_retries: Maximum number of retries for each failed HTTP request.
         :param ssl: Enables strict SSL checking.
         :param trace: Enables aiohttp trace debugging.
+        :param respect_robots: If True, fetch robots.txt first and respect disallow rules. Default True.
         :param stats_level: Statistics collection level (MINIMAL/STANDARD/DETAILED).
         :param stats_callback: Optional callback for real-time statistics updates.
         :param stats_callback_interval: Seconds between statistics callback invocations.
@@ -178,12 +180,17 @@ class Crawler(ABC):
         self.max_retries = max_retries
         self._ssl = ssl
         self._trace = trace
+        self.respect_robots = respect_robots
 
         # Default set for parsed items.
         self.items: set[Item] = set()
 
         # URL Duplicate Filter instance.
         self._duplicate_filter = self.duplicate_filter_class()
+
+        # Store robots.txt and sitemap information
+        self._robots_middleware: Optional[RobotsMiddleware] = None
+        self._sitemap_urls: Dict[str, List[str]] = {}  # host -> list of sitemap URLs
 
         # New StatsCollector for efficient statistics tracking
         self.stats_collector = StatsCollector(
@@ -228,14 +235,21 @@ class Crawler(ABC):
             Stats.REQUESTS_RETRIED: 0,
         }
 
-        self.middlewares = [
-            RobotsMiddleware(user_agent=self.user_agent),
-            ThrottleMiddleware(rate_per_sec=2),
-            RetryMiddleware(max_retries=3),
-            CookieMiddleware(),
-            ContentTypeMiddleware(),
-            MonitoringMiddleware(),
-        ]
+        # Build middleware list - conditionally add RobotsMiddleware
+        self.middlewares = []
+        if self.respect_robots:
+            self._robots_middleware = RobotsMiddleware(user_agent=self.user_agent)
+            self.middlewares.append(self._robots_middleware)
+
+        self.middlewares.extend(
+            [
+                ThrottleMiddleware(rate_per_sec=2),
+                RetryMiddleware(max_retries=3),
+                CookieMiddleware(),
+                ContentTypeMiddleware(),
+                MonitoringMiddleware(),
+            ]
+        )
 
     async def _handle_request(self, request: Request) -> None:
         """
@@ -520,7 +534,6 @@ class Crawler(ABC):
             url=request_url,
             history=history,
             callback=callback,
-            xml_parser=self.parse_xml,
             max_content_length=max_content_length or self.max_content_length,
             timeout=timeout or self.request_timeout,
             method=method,
@@ -546,10 +559,10 @@ class Crawler(ABC):
         raise NotImplementedError("Not Implemented")
 
     @abstractmethod
-    async def parse_xml(self, response_text: str) -> Any:
+    async def parse_response_content(self, response_text: str) -> Any:
         """
-        Parse Response text as XML.
-        Used to allow implementations to provide their own XML parser.
+        Parse Response content.
+        Used to allow implementations to provide their own HTML parser.
 
         :param response_text: Response text as string.
         """
@@ -566,6 +579,104 @@ class Crawler(ABC):
         :param response: HTTP Response.
         """
         raise NotImplementedError("Not Implemented")
+
+    async def parse_robots_txt(
+        self, request: Request, response: Response
+    ) -> AsyncGenerator[Any, Any]:
+        """Parse robots.txt response and queue sitemap requests.
+
+        This callback is called when a robots.txt file is fetched.
+        It extracts sitemap URLs and creates high-priority requests for them.
+
+        Sitemaps are always fetched regardless of respect_robots setting
+        to discover feed URLs.
+
+        :param request: HTTP Request for robots.txt
+        :param response: HTTP Response containing robots.txt
+        :return: AsyncGenerator yielding sitemap Requests
+        """
+        if not response.ok or not response.text:
+            return
+
+        # Extract sitemaps from robots.txt content
+        sitemap_urls = self._extract_sitemap_urls_from_text(response.text)
+
+        if sitemap_urls:
+            logger.info(
+                f"Found {len(sitemap_urls)} sitemap(s) in {response.url}: {sitemap_urls}"
+            )
+
+        # Queue sitemap requests with priority=5 (high priority, after robots.txt)
+        for sitemap_url in sitemap_urls:
+            req = await self.follow(
+                sitemap_url,
+                self.parse_sitemap,
+                priority=5,
+                allow_domain=True,
+            )
+            if req:
+                yield req
+
+    async def parse_sitemap(
+        self, request: Request, response: Response
+    ) -> AsyncGenerator[Any, Any]:
+        """Parse sitemap XML and extract feed URLs.
+
+        This callback parses sitemap.xml files and extracts feed-like URLs.
+        Discovered URLs are queued with priority=10.
+
+        :param request: HTTP Request for sitemap
+        :param response: HTTP Response containing sitemap XML
+        :return: AsyncGenerator yielding feed URL Requests
+        """
+        if not response.ok or not response.text:
+            return
+
+        # Use enhanced parse_sitemap function from lib
+        from feedsearch_crawler.crawler.lib import parse_sitemap
+
+        feed_urls = parse_sitemap(response.text)
+
+        if feed_urls:
+            logger.info(
+                f"Found {len(feed_urls)} potential feed URL(s) in {response.url}"
+            )
+
+        # Queue discovered URLs with priority=10 (medium-high priority)
+        for url in feed_urls:
+            req = await self.follow(
+                url,
+                self.parse_response_content,  # Use normal spider callback
+                response=response,
+                priority=10,
+                allow_domain=True,
+            )
+            if req:
+                yield req
+
+    def _extract_sitemap_urls_from_text(self, robots_txt: str) -> List[str]:
+        """Extract sitemap URLs from robots.txt content.
+
+        :param robots_txt: Content of robots.txt file
+        :return: List of sitemap URLs
+        """
+        sitemap_urls: List[str] = []
+        for line in robots_txt.split("\n"):
+            line = line.strip()
+            if line.lower().startswith("sitemap:"):
+                # Extract URL after "Sitemap:"
+                sitemap_url = line.split(":", 1)[1].strip()
+                if sitemap_url:
+                    sitemap_urls.append(sitemap_url)
+        return sitemap_urls
+
+    def _get_robots_txt_url(self, url: URL) -> str:
+        """Get robots.txt URL for a given domain URL.
+
+        :param url: Domain URL
+        :return: robots.txt URL for the domain
+        """
+        return f"{url.scheme}://{url.host}/robots.txt"
 
     def _put_queue(self, queueable: Queueable) -> None:
         """
@@ -801,7 +912,46 @@ class Crawler(ABC):
             middlewares=self.middlewares,
         )
 
-        # Create a Request for each start URL and add it to the Request Queue.
+        # Queue robots.txt AND standard sitemap.xml URLs immediately (parallel fetch)
+        # robots.txt has priority=1, sitemaps have priority=5
+        # Any additional sitemaps discovered from robots.txt will be added later
+        robots_urls_added = set()
+        sitemap_urls_added = set()
+
+        for url in initial_urls:
+            coerced_url = coerce_url(url)
+
+            # Queue robots.txt (priority=1)
+            robots_url = self._get_robots_txt_url(coerced_url)
+            if robots_url not in robots_urls_added:
+                robots_req = await self.follow(
+                    robots_url,
+                    self.parse_robots_txt,
+                    priority=1,  # Highest priority
+                    allow_domain=True,
+                )
+                if robots_req:
+                    self._process_request(robots_req)
+                    robots_urls_added.add(robots_url)
+                    logger.debug(f"Queued robots.txt: {robots_url}")
+
+            # Queue standard sitemap.xml (priority=5) - doesn't wait for robots.txt
+            standard_sitemap_url = (
+                f"{coerced_url.scheme}://{coerced_url.host}/sitemap.xml"
+            )
+            if standard_sitemap_url not in sitemap_urls_added:
+                sitemap_req = await self.follow(
+                    standard_sitemap_url,
+                    self.parse_sitemap,
+                    priority=5,  # High priority, but after robots.txt
+                    allow_domain=True,
+                )
+                if sitemap_req:
+                    self._process_request(sitemap_req)
+                    sitemap_urls_added.add(standard_sitemap_url)
+                    logger.debug(f"Queued standard sitemap: {standard_sitemap_url}")
+
+        # Create a Request for each start URL and add it to the Request Queue (priority=100 default).
         for url in initial_urls:
             req = await self.follow(coerce_url(url), self.parse_response, delay=0)
             if req:
