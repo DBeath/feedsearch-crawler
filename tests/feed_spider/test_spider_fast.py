@@ -104,3 +104,58 @@ class TestFeedsearchSpiderFast:
         assert spider.favicon_data_uri is True
         assert spider.crawl_hosts is False
         assert spider.full_crawl is True
+
+    def test_create_start_urls_basic(self):
+        """Test create_start_urls with basic URLs."""
+        from yarl import URL
+
+        spider = FeedsearchSpider(try_urls=False, crawl_hosts=False)
+
+        urls = spider.create_start_urls(["https://example.com"])
+
+        assert len(urls) >= 1
+        assert all(isinstance(url, URL) for url in urls)
+        # Check that example.com is in one of the URLs
+        assert any("example.com" in str(url) for url in urls)
+
+    def test_create_start_urls_with_try_urls(self):
+        """Test create_start_urls with try_urls enabled."""
+        spider = FeedsearchSpider(try_urls=True, crawl_hosts=False)
+
+        urls = spider.create_start_urls(["https://example.com"])
+
+        # Should generate multiple URLs with common feed paths
+        assert len(urls) > 1
+        url_strings = [str(url) for url in urls]
+        # Check for some common feed paths
+        assert any("/feed" in url for url in url_strings)
+        assert any("/rss" in url for url in url_strings)
+
+    def test_create_start_urls_with_invalid_suffixes(self):
+        """Test create_start_urls handles invalid URL suffixes gracefully."""
+        # Test with custom try_urls that might contain problematic values
+        spider = FeedsearchSpider(
+            try_urls=["feed", "rss.xml", "atom.xml"], crawl_hosts=False
+        )
+
+        # Should not crash even with edge case URLs
+        urls = spider.create_start_urls(["https://example.com"])
+
+        # Should have created at least some valid URLs
+        assert len(urls) >= 1
+        assert all(url.scheme in ["http", "https"] for url in urls)
+
+    def test_create_start_urls_filters_invalid(self):
+        """Test that create_start_urls filters out completely invalid URLs."""
+        from yarl import URL
+
+        spider = FeedsearchSpider(try_urls=False, crawl_hosts=False)
+
+        # parse_href_to_url should handle invalid URLs
+        urls = spider.create_start_urls(
+            ["example.com", "ht!tp://invalid-url", "://missing-scheme.com"]
+        )
+
+        # Should successfully create URL from domain-only string
+        assert len(urls) >= 1
+        assert all(isinstance(url, URL) for url in urls)

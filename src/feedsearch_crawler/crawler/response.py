@@ -47,7 +47,12 @@ class Response:
         self.redirect_history = redirect_history or []
         self.content_length = content_length
         self.meta = meta or {}
-        self.origin: URL = url.origin()
+        # Safely extract origin, handling cases where url might be invalid
+        try:
+            self.origin: URL = url.origin() if url else URL()
+        except (ValueError, AttributeError, TypeError) as e:
+            logger.warning("Failed to extract origin from URL %s: %s", url, e)
+            self.origin: URL = URL()
         self.request = request
 
     @property

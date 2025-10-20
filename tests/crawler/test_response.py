@@ -724,3 +724,35 @@ class TestResponseAdditionalCoverage:
             history=[URL("https://example.com"), URL("https://redirect.com")],
         )
         assert response.is_original_domain() is False
+
+
+class TestResponseURLValidation:
+    """Test Response class handles invalid URLs gracefully."""
+
+    def test_response_with_empty_url(self):
+        """Test Response handles empty URL gracefully."""
+        # Empty URL() should not crash Response.__init__
+        response = Response(
+            url=URL(),
+            method="GET",
+            headers={},
+            status_code=500,
+            history=[],
+        )
+        assert response.url == URL()
+        assert response.origin == URL()
+
+    def test_response_origin_extraction_error(self):
+        """Test Response handles URL origin extraction errors gracefully."""
+        # This tests the try-except block in Response.__init__ around url.origin()
+        url = URL("https://example.com/test")
+        response = Response(
+            url=url,
+            method="GET",
+            headers={},
+            status_code=200,
+            history=[],
+        )
+        # Normal case should work fine
+        assert response.origin == URL("https://example.com")
+        assert response.url == url

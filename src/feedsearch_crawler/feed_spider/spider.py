@@ -256,17 +256,20 @@ class FeedsearchSpider(Crawler):
         crawl_start_urls: Set[URL] = set()
 
         for url in urls + self.start_urls:
-            if isinstance(url, str):
-                if "//" not in url:
-                    url = f"//{url}"
-                url = parse_href_to_url(url)
-                if not url:
-                    continue
+            try:
+                if isinstance(url, str):
+                    if "//" not in url:
+                        url = f"//{url}"
+                    url = parse_href_to_url(url)
+                    if not url:
+                        continue
 
-            if url.scheme.lower() not in ["http", "https"]:
-                url = url.with_scheme("http")
+                if url.scheme.lower() not in ["http", "https"]:
+                    url = url.with_scheme("http")
 
-            crawl_start_urls.add(url)
+                crawl_start_urls.add(url)
+            except ValueError as e:
+                logger.warning("Invalid start URL '%s': %s", url, e)
 
         origins = set(url.origin() for url in crawl_start_urls)
 
@@ -300,13 +303,17 @@ class FeedsearchSpider(Crawler):
 
             for origin in origins:
                 if isinstance(self.try_urls, list):
-                    crawl_start_urls.update(
-                        origin.join(URL(suffix)) for suffix in self.try_urls
-                    )
+                    for suffix in self.try_urls:
+                        try:
+                            crawl_start_urls.add(origin.join(URL(suffix)))
+                        except (ValueError, TypeError) as e:
+                            logger.warning("Invalid URL suffix '%s': %s", suffix, e)
                 else:
-                    crawl_start_urls.update(
-                        origin.join(URL(suffix)) for suffix in suffixes
-                    )
+                    for suffix in suffixes:
+                        try:
+                            crawl_start_urls.add(origin.join(URL(suffix)))
+                        except (ValueError, TypeError) as e:
+                            logger.warning("Invalid URL suffix '%s': %s", suffix, e)
 
         # Crawl the origin urls of the start urls for Site metadata.
         if self.crawl_hosts:
