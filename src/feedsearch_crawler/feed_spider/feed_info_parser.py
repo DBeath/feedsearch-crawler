@@ -16,6 +16,7 @@ from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 from feedsearch_crawler.feed_spider.lib import (
     parse_header_links,
     datestring_to_utc_datetime,
+    parse_date_with_comparison,
     create_content_type,
     ParseTypes,
 )
@@ -140,15 +141,28 @@ class FeedInfoParser(ItemParser):
             entries = parsed.get("entries", [])
             item.item_count = len(entries)
 
+            # Extract locale/language from feed if available
+            locale = feed.get("language")
+
             dates.extend(
-                FeedInfoParser.entry_dates(entries, ["updated", "published"], now_date)
+                FeedInfoParser.entry_dates(
+                    entries, ["updated", "published"], now_date, locale
+                )
             )
 
             if dates:
                 item.last_updated = sorted(dates, reverse=True)[0]
                 item.velocity = self.entry_velocity(dates)
             elif feed.get("updated"):
-                item.last_updated = datestring_to_utc_datetime(feed.get("updated"))
+                # Use comparison for feed-level date as well
+                feed_date = parse_date_with_comparison(
+                    feed.get("updated"), feed.get("updated_parsed"), locale
+                )
+                item.last_updated = (
+                    feed_date
+                    if feed_date
+                    else datestring_to_utc_datetime(feed.get("updated"))
+                )
         except Exception as e:
             logger.exception("Unable to get feed published date: %s", e)
             pass
@@ -195,9 +209,14 @@ class FeedInfoParser(ItemParser):
             entries = data.get("items", [])
             item.item_count = len(entries)
 
+            # Extract locale/language from feed if available
+            locale = data.get("language")
+
+            # Note: JSON feeds don't have *_parsed fields, so comparison will
+            # only use dateutil parsing (parsed_tuple will be None)
             dates.extend(
                 FeedInfoParser.entry_dates(
-                    entries, ["date_modified", "date_published"], now_date
+                    entries, ["date_modified", "date_published"], now_date, locale
                 )
             )
 
@@ -438,23 +457,39 @@ class FeedInfoParser(ItemParser):
 
     @staticmethod
     def entry_dates(
-        entries: List[Dict], date_names: List[str], current_date: date
+        entries: List[Dict],
+        date_names: List[str],
+        current_date: date,
+        locale: Union[str, None] = None,
     ) -> Any:
         """
         Return published or updated dates from feed entries.
 
+        Compares feedparser's parsed dates with dateutil parsing. If they differ,
+        dateutil's result is used as it handles locale and edge cases better.
+
         :param entries: List of feed entries as dicts.
         :param date_names: List of key names of entry published or updated values.
         :param current_date: The current date.
+        :param locale: Optional locale string for date parsing (e.g., 'en_US', 'fr_FR').
         :return: generator that returns datetimes.
         """
         for entry in entries:
             for name in date_names:
                 try:
-                    entry_date: datetime = datestring_to_utc_datetime(entry[name])
-                    if entry_date.date() <= current_date:
+                    # Get the raw date string
+                    date_string = entry.get(name)
+                    # Get feedparser's parsed struct_time (if available)
+                    parsed_tuple = entry.get(f"{name}_parsed")
+
+                    # Use comparison function to get best result
+                    entry_date = parse_date_with_comparison(
+                        date_string, parsed_tuple, locale
+                    )
+
+                    if entry_date and entry_date.date() <= current_date:
                         yield entry_date
-                except (KeyError, ValueError):
+                except (KeyError, ValueError, AttributeError):
                     pass
 
     @staticmethod
