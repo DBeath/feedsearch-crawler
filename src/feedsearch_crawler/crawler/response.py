@@ -1,12 +1,14 @@
 import uuid
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, TYPE_CHECKING
 from multidict import CIMultiDictProxy
 
 from yarl import URL
 
 from feedsearch_crawler.crawler.lib import is_same_domain
 
+if TYPE_CHECKING:
+    from feedsearch_crawler.exceptions import ErrorType
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +33,7 @@ class Response:
         content_length: int = 0,
         meta: Dict = None,
         request=None,
+        error_type: Optional["ErrorType"] = None,
     ):
         self.url = url
         self.encoding = encoding or ""
@@ -54,6 +57,7 @@ class Response:
             logger.warning("Failed to extract origin from URL %s: %s", url, e)
             self.origin: URL = URL()
         self.request = request
+        self.error_type = error_type
 
     @property
     def ok(self) -> bool:

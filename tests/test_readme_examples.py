@@ -149,11 +149,11 @@ class TestReadmeAsyncUsage:
             mock_spider.crawl = AsyncMock()
             mock_spider_class.return_value = mock_spider
 
-            feeds = await search_async("xkcd.com")
+            result = await search_async("xkcd.com")
 
-        # Verify it returns a list of FeedInfo
-        assert isinstance(feeds, list)
-        assert all(isinstance(f, FeedInfo) for f in feeds)
+        # Verify it returns a list (backward compatible)
+        assert isinstance(result, list)
+        assert all(isinstance(f, FeedInfo) for f in result)
 
 
 class TestReadmeOutputFunctions:
@@ -228,7 +228,7 @@ class TestReadmeSearchArguments:
             mock_spider.crawl = AsyncMock()
             mock_spider_class.return_value = mock_spider
 
-            await search_async(
+            result = await search_async(
                 url="https://example.com",
                 crawl_hosts=False,
                 try_urls=True,
@@ -236,6 +236,9 @@ class TestReadmeSearchArguments:
                 total_timeout=30.0,
                 request_timeout=3.0,
             )
+
+            # Verify it returns a list by default
+            assert isinstance(result, list)
 
             # Verify arguments were passed to spider
             call_kwargs = mock_spider_class.call_args[1]
@@ -338,7 +341,7 @@ class TestReadmeReturnValues:
         with patch("asyncio.run", return_value=mock_feeds):
             result = search("example.com")
 
-        # Must return a list
+        # Must return a list (backward compatible)
         assert isinstance(result, list)
 
         # Must contain FeedInfo objects

@@ -338,7 +338,7 @@ wheels = [
 
 [[package]]
 name = "feedsearch-crawler"
-version = "1.0.3"
+version = "1.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiodns" },

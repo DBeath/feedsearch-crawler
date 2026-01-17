@@ -1,6 +1,6 @@
 [project]
 name = "feedsearch-crawler"
-version = "1.0.3"
+version = "1.1.0"
 description = "Search sites for RSS, Atom, and JSON feeds"
 authors = [
     {name = "David Beath", email = "davidgbeath@gmail.com"}
@@ -69,9 +69,11 @@ testpaths = ["tests"]
 # This is a known pytest-xdist issue. Use 'timeout <seconds> uv run pytest' as workaround
 # addopts = "-n auto"
 filterwarnings = [
-    # Ignore AsyncMock warnings from unittest.mock (Python 3.12 known issue)
+    # Ignore AsyncMock warnings from unittest.mock and related Python stdlib modules (Python 3.12 known issue)
+    # These warnings occur when Mock objects with AsyncMock attributes are garbage collected
     "ignore::RuntimeWarning:unittest.mock",
     "ignore::RuntimeWarning:_pytest.stash",
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
     # Ignore feedparser deprecation warnings (external library)
     "ignore::DeprecationWarning:feedparser",
 ]

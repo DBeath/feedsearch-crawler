@@ -61,6 +61,56 @@ feeds = await search_async('xkcd.com')
 A search will always return a list of *FeedInfo* objects, each of which will always have a *url* property, which is a [URL](https://yarl.readthedocs.io/en/latest/api.html) object that can be decoded to a string with ``str(url)``.
 The returned *FeedInfo* are sorted by the *score* value from highest to lowest, with a higher score theoretically indicating a more relevant feed compared to the original URL provided. A *FeedInfo* can also be serialized to a JSON compatible dictionary by calling it's ``.serialize()`` method.
 
+## Error Handling
+
+If you need detailed error information when a URL fails to load (DNS errors, SSL errors, HTTP errors, timeouts, etc.), use ``search_with_info`` or ``search_async_with_info`` instead. These functions return a ``SearchResult`` object that includes error details:
+
+``` python
+from feedsearch_crawler import search_with_info, ErrorType
+
+result = search_with_info('nonexistent-domain.com')
+
+if result.root_error:
+    print(f"Error: {result.root_error.message}")
+    print(f"Type: {result.root_error.error_type}")
+
+    # Handle specific error types
+    if result.root_error.error_type == ErrorType.DNS_FAILURE:
+        print("Domain doesn't exist")
+    elif result.root_error.error_type == ErrorType.SSL_ERROR:
+        print("SSL certificate problem")
+    elif result.root_error.error_type == ErrorType.HTTP_ERROR:
+        print(f"HTTP error: {result.root_error.status_code}")
+    elif result.root_error.error_type == ErrorType.TIMEOUT:
+        print("Request timed out")
+else:
+    print(f"Found {len(result.feeds)} feeds")
+    for feed in result.feeds:
+        print(feed.url)
+```
+
+You can also retrieve crawl statistics by passing ``include_stats=True``:
+
+``` python
+result = search_with_info('xkcd.com', include_stats=True)
+
+if result.stats:
+    print(f"Requests: {result.stats.get('requests')}")
+    print(f"Responses: {result.stats.get('responses')}")
+    print(f"Duration: {result.stats.get('duration')}")
+```
+
+The ``SearchResult`` object is iterable, so you can iterate over feeds directly:
+
+``` python
+result = search_with_info('xkcd.com')
+
+for feed in result:  # Iterates over result.feeds
+    print(feed.url)
+```
+
+**Note**: The original ``search()`` and ``search_async()`` functions return an empty list when errors occur. This behavior is maintained for backward compatibility. Use ``search_with_info()`` when you need to distinguish between "no feeds found" and "URL failed to load".
+
 The crawl logs can be accessed with:
 
 ``` python

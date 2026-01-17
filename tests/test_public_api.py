@@ -1,10 +1,18 @@
 """Tests for the public API in __init__.py."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from feedsearch_crawler import search, search_async, sort_urls, output_opml
+from feedsearch_crawler import (
+    SearchResult,
+    search,
+    search_async,
+    search_with_info,
+    search_async_with_info,
+    sort_urls,
+    output_opml,
+)
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 
 
@@ -23,6 +31,7 @@ class TestSearchFunction:
             result = search("https://example.com")
 
         assert result == mock_feeds
+        assert isinstance(result, list)
 
     @patch("feedsearch_crawler.search_async")
     def test_search_with_try_urls(self, mock_search_async):
@@ -57,9 +66,9 @@ class TestSearchAsyncFunction:
 
     @pytest.mark.asyncio
     async def test_search_async_single_url(self):
-        """Test async search with a single URL."""
+        """Test async search with a single URL (default: returns list)."""
         with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
-            mock_spider = AsyncMock()
+            mock_spider = Mock()
             mock_spider.items = [
                 FeedInfo(url="https://example.com/feed.xml", title="Test", score=10)
             ]
@@ -68,6 +77,7 @@ class TestSearchAsyncFunction:
 
             result = await search_async("https://example.com")
 
+            assert isinstance(result, list)
             assert len(result) == 1
             assert result[0].url == "https://example.com/feed.xml"
             mock_spider.crawl.assert_called_once()
@@ -76,20 +86,103 @@ class TestSearchAsyncFunction:
     async def test_search_async_with_kwargs(self):
         """Test async search with additional keyword arguments."""
         with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
-            mock_spider = AsyncMock()
+            mock_spider = Mock()
             mock_spider.items = []
             mock_spider.crawl = AsyncMock()
             mock_spider_class.return_value = mock_spider
 
-            await search_async(
+            result = await search_async(
                 "https://example.com", try_urls=True, concurrency=5, total_timeout=10.0
             )
 
+            assert isinstance(result, list)
             mock_spider_class.assert_called_once()
             call_kwargs = mock_spider_class.call_args[1]
             assert call_kwargs["try_urls"] is True
             assert call_kwargs["concurrency"] == 5
             assert call_kwargs["total_timeout"] == 10.0
+
+
+class TestSearchWithInfoFunction:
+    """Test the synchronous search_with_info function."""
+
+    @patch("feedsearch_crawler.search_async_with_info")
+    def test_search_with_info_returns_search_result(self, mock_search_async_with_info):
+        """Test search_with_info returns SearchResult."""
+        mock_result = SearchResult(
+            feeds=[
+                FeedInfo(url="https://example.com/feed.xml", title="Test", score=10)
+            ],
+            root_error=None,
+            stats=None,
+        )
+        mock_search_async_with_info.return_value = mock_result
+
+        with patch("asyncio.run", return_value=mock_result):
+            result = search_with_info("https://example.com")
+
+        assert isinstance(result, SearchResult)
+        assert len(result.feeds) == 1
+        assert result.root_error is None
+
+    @patch("feedsearch_crawler.search_async_with_info")
+    def test_search_with_info_with_stats(self, mock_search_async_with_info):
+        """Test search_with_info with statistics."""
+        mock_result = SearchResult(
+            feeds=[],
+            root_error=None,
+            stats={"requests": 5, "responses": 4},
+        )
+        mock_search_async_with_info.return_value = mock_result
+
+        with patch("asyncio.run", return_value=mock_result):
+            result = search_with_info("https://example.com", include_stats=True)
+
+        assert isinstance(result, SearchResult)
+        assert result.stats is not None
+        assert result.stats["requests"] == 5
+
+
+class TestSearchAsyncWithInfoFunction:
+    """Test the asynchronous search_async_with_info function."""
+
+    @pytest.mark.asyncio
+    async def test_search_async_with_info_returns_search_result(self):
+        """Test search_async_with_info returns SearchResult."""
+        with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
+            mock_spider = Mock()
+            mock_spider.items = [
+                FeedInfo(url="https://example.com/feed.xml", title="Test", score=10)
+            ]
+            mock_spider.crawl = AsyncMock()
+            mock_spider.get_root_error = Mock(return_value=None)
+            mock_spider.get_stats = Mock(return_value={})
+            mock_spider_class.return_value = mock_spider
+
+            result = await search_async_with_info("https://example.com")
+
+            assert isinstance(result, SearchResult)
+            assert len(result.feeds) == 1
+            assert result.root_error is None
+
+    @pytest.mark.asyncio
+    async def test_search_async_with_info_with_stats(self):
+        """Test search_async_with_info with statistics."""
+        with patch("feedsearch_crawler.FeedsearchSpider") as mock_spider_class:
+            mock_spider = Mock()
+            mock_spider.items = []
+            mock_spider.crawl = AsyncMock()
+            mock_spider.get_root_error = Mock(return_value=None)
+            mock_spider.get_stats = Mock(return_value={"requests": 10, "responses": 8})
+            mock_spider_class.return_value = mock_spider
+
+            result = await search_async_with_info(
+                "https://example.com", include_stats=True
+            )
+
+            assert isinstance(result, SearchResult)
+            assert result.stats is not None
+            assert result.stats["requests"] == 10
 
 
 class TestSortUrls:

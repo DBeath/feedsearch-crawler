@@ -14,6 +14,7 @@ from .lib import ContentLengthError, ContentReadError
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.middleware import BaseDownloaderMiddleware
+from feedsearch_crawler.exceptions import ErrorType
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ class Downloader:
         for middleware in self.middlewares:
             await middleware.pre_request(request)
 
+        error_type_hint: Optional[ErrorType] = None
         try:
             async with self._create_request(request) as resp:
                 history.append(resp.url)
@@ -134,6 +136,7 @@ class Downloader:
             logger.debug("Failed fetch: url=%s reason=timeout", request.url)
             history.append(request.url)
             response_status_code = 408
+            error_type_hint = ErrorType.TIMEOUT
         except ContentLengthError as e:
             logger.debug(
                 "Content Length of Response body greater than max %d: %s",
@@ -143,6 +146,18 @@ class Downloader:
             response_status_code = 413
         except ContentReadError:
             response_status_code = 413
+        except aiohttp.ClientConnectorDNSError:
+            logger.debug("Failed fetch: url=%s reason=DNS failure", request.url)
+            response_status_code = 500
+            error_type_hint = ErrorType.DNS_FAILURE
+        except aiohttp.ClientConnectorSSLError:
+            logger.debug("Failed fetch: url=%s reason=SSL error", request.url)
+            response_status_code = 500
+            error_type_hint = ErrorType.SSL_ERROR
+        except aiohttp.ClientConnectorError:
+            logger.debug("Failed fetch: url=%s reason=connection error", request.url)
+            response_status_code = 500
+            error_type_hint = ErrorType.CONNECTION_ERROR
         except aiohttp.ClientResponseError as e:
             logger.debug("Failed fetch: url=%s reason=%s", request.url, e.message)
             response_status_code = e.status
@@ -167,6 +182,7 @@ class Downloader:
                     history=history or [],
                     status_code=response_status_code or 500,
                     request=request,
+                    error_type=error_type_hint,
                 )
 
             # Tell the crawler to retry this Request
