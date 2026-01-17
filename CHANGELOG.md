@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2025-12-30
+## [2.0.0] - 2025-01-17
+
+### Breaking Changes
+- **Python 3.12+ required**: Dropped support for Python 3.7-3.11
+- **`FeedInfo.serialize()` returns `None` instead of `""`**: URL fields (`url`, `site_url`, `favicon`, `self_url`) and `last_updated` now return `None` when not set, instead of empty string
+- **`FeedInfo` validation raises `ValueError`**: Creating `FeedInfo` with invalid values (negative scores, invalid bozo values, etc.) now raises `ValueError`
+- **Internal method renames in `FeedsearchSpider`**: `parse()` renamed to `parse_response()`, `parse_xml()` renamed to `parse_response_content()`. Users who subclassed and overrode these methods must update their code
+- **Major dependency version bumps**: aiohttp `^3.7.4` → `>3.12.0`, yarl `^1.6.3` → `>=1.22.0`, beautifulsoup4 `^4.9.3` → `>=4.14.2`
+- **Removed `cchardet` dependency**
 
 ### Added
 - **New error handling API**: Added `search_with_info()` and `search_async_with_info()` functions that return detailed error information
@@ -97,7 +105,7 @@ Historical version. See git history for details.
 
 ---
 
-[Unreleased]: https://github.com/DBeath/feedsearch-crawler/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/DBeath/feedsearch-crawler/compare/v1.0.3...v1.1.0
+[Unreleased]: https://github.com/DBeath/feedsearch-crawler/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/DBeath/feedsearch-crawler/compare/v1.0.3...v2.0.0
 [1.0.3]: https://github.com/DBeath/feedsearch-crawler/releases/tag/v1.0.3
 [0.2.7]: https://github.com/DBeath/feedsearch-crawler/releases/tag/0.2.7
