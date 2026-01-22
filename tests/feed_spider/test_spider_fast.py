@@ -115,8 +115,8 @@ class TestFeedsearchSpiderFast:
 
         assert len(urls) >= 1
         assert all(isinstance(url, URL) for url in urls)
-        # Check that example.com is in one of the URLs
-        assert any("example.com" in str(url) for url in urls)
+        # Check that example.com is the host in at least one of the URLs
+        assert any(url.host == "example.com" for url in urls)
 
     def test_create_start_urls_with_try_urls(self):
         """Test create_start_urls with try_urls enabled."""

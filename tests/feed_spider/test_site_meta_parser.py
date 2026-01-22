@@ -247,7 +247,7 @@ class TestFindSiteIconURLs:
         result = site_meta_parser.find_site_icon_urls(soup, url, host)
 
         # Should always include favicon.ico as fallback
-        assert any("favicon.ico" in str(icon.url) for icon in result)
+        assert any(icon.url.path.endswith("/favicon.ico") for icon in result)
 
     def test_find_site_icon_link_rel_icon(self, site_meta_parser):
         """Test finding icon from link rel=icon."""
@@ -260,7 +260,7 @@ class TestFindSiteIconURLs:
 
         result = site_meta_parser.find_site_icon_urls(soup, url, host)
 
-        assert any("custom-icon.png" in str(icon.url) for icon in result)
+        assert any(icon.url.path.endswith("/custom-icon.png") for icon in result)
 
     def test_find_site_icon_shortcut_icon(self, site_meta_parser):
         """Test finding shortcut icon."""
@@ -273,7 +273,7 @@ class TestFindSiteIconURLs:
 
         result = site_meta_parser.find_site_icon_urls(soup, url, host)
 
-        assert any("shortcut.ico" in str(icon.url) for icon in result)
+        assert any(icon.url.path.endswith("/shortcut.ico") for icon in result)
 
     def test_find_site_icon_priority_ordering(self, site_meta_parser):
         """Test that icons are sorted by priority."""
@@ -303,7 +303,7 @@ class TestFindSiteIconURLs:
 
         # Should join relative URL with base
         icons_with_path = [
-            icon for icon in result if "images/icon.png" in str(icon.url)
+            icon for icon in result if icon.url.path.endswith("/images/icon.png")
         ]
         assert len(icons_with_path) > 0
 
@@ -318,7 +318,7 @@ class TestFindSiteIconURLs:
 
         result = site_meta_parser.find_site_icon_urls(soup, url, host)
 
-        assert any("cdn.example.com" in str(icon.url) for icon in result)
+        assert any(icon.url.host == "cdn.example.com" for icon in result)
 
     def test_find_site_icon_empty_href(self, site_meta_parser):
         """Test handling of link with no href."""

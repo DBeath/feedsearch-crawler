@@ -465,8 +465,8 @@ class TestLinkFilterEdgeCases:
         result = filter.should_follow_link(link)
         assert result is not None
         url, priority = result
-        # parse_href_to_url may return relative or absolute depending on implementation
-        assert "/feed" in str(url)
+        # Check that the URL path contains the feed path
+        assert url.path == "/feed" or url.path.endswith("/feed")
 
 
 class TestHelperMethods:

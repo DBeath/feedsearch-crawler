@@ -70,7 +70,8 @@ class TestRobotsMiddlewareBasic:
         await middleware.process_request(request2)
 
         # Should only have one cache entry for the host
-        assert len([k for k in middleware.cache.keys() if "example.com" in k]) == 1
+        assert "https://example.com/robots.txt" in middleware.cache
+        assert len(middleware.cache) == 1
 
     @pytest.mark.asyncio
     async def test_robots_different_hosts_separate_cache(self):

@@ -503,7 +503,8 @@ class TestResponseEdgeCases:
 
         str_repr = str(response)
         # Should contain URL and status code
-        assert "example.com" in str_repr
+        assert str(response.url) in str_repr
+        assert response.url.host == "example.com"
         assert "200" in str_repr
 
         repr_repr = repr(response)
