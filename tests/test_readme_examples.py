@@ -184,9 +184,9 @@ class TestReadmeOutputFunctions:
         assert isinstance(opml_str, str)
 
         # Should contain OPML structure
-        assert "<?xml" in opml_str
-        assert "<opml" in opml_str
-        assert "xkcd.com" in opml_str
+        assert opml_str.startswith("<?xml")
+        assert opml_str.__contains__("<opml")
+        assert opml_str.__contains__("xkcd.com")
 
 
 class TestReadmeSearchArguments:

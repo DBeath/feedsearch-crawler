@@ -6,12 +6,12 @@ import pytest
 
 from feedsearch_crawler import (
     SearchResult,
+    output_opml,
     search,
     search_async,
-    search_with_info,
     search_async_with_info,
+    search_with_info,
     sort_urls,
-    output_opml,
 )
 from feedsearch_crawler.feed_spider.feed_info import FeedInfo
 
@@ -286,10 +286,10 @@ class TestOutputOpml:
 
         opml = output_opml(feeds)
 
-        assert b"Complete Feed" in opml
-        assert b"Feed description" in opml
-        assert b"https://example.com" in opml
-        assert b"atom10" in opml
+        assert opml.__contains__(b"Complete Feed")
+        assert opml.__contains__(b"Feed description")
+        assert opml.__contains__(b"https://example.com")
+        assert opml.__contains__(b"atom10")
 
     def test_output_opml_missing_optional_fields(self):
         """Test OPML output when optional fields are missing."""
@@ -300,7 +300,7 @@ class TestOutputOpml:
         opml = output_opml(feeds)
 
         assert isinstance(opml, bytes)
-        assert b"https://example.com/feed.xml" in opml
+        assert opml.__contains__(b"https://example.com/feed.xml")
 
     def test_output_opml_skips_feeds_without_url(self):
         """Test that feeds without URL are skipped."""
@@ -312,17 +312,17 @@ class TestOutputOpml:
 
         opml = output_opml(feeds)
 
-        assert b"Valid Feed" in opml
-        assert b"Invalid Feed" not in opml
-        assert b"Empty URL" not in opml
+        assert opml.__contains__(b"Valid Feed")
+        assert not opml.__contains__(b"Invalid Feed")
+        assert not opml.__contains__(b"Empty URL")
 
     def test_output_opml_empty_list(self):
         """Test OPML output with empty feed list."""
         opml = output_opml([])
 
         assert isinstance(opml, bytes)
-        assert b'<opml version="2.0">' in opml
-        assert b"<title>Feeds</title>" in opml
+        assert opml.__contains__(b'<opml version="2.0">')
+        assert opml.__contains__(b"<title>Feeds</title>")
         # Should have structure but no feed entries
 
     def test_output_opml_xml_structure(self):
@@ -332,9 +332,9 @@ class TestOutputOpml:
         opml = output_opml(feeds)
 
         # Check for required OPML structure elements
-        assert b"<opml" in opml
-        assert b"<head>" in opml
-        assert b"<body>" in opml
-        assert b"<outline" in opml
-        assert b'type="rss"' in opml
-        assert b"xmlUrl=" in opml
+        assert opml.__contains__(b"<opml")
+        assert opml.__contains__(b"<head>")
+        assert opml.__contains__(b"<body>")
+        assert opml.__contains__(b"<outline")
+        assert opml.__contains__(b'type="rss"')
+        assert opml.__contains__(b"xmlUrl=")

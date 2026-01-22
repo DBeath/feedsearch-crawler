@@ -90,8 +90,8 @@ class TestThrottleMiddleware:
         await middleware.process_request(request2)
 
         # Both hosts should be tracked
-        assert "example.com" in middleware.host_timers
-        assert "test.com" in middleware.host_timers
+        assert middleware.host_timers.__contains__("example.com")
+        assert middleware.host_timers.__contains__("test.com")
         assert len(middleware.host_timers) == 2
 
     @pytest.mark.asyncio

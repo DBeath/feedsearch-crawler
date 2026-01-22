@@ -10,8 +10,8 @@ import pytest
 from feedsearch_crawler.crawler.statistics import (
     ErrorCategory,
     PercentileTracker,
-    StatsCollector,
     StatisticsLevel,
+    StatsCollector,
     StreamingStats,
 )
 
@@ -256,9 +256,9 @@ class TestStatsCollectorDetailed:
         stats = collector.get_stats()
 
         # Should have per-host stats
-        assert "hosts" in stats
-        assert "host1.com" in stats["hosts"]
-        assert "host2.com" in stats["hosts"]
+        assert stats.__contains__("hosts")
+        assert stats["hosts"].__contains__("host1.com")
+        assert stats["hosts"].__contains__("host2.com")
         assert stats["hosts"]["host1.com"]["requests"] == 5
         assert stats["hosts"]["host2.com"]["requests"] == 3
         assert (
