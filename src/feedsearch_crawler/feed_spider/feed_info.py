@@ -19,6 +19,17 @@ class FeedInfo(Item):
     description: str = ""
     version: str = ""
 
+    # Feed-declared metadata (RSS 2.0 channel / Atom feed / JSON Feed top-level)
+    link: Union[URL, None] = None
+    language: str = ""
+    author: str = ""
+    copyright: str = ""
+    generator: str = ""
+    tags: List[str] = []
+    image: Union[URL, None] = None
+    is_explicit: Union[bool, None] = None
+    new_feed_url: Union[URL, None] = None
+
     # Content metadata
     item_count: int = 0
     last_updated: Union[datetime, None] = None
@@ -79,6 +90,16 @@ class FeedInfo(Item):
             "title": self.title,
             "description": self.description,
             "version": self.version,
+            # Feed-declared metadata
+            "link": self._url_to_str(self.link),
+            "language": self.language,
+            "author": self.author,
+            "copyright": self.copyright,
+            "generator": self.generator,
+            "tags": self.tags,
+            "image": self._url_to_str(self.image),
+            "is_explicit": self.is_explicit,
+            "new_feed_url": self._url_to_str(self.new_feed_url),
             # Content metadata
             "item_count": self.item_count,
             "last_updated": self.last_updated.isoformat()

@@ -165,21 +165,30 @@ search(
 
 In addition to the *url*, FeedInfo objects may have the following values:
 
+- **author**: *str*: Feed author name, from RSS *managingEditor*, *itunes:author*, Atom *author*, or JSON Feed *authors*.
 - **bozo**: *int*: Set to 1 when feed data is not well formed or may not be a feed. Defaults 0.
 - **content_length**: *int*: Current length of the feed in bytes.
 - **content_type**: *str*: [Content-Type](https://en.wikipedia.org/wiki/Media_type) value of the returned feed.
+- **copyright**: *str*: Copyright notice, from RSS *copyright* or Atom *rights*.
 - **description**: *str*: Feed description.
+- **generator**: *str*: Software that generated the feed, from the *generator* element.
 - **favicon**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed or site [Favicon](https://en.wikipedia.org/wiki/Favicon).
 - **favicon_data_uri**: *str*: [Data Uri](https://en.wikipedia.org/wiki/Data_URI_scheme) of Favicon.
 - **hubs**: *List[str]*: List of [Websub](https://en.wikipedia.org/wiki/WebSub) hubs of feed if available.
-- **is_podcast**: *bool*: True if the feed contains valid [podcast](https://en.wikipedia.org/wiki/Podcast) elements and enclosures.
+- **image**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of the feed artwork, from *itunes:image*, RSS *image*, Atom *logo*, or JSON Feed *icon*.
+- **is_explicit**: *bool*: Value of *itunes:explicit*; None when not declared.
+- **is_podcast**: *bool*: True if the feed contains valid [podcast](https://en.wikipedia.org/wiki/Podcast) elements and audio or video enclosures (JSON Feed: audio/video attachments).
 - **is_push**: *bool*: True if feed contains valid Websub data.
 - **item_count**: *int*: Number of items currently in the feed.
+- **language**: *str*: Feed language, from RSS *language*, Atom *xml:lang*, or JSON Feed *language*.
 - **last_updated**: *datetime*: Date of the latest published entry.
+- **link**: *URL*: Website [URL](https://yarl.readthedocs.io/en/latest/api.html) declared by the feed itself, from RSS *link*, Atom *rel="alternate"* link, or JSON Feed *home_page_url*.
+- **new_feed_url**: *URL*: New location of a permanently moved feed, from *itunes:new-feed-url*.
 - **score**: *int*: Computed relevance of feed url value to provided URL. May be safely ignored.
 - **self_url**: *URL*: *ref="self"* value returned from feed links. In some cases may be different from feed url.
-- **site_name**: *str*: Name of feed's website.
-- **site_url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed's website.
+- **site_name**: *str*: Name of feed's website, as found by crawling the site.
+- **site_url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) of feed's website, as found by crawling the site. See **link** for the website URL declared by the feed itself.
+- **tags**: *List[str]*: Category/tag terms, from RSS/Atom *category* and *itunes:category* elements.
 - **title**: *str*: Feed Title.
 - **url**: *URL*: [URL](https://yarl.readthedocs.io/en/latest/api.html) location of feed.
 - **velocity**: *float*: Mean number of items per day in the feed at the current time.

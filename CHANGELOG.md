@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-10
+
+### Added
+- **Feed-declared metadata fields on `FeedInfo`**, extracted from RSS 2.0 channel,
+  Atom (RFC 4287) feed, and JSON Feed 1.0/1.1 top-level elements:
+  - `link` (*URL*): website link declared by the feed (RSS `<link>`,
+    Atom `rel="alternate"` link, JSON Feed `home_page_url`)
+  - `language` (*str*): RSS `<language>` / Atom `xml:lang` / JSON Feed `language`
+  - `author` (*str*): RSS `managingEditor` / `itunes:author` / Atom `<author><name>` /
+    JSON Feed `authors[0].name` (also supports the JSON Feed 1.0 `author` object)
+  - `copyright` (*str*): RSS `<copyright>` / Atom `<rights>`
+  - `generator` (*str*): `<generator>`
+  - `tags` (*List[str]*): unique category terms from RSS/Atom `<category>` and
+    `itunes:category`
+  - `image` (*URL*): feed artwork from `itunes:image`, RSS `<image><url>`,
+    Atom `<logo>`, or JSON Feed `icon`
+  - `is_explicit` (*bool | None*): channel-level `itunes:explicit`, None when
+    not declared. Values feedparser cannot map (`true`, `false`, `no`,
+    `explicit`) are recovered from the channel-level XML
+- Atom `<icon>` now populates `favicon` when no favicon was already found
+  (JSON Feed `favicon` was already supported)
+- `new_feed_url` (*URL*): `itunes:new-feed-url` - the feed has permanently
+  moved to this URL
+- JSON Feed `feed_url` now populates `self_url` (the canonical self link)
+- Video podcasts are now detected: `is_podcast` accepts video as well as
+  audio enclosures, and JSON Feeds with audio/video attachments are
+  recognized as podcasts
+- Relative URLs in feeds (link, image, favicon, etc.) are now resolved
+  against the feed's own URL (via feedparser's content-location base)
+- All new fields are included in `FeedInfo.serialize()` output and the
+  `FEEDINFO_SCHEMA` JSON schema
+
+### Fixed
+- Malformed-but-recoverable feeds are now flagged `bozo=1` (previously only
+  character-encoding overrides were flagged, so malformed XML escaped the
+  bozo scoring penalty). A missing/non-XML HTTP Content-Type alone does not
+  count as malformed
+- JSON Feeds now require both a hub and a self URL (`feed_url`) for
+  `is_push`, matching the XML behavior and the WebSub spec
+
+### Changed
+- feedparser HTML sanitization is disabled (`sanitize_html=False`) for a
+  ~2x parse speedup; this crawler discards entry content, but feed-level
+  `description` values are no longer HTML-sanitized - treat them as
+  untrusted text
+
+### Notes
+- Fully backward compatible: all new fields are additive with empty/None defaults
+
 ## [2.0.0] - 2025-01-17
 
 ### Breaking Changes

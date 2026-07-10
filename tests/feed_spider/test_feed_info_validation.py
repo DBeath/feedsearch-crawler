@@ -190,14 +190,21 @@ class TestFeedInfoSerializeFieldOrder:
         assert keys[2] == "description"
         assert keys[3] == "version"
 
+        # Feed-declared metadata
+        assert "link" in keys[4:13]
+        assert "language" in keys[4:13]
+        assert "tags" in keys[4:13]
+        assert "image" in keys[4:13]
+        assert "new_feed_url" in keys[4:13]
+
         # Content metadata
-        assert "item_count" in keys[4:7]
-        assert "velocity" in keys[4:7]
+        assert "item_count" in keys[13:16]
+        assert "velocity" in keys[13:16]
 
         # Site metadata
-        assert "site_name" in keys[7:11]
-        assert "site_url" in keys[7:11]
-        assert "favicon" in keys[7:11]
+        assert "site_name" in keys[16:20]
+        assert "site_url" in keys[16:20]
+        assert "favicon" in keys[16:20]
 
         # Score should be last
         assert keys[-1] == "score"

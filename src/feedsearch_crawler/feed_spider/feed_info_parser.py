@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, date, timezone
 from statistics import mean
 from typing import AsyncGenerator, Tuple, List, Union, Dict, Any
@@ -96,7 +97,9 @@ class FeedInfoParser(ItemParser):
 
         # Parse data with feedparser
         try:
-            parsed: dict = self.parse_raw_data(data, encoding, headers)
+            parsed: dict = self.parse_raw_data(
+                data, encoding, headers, base_url=str(item.url) if item.url else None
+            )
         except Exception as e:
             logger.exception("Unable to parse feed %s: %s", item, e)
             return False
@@ -107,14 +110,19 @@ class FeedInfoParser(ItemParser):
 
         if parsed.get("bozo") == 1:
             bozo_exception = parsed.get("bozo_exception", None)
-            if isinstance(bozo_exception, feedparser.CharacterEncodingOverride):
-                item.bozo = 1
-            elif isinstance(
+            if isinstance(
                 bozo_exception,
                 (feedparser.CharacterEncodingUnknown, feedparser.UndeclaredNamespace),
             ):
                 logger.warning("No valid feed data for %s: %s", item, bozo_exception)
                 return False
+            # NonXMLContentType only means the server did not declare an XML
+            # content type - the document itself may be a perfectly valid
+            # feed, so it does not count as malformed.
+            if not isinstance(bozo_exception, feedparser.NonXMLContentType):
+                # Any other recoverable parse problem (malformed XML, encoding
+                # override, etc.) means the feed is not well formed.
+                item.bozo = 1
 
         feed = parsed.get("feed")
         if not feed:
@@ -133,6 +141,24 @@ class FeedInfoParser(ItemParser):
         item.title = self.feed_title(feed)
         item.description = self.feed_description(feed)
         item.is_podcast = self.is_podcast(parsed)
+
+        # Feed-declared metadata (RSS 2.0 channel / Atom feed elements).
+        # feedparser normalizes RSS and Atom element names to common keys.
+        item.language = feed.get("language") or ""
+        item.link = self.to_url(feed.get("link"))
+        item.author = self.feed_author(feed)
+        item.copyright = feed.get("rights") or ""
+        item.generator = feed.get("generator") or ""
+        item.tags = self.feed_tags(feed)
+        # RSS <image><url> and itunes:image both normalize to feed.image.href
+        # (itunes:image wins when both are present); Atom uses <logo>.
+        item.image = self.to_url(feed.get("image", {}).get("href") or feed.get("logo"))
+        # Atom <icon> is the small square icon, equivalent to a favicon.
+        if not item.favicon:
+            item.favicon = self.to_url(feed.get("icon"))
+        item.is_explicit = self.itunes_explicit(feed, data)
+        # itunes:new-feed-url signals the feed has permanently moved.
+        item.new_feed_url = self.to_url(feed.get("itunes_new-feed-url"))
 
         try:
             dates = []
@@ -188,6 +214,20 @@ class FeedInfoParser(ItemParser):
         item.title = data.get("title", "")
         item.description = data.get("description", "")
 
+        # JSON Feed feed_url is the canonical self URL of the feed.
+        feed_url = self.to_url(data.get("feed_url"))
+        if feed_url and not item.self_url:
+            item.self_url = feed_url
+
+        item.is_podcast = self.is_json_podcast(data)
+
+        # Feed-declared metadata (JSON Feed 1.1 top-level fields).
+        item.language = data.get("language") or ""
+        item.link = self.to_url(data.get("home_page_url"))
+        item.author = self.json_feed_author(data)
+        # JSON Feed `icon` is the larger artwork; `favicon` the small icon.
+        item.image = self.to_url(data.get("icon"))
+
         favicon = data.get("favicon")
         if favicon:
             item.favicon = URL(favicon)
@@ -199,7 +239,9 @@ class FeedInfoParser(ItemParser):
             except (IndexError, AttributeError):
                 pass
 
-        if item.hubs:
+        # WebSub requires both a hub and a self URL (feed_url in JSON Feed),
+        # matching the XML path's requirement.
+        if item.hubs and item.self_url:
             item.is_push = True
 
         try:
@@ -231,7 +273,10 @@ class FeedInfoParser(ItemParser):
 
     @staticmethod
     def parse_raw_data(
-        raw_data: Union[str, bytes], encoding: str = "utf-8", headers: Dict = None
+        raw_data: Union[str, bytes],
+        encoding: str = "utf-8",
+        headers: Dict = None,
+        base_url: str = None,
     ) -> Dict:
         """
         Loads the raw RSS/Atom XML data.
@@ -243,6 +288,8 @@ class FeedInfoParser(ItemParser):
         :param encoding: Character encoding of raw_data
         :type encoding: str
         :param headers: Response headers
+        :param base_url: URL the feed was fetched from; used as the document
+            base so relative URLs in the feed are resolved to absolute ones
         :return: Dict
         """
         if not encoding:
@@ -260,6 +307,11 @@ class FeedInfoParser(ItemParser):
 
             h.pop("content-encoding", None)
 
+        # feedparser resolves relative URLs against the content-location
+        # header. A genuine header from the response takes precedence.
+        if base_url:
+            h.setdefault("content-location", base_url)
+
         try:
             start = time.perf_counter()
 
@@ -270,8 +322,11 @@ class FeedInfoParser(ItemParser):
             content_length = len(raw_data)
 
             # We want to pass data into feedparser as bytes, otherwise if we accidentally pass a url string
-            # it will attempt a fetch
-            data = feedparser.parse(raw_data, response_headers=h)
+            # it will attempt a fetch.
+            # HTML sanitization is disabled: entry content is discarded by this
+            # crawler, and sanitizing it costs more than the rest of the parse.
+            # Feed fields are therefore unsanitized - treat them as untrusted.
+            data = feedparser.parse(raw_data, response_headers=h, sanitize_html=False)
 
             dur = int((time.perf_counter() - start) * 1000)
             logger.debug("Feed Parse: size=%s dur=%sms", content_length, dur)
@@ -314,6 +369,8 @@ class FeedInfoParser(ItemParser):
         """
         Check if the feed is a Podcast.
 
+        Both audio and video enclosures count - Apple supports video podcasts.
+
         :param parsed: Feedparser dict
         :return: bool
         """
@@ -326,10 +383,159 @@ class FeedInfoParser(ItemParser):
 
         for entry in parsed.get("entries", []):
             for enclosure in entry.get("enclosures", []):
-                if "audio" in enclosure.get("type", ""):
+                media_type = enclosure.get("type", "")
+                if "audio" in media_type or "video" in media_type:
                     has_enclosures = True
 
         return has_itunes and has_enclosures
+
+    @staticmethod
+    def is_json_podcast(data: dict) -> bool:
+        """
+        Check if a JSON Feed is a Podcast.
+
+        JSON Feed items declare media as attachments; audio or video
+        attachment mime types mark the feed as a podcast.
+
+        :param data: JSON Feed dict
+        :return: bool
+        """
+        for entry in data.get("items", []):
+            try:
+                attachments = entry.get("attachments") or []
+            except AttributeError:
+                continue
+            for attachment in attachments:
+                try:
+                    mime_type = attachment.get("mime_type") or ""
+                except AttributeError:
+                    continue
+                if "audio" in mime_type or "video" in mime_type:
+                    return True
+        return False
+
+    # Apple's spec uses true/false; yes/no/clean/explicit occur historically.
+    ITUNES_EXPLICIT_VALUES = {
+        "yes": True,
+        "true": True,
+        "explicit": True,
+        "no": False,
+        "false": False,
+        "clean": False,
+    }
+
+    # Channel-level metadata precedes the first item/entry in a feed document.
+    _CHANNEL_SECTION_SPLIT = re.compile(r"<item[\s>]|<entry[\s>]", re.IGNORECASE)
+    _ITUNES_EXPLICIT_ELEMENT = re.compile(
+        r"<itunes:explicit[^>]*>\s*([a-zA-Z]+)\s*<", re.IGNORECASE
+    )
+
+    @classmethod
+    def itunes_explicit(cls, feed: dict, data: Union[str, bytes]) -> Union[bool, None]:
+        """
+        Get the channel-level itunes:explicit value.
+
+        feedparser only maps "yes" (True) and "clean" (False); the other
+        values - including "true"/"false", which Apple's current spec
+        mandates - are normalized to None. When the element is present but
+        unmapped, the value is recovered from the channel-level section of
+        the raw XML (everything before the first item/entry).
+
+        :param feed: feedparser feed dict
+        :param data: Raw feed XML
+        :return: True/False, or None when not declared
+        """
+        explicit = feed.get("itunes_explicit")
+        if explicit is not None:
+            return bool(explicit)
+        if "itunes_explicit" not in feed:
+            return None
+
+        try:
+            if isinstance(data, bytes):
+                text = data.decode("utf-8", errors="ignore")
+            else:
+                text = str(data)
+            channel_section = cls._CHANNEL_SECTION_SPLIT.split(text, maxsplit=1)[0]
+            match = cls._ITUNES_EXPLICIT_ELEMENT.search(channel_section)
+            if match:
+                return cls.ITUNES_EXPLICIT_VALUES.get(match.group(1).lower())
+        except Exception as e:
+            logger.warning("Failed to parse itunes:explicit value: %s", e)
+        return None
+
+    @staticmethod
+    def to_url(value: Union[str, None]) -> Union[URL, None]:
+        """
+        Convert a string to a URL, returning None for empty or invalid values.
+
+        :param value: URL string or None
+        :return: URL or None
+        """
+        if not value or not isinstance(value, str):
+            return None
+        try:
+            return URL(value.strip())
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def feed_author(feed: dict) -> str:
+        """
+        Get the feed author name.
+
+        Prefers the parsed name from author_detail (RSS managingEditor,
+        Atom <author><name>, or itunes:author) over the raw author string,
+        which may include an email address.
+
+        :param feed: feed dict
+        :return: str
+        """
+        author_detail = feed.get("author_detail") or {}
+        return author_detail.get("name") or feed.get("author") or ""
+
+    @staticmethod
+    def json_feed_author(data: dict) -> str:
+        """
+        Get the author name from a JSON Feed.
+
+        JSON Feed 1.1 uses a top-level `authors` array; 1.0 used a single
+        `author` object. The first author's name is returned.
+
+        :param data: JSON Feed dict
+        :return: str
+        """
+        authors = data.get("authors")
+        if not authors and data.get("author"):
+            authors = [data["author"]]
+        if not authors:
+            return ""
+        try:
+            return authors[0].get("name") or ""
+        except (AttributeError, IndexError):
+            return ""
+
+    @staticmethod
+    def feed_tags(feed: dict) -> List[str]:
+        """
+        Get category/tag terms from a parsed feed.
+
+        feedparser normalizes RSS <category>, Atom <category term=...>, and
+        itunes:category elements into feed.tags. Duplicate terms are removed
+        while preserving order.
+
+        :param feed: feed dict
+        :return: List of unique tag terms
+        """
+        tags: List[str] = []
+        for tag in feed.get("tags", []):
+            try:
+                term = tag.get("term")
+            except AttributeError:
+                continue
+            if term and term not in tags:
+                tags.append(term)
+        return tags
 
     @staticmethod
     def feed_description(feed: dict) -> str:

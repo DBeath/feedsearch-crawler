@@ -540,3 +540,401 @@ class TestEdgeCases:
 
         assert len(hubs) > 0
         assert self_url is not None
+
+
+@pytest.fixture
+def rich_rss_data():
+    """RSS feed with the full set of channel-level metadata elements."""
+    return b"""<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+    <channel>
+        <title>Rich RSS Feed</title>
+        <link>https://example.com/blog</link>
+        <description>A fully-decorated RSS feed</description>
+        <language>en-us</language>
+        <copyright>Copyright 2026 Example Corp</copyright>
+        <managingEditor>editor@example.com (Ed Itor)</managingEditor>
+        <generator>TestGen 1.0</generator>
+        <category domain="https://example.com/cats">Technology</category>
+        <category>Comics</category>
+        <image>
+            <url>https://example.com/channel-image.png</url>
+            <title>Rich RSS Feed</title>
+            <link>https://example.com/blog</link>
+        </image>
+        <itunes:author>Pod Author</itunes:author>
+        <itunes:explicit>yes</itunes:explicit>
+        <itunes:category text="News"/>
+        <item>
+            <title>Episode 1</title>
+            <enclosure url="https://example.com/ep1.mp3" type="audio/mpeg" length="1"/>
+        </item>
+    </channel>
+</rss>"""
+
+
+@pytest.fixture
+def rich_atom_data():
+    """Atom feed with the full set of feed-level metadata elements."""
+    return b"""<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="fr">
+    <id>urn:uuid:test-feed</id>
+    <title>Rich Atom Feed</title>
+    <subtitle>A fully-decorated Atom feed</subtitle>
+    <updated>2025-01-01T12:00:00Z</updated>
+    <author><name>Alice</name><email>alice@example.org</email></author>
+    <link rel="alternate" type="text/html" href="https://example.org/"/>
+    <link rel="self" href="https://example.org/atom.xml"/>
+    <category term="tech" scheme="https://example.org/cats" label="Technology"/>
+    <generator uri="https://gen.example" version="2">AtomGen</generator>
+    <icon>https://example.org/icon.png</icon>
+    <logo>https://example.org/logo.png</logo>
+    <rights>CC-BY 2026</rights>
+    <entry>
+        <id>urn:uuid:e1</id>
+        <title>Entry 1</title>
+        <updated>2025-01-01T12:00:00Z</updated>
+    </entry>
+</feed>"""
+
+
+class TestFeedDeclaredMetadataXML:
+    """Test extraction of RSS/Atom channel-level metadata (spec conformance)."""
+
+    def test_rss_channel_metadata(self, feed_parser, rich_rss_data):
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        result = feed_parser.parse_xml(item, rich_rss_data, "utf-8", {})
+
+        assert result is True
+        assert item.link == URL("https://example.com/blog")
+        assert item.language == "en-us"
+        assert item.copyright == "Copyright 2026 Example Corp"
+        assert item.generator == "TestGen 1.0"
+        # managingEditor parsed name preferred over raw author string
+        assert item.author == "Ed Itor"
+        # RSS <category> and itunes:category terms, deduplicated
+        assert item.tags == ["Technology", "Comics", "News"]
+        # itunes:image is absent, so RSS <image><url> is used
+        assert item.image == URL("https://example.com/channel-image.png")
+        assert item.is_explicit is True
+
+    def test_rss_itunes_image_preferred(self, feed_parser):
+        data = b"""<?xml version="1.0"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel>
+    <title>T</title><link>https://example.com</link><description>D</description>
+    <image><url>https://example.com/rss-image.png</url><title>T</title><link>https://example.com</link></image>
+    <itunes:image href="https://example.com/itunes-artwork.jpg"/>
+    <item><title>I</title></item>
+</channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.image == URL("https://example.com/itunes-artwork.jpg")
+
+    def test_atom_feed_metadata(self, feed_parser, rich_atom_data):
+        item = FeedInfo(url=URL("https://example.org/atom.xml"))
+        result = feed_parser.parse_xml(item, rich_atom_data, "utf-8", {})
+
+        assert result is True
+        assert item.link == URL("https://example.org/")
+        assert item.language == "fr"
+        assert item.copyright == "CC-BY 2026"
+        assert item.generator == "AtomGen"
+        assert item.author == "Alice"
+        assert item.tags == ["tech"]
+        # Atom <logo> maps to image, <icon> to favicon
+        assert item.image == URL("https://example.org/logo.png")
+        assert item.favicon == URL("https://example.org/icon.png")
+        # No itunes:explicit declared
+        assert item.is_explicit is None
+
+    def test_atom_icon_does_not_override_existing_favicon(
+        self, feed_parser, rich_atom_data
+    ):
+        item = FeedInfo(url=URL("https://example.org/atom.xml"))
+        item.favicon = URL("https://example.org/existing.ico")
+        feed_parser.parse_xml(item, rich_atom_data, "utf-8", {})
+        assert item.favicon == URL("https://example.org/existing.ico")
+
+    def test_minimal_feed_metadata_defaults(self, feed_parser, sample_rss_data):
+        """Feeds without the optional elements keep empty/None defaults."""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        result = feed_parser.parse_xml(item, sample_rss_data, "utf-8", {})
+
+        assert result is True
+        assert item.link == URL("https://example.com")
+        assert item.language == ""
+        assert item.author == ""
+        assert item.copyright == ""
+        assert item.generator == ""
+        assert item.tags == []
+        assert item.image is None
+        assert item.is_explicit is None
+
+
+class TestFeedDeclaredMetadataJSON:
+    """Test extraction of JSON Feed 1.0/1.1 top-level metadata."""
+
+    def test_json_feed_metadata(self, feed_parser):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        data = {
+            "version": "https://jsonfeed.org/version/1.1",
+            "title": "Rich JSON Feed",
+            "home_page_url": "https://example.com/",
+            "description": "D",
+            "language": "en",
+            "icon": "https://example.com/icon-512.png",
+            "favicon": "https://example.com/favicon.ico",
+            "authors": [{"name": "Jay Sun", "url": "https://example.com/jay"}],
+            "items": [{"id": "1"}],
+        }
+        assert feed_parser.parse_json(item, data) is True
+        assert item.link == URL("https://example.com/")
+        assert item.language == "en"
+        assert item.author == "Jay Sun"
+        assert item.image == URL("https://example.com/icon-512.png")
+        assert item.favicon == URL("https://example.com/favicon.ico")
+
+    def test_json_feed_v1_author_object(self, feed_parser):
+        """JSON Feed 1.0 used a single `author` object instead of `authors`."""
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        data = {
+            "version": "https://jsonfeed.org/version/1",
+            "title": "V1 Feed",
+            "author": {"name": "Solo Author"},
+            "items": [{"id": "1"}],
+        }
+        assert feed_parser.parse_json(item, data) is True
+        assert item.author == "Solo Author"
+
+
+class TestMetadataHelpers:
+    """Test the static helpers behind feed-declared metadata."""
+
+    def test_to_url_valid(self):
+        assert FeedInfoParser.to_url("https://example.com/x") == URL(
+            "https://example.com/x"
+        )
+        assert FeedInfoParser.to_url("  https://example.com  ") == URL(
+            "https://example.com"
+        )
+
+    def test_to_url_invalid(self):
+        assert FeedInfoParser.to_url(None) is None
+        assert FeedInfoParser.to_url("") is None
+        assert FeedInfoParser.to_url(123) is None
+
+    def test_feed_author_fallback_to_raw_string(self):
+        assert FeedInfoParser.feed_author({"author": "Raw Author"}) == "Raw Author"
+        assert FeedInfoParser.feed_author({}) == ""
+
+    def test_feed_tags_deduplicates(self):
+        feed = {
+            "tags": [
+                {"term": "tech"},
+                {"term": "tech"},
+                {"term": "news"},
+                {"term": None},
+                "not-a-dict",
+            ]
+        }
+        assert FeedInfoParser.feed_tags(feed) == ["tech", "news"]
+
+    def test_json_feed_author_empty(self):
+        assert FeedInfoParser.json_feed_author({}) == ""
+        assert FeedInfoParser.json_feed_author({"authors": []}) == ""
+
+
+class TestItunesExplicit:
+    """Test itunes:explicit parsing across the full value space.
+
+    feedparser only maps "yes"/"clean"; the parser recovers the other values
+    (including "true"/"false", which Apple's current spec mandates) from the
+    channel-level XML.
+    """
+
+    @staticmethod
+    def _podcast_rss(explicit_value: str = None, item_explicit: str = None) -> bytes:
+        channel_explicit = (
+            f"<itunes:explicit>{explicit_value}</itunes:explicit>"
+            if explicit_value is not None
+            else ""
+        )
+        entry_explicit = (
+            f"<itunes:explicit>{item_explicit}</itunes:explicit>"
+            if item_explicit is not None
+            else ""
+        )
+        return f"""<?xml version="1.0"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel>
+    <title>T</title><link>https://example.com</link><description>D</description>
+    {channel_explicit}
+    <item><title>I</title>{entry_explicit}
+        <enclosure url="https://example.com/1.mp3" type="audio/mpeg" length="1"/>
+    </item>
+</channel></rss>""".encode()
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            ("yes", True),
+            ("true", True),
+            ("True", True),
+            ("explicit", True),
+            ("no", False),
+            ("false", False),
+            ("False", False),
+            ("clean", False),
+            ("garbage", None),
+        ],
+    )
+    def test_explicit_values(self, feed_parser, value, expected):
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        data = self._podcast_rss(explicit_value=value)
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.is_explicit is expected, f"value={value!r}"
+
+    def test_not_declared(self, feed_parser):
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        data = self._podcast_rss()
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.is_explicit is None
+
+    def test_item_level_explicit_does_not_leak_to_channel(self, feed_parser):
+        """Only the channel-level element counts; item-level is ignored."""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        data = self._podcast_rss(explicit_value=None, item_explicit="true")
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.is_explicit is None
+
+
+class TestBozoFlagging:
+    """Malformed-but-recoverable feeds must be flagged bozo=1."""
+
+    def test_malformed_xml_sets_bozo(self, feed_parser):
+        # Mismatched </item> tag: feedparser recovers but reports bozo
+        data = b"""<?xml version="1.0"?><rss version="2.0"><channel>
+<title>T</title><description>D</description>
+<item><title>I</title></item</channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        result = feed_parser.parse_xml(item, data, "utf-8", {})
+        if result:
+            assert item.bozo == 1
+
+    def test_wellformed_xml_keeps_bozo_zero(self, feed_parser, sample_rss_data):
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        assert feed_parser.parse_xml(item, sample_rss_data, "utf-8", {}) is True
+        assert item.bozo == 0
+
+
+class TestRelativeUrlResolution:
+    """Relative channel URLs must resolve against the feed URL."""
+
+    def test_relative_link_and_image_resolved(self, feed_parser):
+        data = b"""<?xml version="1.0"?><rss version="2.0"><channel>
+<title>T</title><link>/blog/</link><description>D</description>
+<image><url>/img/logo.png</url><title>T</title><link>/blog/</link></image>
+<item><title>I</title></item></channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feeds/rss.xml"))
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.link == URL("https://example.com/blog/")
+        assert item.image == URL("https://example.com/img/logo.png")
+
+    def test_genuine_content_location_header_wins(self, feed_parser):
+        data = b"""<?xml version="1.0"?><rss version="2.0"><channel>
+<title>T</title><link>/blog/</link><description>D</description>
+<item><title>I</title></item></channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        headers = {"content-location": "https://canonical.example.org/feed.xml"}
+        assert feed_parser.parse_xml(item, data, "utf-8", headers) is True
+        assert item.link == URL("https://canonical.example.org/blog/")
+
+
+class TestPodcastDetection:
+    """Video enclosures and JSON Feed attachments count as podcasts."""
+
+    def test_video_enclosure_is_podcast(self, feed_parser):
+        data = b"""<?xml version="1.0"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel><title>T</title><itunes:author>A</itunes:author>
+<item><title>I</title>
+<enclosure url="https://example.com/ep1.mp4" type="video/mp4" length="1"/>
+</item></channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.is_podcast is True
+
+    def test_json_feed_audio_attachment_is_podcast(self, feed_parser):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        data = {
+            "version": "https://jsonfeed.org/version/1.1",
+            "title": "JSON Podcast",
+            "items": [
+                {
+                    "id": "1",
+                    "attachments": [
+                        {
+                            "url": "https://example.com/ep1.mp3",
+                            "mime_type": "audio/mpeg",
+                        }
+                    ],
+                }
+            ],
+        }
+        assert feed_parser.parse_json(item, data) is True
+        assert item.is_podcast is True
+
+    def test_json_feed_without_attachments_not_podcast(
+        self, feed_parser, sample_json_feed
+    ):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        assert feed_parser.parse_json(item, sample_json_feed) is True
+        assert item.is_podcast is False
+
+
+class TestJsonFeedSelfUrl:
+    """JSON Feed feed_url maps to self_url."""
+
+    def test_feed_url_populates_self_url(self, feed_parser, sample_json_feed):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        assert feed_parser.parse_json(item, sample_json_feed) is True
+        assert item.self_url == URL("https://example.com/feed.json")
+        # hubs + self URL -> WebSub capable
+        assert item.is_push is True
+
+    def test_hubs_without_feed_url_not_push(self, feed_parser):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        data = {
+            "version": "https://jsonfeed.org/version/1",
+            "title": "T",
+            "hubs": [{"url": "https://hub.example.com"}],
+            "items": [{"id": "1"}],
+        }
+        assert feed_parser.parse_json(item, data) is True
+        assert item.is_push is False
+
+    def test_existing_self_url_from_headers_kept(self, feed_parser, sample_json_feed):
+        item = FeedInfo(url=URL("https://example.com/feed.json"))
+        item.self_url = URL("https://example.com/canonical.json")
+        assert feed_parser.parse_json(item, sample_json_feed) is True
+        assert item.self_url == URL("https://example.com/canonical.json")
+
+
+class TestNewFeedUrl:
+    """itunes:new-feed-url signals a moved feed."""
+
+    def test_new_feed_url_parsed(self, feed_parser):
+        data = b"""<?xml version="1.0"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel><title>T</title>
+<itunes:new-feed-url>https://new.example.com/feed.xml</itunes:new-feed-url>
+<item><title>I</title></item></channel></rss>"""
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        assert feed_parser.parse_xml(item, data, "utf-8", {}) is True
+        assert item.new_feed_url == URL("https://new.example.com/feed.xml")
+
+    def test_new_feed_url_absent(self, feed_parser, sample_rss_data):
+        item = FeedInfo(url=URL("https://example.com/feed.xml"))
+        assert feed_parser.parse_xml(item, sample_rss_data, "utf-8", {}) is True
+        assert item.new_feed_url is None

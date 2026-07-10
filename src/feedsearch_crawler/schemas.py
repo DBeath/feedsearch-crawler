@@ -41,6 +41,53 @@ FEEDINFO_SCHEMA = {
             "type": "string",
             "description": "Feed format version (rss20, atom10, json, etc.)",
         },
+        # Feed-declared metadata (RSS 2.0 channel / Atom feed / JSON Feed top-level)
+        "link": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "Website link declared by the feed itself: RSS <link>, "
+            'Atom rel="alternate" link, or JSON Feed home_page_url (nullable)',
+        },
+        "language": {
+            "type": "string",
+            "description": "Feed language: RSS <language>, Atom xml:lang, "
+            "or JSON Feed language",
+        },
+        "author": {
+            "type": "string",
+            "description": "Feed author name: RSS managingEditor, itunes:author, "
+            "Atom <author><name>, or JSON Feed authors[0].name",
+        },
+        "copyright": {
+            "type": "string",
+            "description": "Copyright notice: RSS <copyright> or Atom <rights>",
+        },
+        "generator": {
+            "type": "string",
+            "description": "Software that generated the feed: <generator>",
+        },
+        "tags": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Category/tag terms: RSS <category>, Atom <category>, "
+            "and itunes:category (unique, order preserved)",
+        },
+        "image": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "Feed artwork: itunes:image, RSS <image><url>, "
+            "Atom <logo>, or JSON Feed icon (nullable)",
+        },
+        "is_explicit": {
+            "type": ["boolean", "null"],
+            "description": "itunes:explicit value; null when not declared",
+        },
+        "new_feed_url": {
+            "type": ["string", "null"],
+            "format": "uri",
+            "description": "itunes:new-feed-url - the feed has permanently "
+            "moved to this URL (nullable)",
+        },
         # Content metadata
         "item_count": {
             "type": "integer",
@@ -70,7 +117,8 @@ FEEDINFO_SCHEMA = {
         "favicon": {
             "type": ["string", "null"],
             "format": "uri",
-            "description": "URL of site favicon (nullable)",
+            "description": "URL of the feed icon: Atom <icon>, JSON Feed favicon, "
+            "or the site favicon as fallback (nullable)",
         },
         "favicon_data_uri": {
             "type": "string",
