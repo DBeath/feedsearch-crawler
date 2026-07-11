@@ -243,8 +243,18 @@ Releases are handled by maintainers:
 
 1. Update version in `pyproject.toml`
 2. Update `CHANGELOG.md`
-3. Create and push git tag
-4. GitHub Actions automatically publishes to PyPI
+3. Commit, then create and push a matching git tag:
+
+   ```shell
+   git tag -a vX.Y.Z -m "Release X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+4. The `Publish to PyPI` workflow (`.github/workflows/publish.yml`) runs the
+   test suite, verifies the tag matches the `pyproject.toml` version, builds
+   the sdist and wheel, and publishes to PyPI via [Trusted
+   Publishing](https://docs.pypi.org/trusted-publishers/) (OIDC — no API
+   tokens). The publish job runs in the `pypi` GitHub environment.
 
 ## Questions?
 
