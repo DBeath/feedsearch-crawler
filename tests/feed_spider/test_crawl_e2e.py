@@ -37,10 +37,26 @@ def _build_app(robots_txt: str) -> web.Application:
 
         return handler
 
+    def brotli_handler(text: str, content_type: str):
+        async def handler(request):
+            import brotli
+
+            assert "br" in request.headers.get("Accept-Encoding", ""), (
+                "client must advertise brotli support"
+            )
+            return web.Response(
+                body=brotli.compress(text.encode()),
+                content_type=content_type,
+                headers={"Content-Encoding": "br"},
+            )
+
+        return handler
+
     app = web.Application()
     app.router.add_get("/robots.txt", text_handler(robots_txt, "text/plain"))
     app.router.add_get("/", text_handler(HOME, "text/html"))
     app.router.add_get("/feed.xml", text_handler(RSS, "application/rss+xml"))
+    app.router.add_get("/br/feed.xml", brotli_handler(RSS, "application/rss+xml"))
     app.router.add_get("/blocked.xml", text_handler(RSS, "application/rss+xml"))
     for i in range(5):
         app.router.add_get(f"/page{i}", text_handler(PAGE, "text/html"))
@@ -48,7 +64,9 @@ def _build_app(robots_txt: str) -> web.Application:
 
 
 async def _run_crawl(
-    robots_txt: str = "User-agent: *\nAllow: /", **spider_kwargs
+    robots_txt: str = "User-agent: *\nAllow: /",
+    start_path: str = "/",
+    **spider_kwargs,
 ) -> FeedsearchSpider:
     app = _build_app(robots_txt)
     runner = web.AppRunner(app)
@@ -58,7 +76,7 @@ async def _run_crawl(
     port = site._server.sockets[0].getsockname()[1]
     try:
         kwargs = dict(
-            start_urls=[f"http://127.0.0.1:{port}/"],
+            start_urls=[f"http://127.0.0.1:{port}{start_path}"],
             concurrency=10,
             request_timeout=3,
             total_timeout=15,
@@ -122,6 +140,20 @@ class TestCrawlEndToEnd:
         assert blocked == []
         # The allowed feed is still found.
         assert any(str(f.url).endswith("/feed.xml") for f in spider.items)
+
+    def test_brotli_encoded_feed_is_fetched(self):
+        """A brotli-compressed response must decode and parse.
+
+        Regression test: the abandoned brotlipy package provided a `brotli`
+        module whose Decompressor was incompatible with aiohttp, so every
+        response from a server that chose br encoding (most Cloudflare
+        sites) failed with ContentEncodingError.
+        """
+        spider = asyncio.run(
+            _run_crawl(start_path="/br/feed.xml", requests_per_host_per_sec=0)
+        )
+        feeds = list(spider.items)
+        assert any(f.title == "E2E Feed" for f in feeds), feeds
 
     def test_throttle_disabled_is_fast(self):
         """With throttling disabled the crawl should complete near-instantly."""

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.2] - 2026-07-12
+
+### Fixed
+- **Brotli-encoded responses failed to decode.** The abandoned `brotlipy`
+  dependency provides a `brotli` module whose `Decompressor` API is
+  incompatible with aiohttp, so aiohttp advertised `br` support in
+  `Accept-Encoding` and then raised `ContentEncodingError` on every response
+  from a server that chose Brotli — which includes most Cloudflare-fronted
+  sites. Replaced `brotlipy` with the official `brotli` package. An
+  end-to-end test now crawls a Brotli-compressed feed.
+
 ## [2.1.1] - 2026-07-11
 
 ### Fixed
