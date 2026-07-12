@@ -41,3 +41,7 @@ class SearchError:
         if self.status_code:
             return f"{self.error_type.value}: {self.message} (HTTP {self.status_code}) - {self.url}"
         return f"{self.error_type.value}: {self.message} - {self.url}"
+
+
+class RobotsBlockedError(Exception):
+    """Raised when a request is disallowed by the host's robots.txt."""

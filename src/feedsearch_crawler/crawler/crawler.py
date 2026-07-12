@@ -119,6 +119,7 @@ class Crawler(ABC):
         ssl: bool = False,
         trace: bool = False,
         respect_robots: bool = True,
+        requests_per_host_per_sec: float = 5.0,
         stats_level: StatisticsLevel = StatisticsLevel.STANDARD,
         stats_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         stats_callback_interval: float = 5.0,
@@ -144,6 +145,7 @@ class Crawler(ABC):
         :param ssl: Enables strict SSL checking.
         :param trace: Enables aiohttp trace debugging.
         :param respect_robots: If True, fetch robots.txt first and respect disallow rules. Default True.
+        :param requests_per_host_per_sec: Max request rate per host. 0 disables throttling. Default 5.
         :param stats_level: Statistics collection level (MINIMAL/STANDARD/DETAILED).
         :param stats_callback: Optional callback for real-time statistics updates.
         :param stats_callback_interval: Seconds between statistics callback invocations.
@@ -243,7 +245,7 @@ class Crawler(ABC):
 
         self.middlewares.extend(
             [
-                ThrottleMiddleware(rate_per_sec=2),
+                ThrottleMiddleware(rate_per_sec=requests_per_host_per_sec),
                 RetryMiddleware(max_retries=3),
                 CookieMiddleware(),
                 ContentTypeMiddleware(),
@@ -504,8 +506,9 @@ class Crawler(ABC):
                 logger.debug("Max Depth of '%d' reached: %s", self.max_depth, url)
                 return
 
-            # Copy the Response history so that it isn't a reference to a mutable object.
-            history = copy.deepcopy(response.history)
+            # Copy the Response history so that it isn't a reference to a mutable
+            # object. URLs are immutable, so a shallow copy is sufficient.
+            history = list(response.history)
         else:
             if not request_url.is_absolute():
                 logger.debug("URL should have domain: %s", url)
@@ -595,6 +598,14 @@ class Crawler(ABC):
         :param response: HTTP Response containing robots.txt
         :return: AsyncGenerator yielding sitemap Requests
         """
+        # Register the result with the robots middleware so disallow rules are
+        # enforced without any blocking fetches. A missing/failed robots.txt is
+        # registered as None (permissive).
+        if self._robots_middleware:
+            self._robots_middleware.register_robots_txt(
+                request.url, response.text if response.ok else None
+            )
+
         if not response.ok or not response.text:
             return
 
@@ -676,7 +687,8 @@ class Crawler(ABC):
         :param url: Domain URL
         :return: robots.txt URL for the domain
         """
-        return f"{url.scheme}://{url.host}/robots.txt"
+        # with_path keeps the scheme, host, and port (unlike url.host alone).
+        return str(url.with_path("/robots.txt"))
 
     def _put_queue(self, queueable: Queueable) -> None:
         """
@@ -691,20 +703,26 @@ class Crawler(ABC):
     async def _work(self, task_num: int) -> None:
         """
         Worker function for handling request queue items.
+
+        Everything after the queue get() runs inside a try/finally so that no
+        exception can kill the worker or skip the task_done() accounting that
+        the queue join() depends on.
         """
         try:
             while True:
-                self._stats_queue_sizes.append(self._request_queue.qsize())
                 queue_item: Queueable = await self._request_queue.get()
 
-                if item_wait_time := queue_item.get_queue_wait_time():
-                    self._stats_queue_wait_times.append(item_wait_time)
-
-                if self._session.closed:
-                    logger.debug("Session is closed. Cannot run %s", queue_item)
-                    continue
-
                 try:
+                    if item_wait_time := queue_item.get_queue_wait_time():
+                        await self.stats_collector.record_queue_metrics(
+                            wait_time_ms=item_wait_time,
+                            queue_size=self._request_queue.qsize(),
+                        )
+
+                    if self._session.closed:
+                        logger.debug("Session is closed. Cannot run %s", queue_item)
+                        continue
+
                     # Process Callback results
                     if isinstance(queue_item, CallbackResult):
                         await self._process_request_callback_result(
@@ -722,7 +740,7 @@ class Crawler(ABC):
                             )
 
                 except Exception as e:
-                    logger.exception("Error handling item: %s : %s", item, e)
+                    logger.exception("Error handling item: %s : %s", queue_item, e)
                 finally:
                     self._request_queue.task_done()
         except asyncio.CancelledError:
@@ -936,9 +954,8 @@ class Crawler(ABC):
                     logger.debug(f"Queued robots.txt: {robots_url}")
 
             # Queue standard sitemap.xml (priority=5) - doesn't wait for robots.txt
-            standard_sitemap_url = (
-                f"{coerced_url.scheme}://{coerced_url.host}/sitemap.xml"
-            )
+            # with_path keeps the scheme, host, and port.
+            standard_sitemap_url = str(coerced_url.with_path("/sitemap.xml"))
             if standard_sitemap_url not in sitemap_urls_added:
                 sitemap_req = await self.follow(
                     standard_sitemap_url,

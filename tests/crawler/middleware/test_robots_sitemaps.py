@@ -1,12 +1,13 @@
 """Comprehensive tests for robots.txt handling, sitemap discovery, and crawl limits."""
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 from urllib.robotparser import RobotFileParser
 from yarl import URL
 
 from feedsearch_crawler.crawler.middleware.robots import RobotsMiddleware
 from feedsearch_crawler.crawler.request import Request
+from feedsearch_crawler.exceptions import RobotsBlockedError
 
 
 class TestRobotsMiddlewareBasic:
@@ -18,13 +19,12 @@ class TestRobotsMiddlewareBasic:
         middleware = RobotsMiddleware(user_agent="TestBot")
         request = Request(url=URL("https://example.com/feed.xml"))
 
-        # Mock failed robots.txt load
-        with patch.object(middleware, "_load_robots_txt") as mock_load:
-            mock_load.return_value = None
-            middleware.cache["https://example.com/robots.txt"] = None
+        # The crawler registers None when robots.txt could not be fetched
+        middleware.register_robots_txt(URL("https://example.com/robots.txt"), None)
+        assert middleware.cache["https://example.com/robots.txt"] is None
 
-            # Should not raise exception
-            await middleware.process_request(request)
+        # Should not raise exception
+        await middleware.pre_request(request)
 
     @pytest.mark.asyncio
     async def test_robots_blocks_disallowed_path(self):
@@ -32,13 +32,12 @@ class TestRobotsMiddlewareBasic:
         middleware = RobotsMiddleware(user_agent="TestBot")
         request = Request(url=URL("https://example.com/private/data"))
 
-        # Create mock RobotFileParser that blocks the path
-        mock_rp = Mock(spec=RobotFileParser)
-        mock_rp.can_fetch.return_value = False
-        middleware.cache["https://example.com/robots.txt"] = mock_rp
+        middleware.register_robots_txt(
+            URL("https://example.com/robots.txt"), "User-agent: *\nDisallow: /private"
+        )
 
-        with pytest.raises(Exception, match="Blocked by robots.txt"):
-            await middleware.process_request(request)
+        with pytest.raises(RobotsBlockedError, match="Blocked by robots.txt"):
+            await middleware.pre_request(request)
 
     @pytest.mark.asyncio
     async def test_robots_allows_allowed_path(self):
@@ -46,28 +45,27 @@ class TestRobotsMiddlewareBasic:
         middleware = RobotsMiddleware(user_agent="TestBot")
         request = Request(url=URL("https://example.com/feed.xml"))
 
-        # Create mock RobotFileParser that allows the path
-        mock_rp = Mock(spec=RobotFileParser)
-        mock_rp.can_fetch.return_value = True
-        middleware.cache["https://example.com/robots.txt"] = mock_rp
+        middleware.register_robots_txt(
+            URL("https://example.com/robots.txt"), "User-agent: *\nDisallow: /private"
+        )
 
         # Should not raise exception
-        await middleware.process_request(request)
+        await middleware.pre_request(request)
 
     @pytest.mark.asyncio
     async def test_robots_caching_per_host(self):
         """Test that robots.txt is cached per host."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        mock_rp = Mock(spec=RobotFileParser)
-        mock_rp.can_fetch.return_value = True
-        middleware.cache["https://example.com/robots.txt"] = mock_rp
+        middleware.register_robots_txt(
+            URL("https://example.com/robots.txt"), "User-agent: *\nAllow: /"
+        )
 
         request1 = Request(url=URL("https://example.com/feed1.xml"))
         request2 = Request(url=URL("https://example.com/feed2.xml"))
 
-        await middleware.process_request(request1)
-        await middleware.process_request(request2)
+        await middleware.pre_request(request1)
+        await middleware.pre_request(request2)
 
         # Should only have one cache entry for the host
         assert "https://example.com/robots.txt" in middleware.cache
@@ -78,19 +76,18 @@ class TestRobotsMiddlewareBasic:
         """Test that different hosts have separate robots.txt cache."""
         middleware = RobotsMiddleware(user_agent="TestBot")
 
-        mock_rp1 = Mock(spec=RobotFileParser)
-        mock_rp1.can_fetch.return_value = True
-        mock_rp2 = Mock(spec=RobotFileParser)
-        mock_rp2.can_fetch.return_value = True
-
-        middleware.cache["https://example.com/robots.txt"] = mock_rp1
-        middleware.cache["https://other.com/robots.txt"] = mock_rp2
+        middleware.register_robots_txt(
+            URL("https://example.com/robots.txt"), "User-agent: *\nAllow: /"
+        )
+        middleware.register_robots_txt(
+            URL("https://other.com/robots.txt"), "User-agent: *\nAllow: /"
+        )
 
         request1 = Request(url=URL("https://example.com/feed.xml"))
         request2 = Request(url=URL("https://other.com/feed.xml"))
 
-        await middleware.process_request(request1)
-        await middleware.process_request(request2)
+        await middleware.pre_request(request1)
+        await middleware.pre_request(request2)
 
         assert len(middleware.cache) == 2
 
@@ -102,7 +99,7 @@ class TestRobotsMiddlewareBasic:
         request = Request(url=URL("file:///local/path"))
 
         # Should not raise exception for URLs without host
-        await middleware.process_request(request)
+        await middleware.pre_request(request)
 
 
 class TestRobotsMiddlewareUserAgent:
@@ -119,8 +116,8 @@ class TestRobotsMiddlewareUserAgent:
         mock_rp.can_fetch.return_value = False
         middleware.cache["https://example.com/robots.txt"] = mock_rp
 
-        with pytest.raises(Exception, match="Blocked by robots.txt"):
-            await middleware.process_request(request)
+        with pytest.raises(RobotsBlockedError, match="Blocked by robots.txt"):
+            await middleware.pre_request(request)
 
         # Verify it checked with correct user-agent
         mock_rp.can_fetch.assert_called_with("Feedsearch-Crawler", str(request.url))
@@ -149,7 +146,7 @@ class TestRobotsMiddlewareCrawlDelay:
         # This test verifies the structure is in place
         # Actual delay enforcement would be in the crawler/spider
         request = Request(url=URL("https://example.com/feed"))
-        await middleware.process_request(request)
+        await middleware.pre_request(request)
 
         # If we had delay enforcement, we'd test it here
         # For now, verify the robots parser is set up correctly
@@ -332,17 +329,15 @@ class TestRobotsMiddlewareErrorHandling:
         middleware = RobotsMiddleware(user_agent="TestBot")
         request = Request(url=URL("https://example.com/feed"))
 
-        with patch.object(middleware, "_load_robots_txt") as mock_load:
-            # Simulate loading error
-            mock_load.side_effect = Exception("Network error")
+        # When the robots.txt fetch fails, the crawler registers None
+        middleware.register_robots_txt(URL("https://example.com/robots.txt"), None)
 
-            # Should not raise exception - be permissive on errors
-            try:
-                await middleware.process_request(request)
-                # If it gets here, the request was allowed (correct behavior)
-            except Exception as e:
-                if "Blocked by robots.txt" in str(e):
-                    pytest.fail("Should not block on loading errors")
+        # Should not raise exception - be permissive on errors
+        try:
+            await middleware.pre_request(request)
+            # If it gets here, the request was allowed (correct behavior)
+        except RobotsBlockedError:
+            pytest.fail("Should not block on loading errors")
 
     @pytest.mark.asyncio
     async def test_robots_malformed_file_handling(self):
@@ -354,7 +349,7 @@ class TestRobotsMiddlewareErrorHandling:
         middleware.cache["https://example.com/robots.txt"] = None
 
         # Should allow request when robots.txt is malformed
-        await middleware.process_request(request)
+        await middleware.pre_request(request)
 
 
 class TestRobotsIntegrationScenarios:

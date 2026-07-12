@@ -20,10 +20,19 @@ from feedsearch_crawler.feed_spider.site_meta_parser import SiteMetaParser
 
 logger = logging.getLogger(__name__)
 
+# lxml is used for HTML parsing when available (~1.6x faster with
+# BeautifulSoup); install with `pip install feedsearch-crawler[lxml]`.
+try:
+    import lxml  # noqa: F401
+
+    DEFAULT_HTML_PARSER = "lxml"
+except ImportError:
+    DEFAULT_HTML_PARSER = "html.parser"
+
 
 class FeedsearchSpider(Crawler):
     duplicate_filter_class = NoQueryDupeFilter
-    htmlparser = "html.parser"
+    htmlparser = DEFAULT_HTML_PARSER
     favicon_data_uri = True
     try_urls: Union[List[str], bool] = False
     full_crawl: bool = False

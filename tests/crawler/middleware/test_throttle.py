@@ -27,10 +27,10 @@ class TestThrottleMiddleware:
         start_time = asyncio.get_event_loop().time()
 
         # First request to each host should not be delayed
-        await middleware.process_request(request1)
+        await middleware.pre_request(request1)
         time_after_first = asyncio.get_event_loop().time()
 
-        await middleware.process_request(request2)
+        await middleware.pre_request(request2)
         time_after_second = asyncio.get_event_loop().time()
 
         # These should be almost immediate (no significant delay)
@@ -38,7 +38,7 @@ class TestThrottleMiddleware:
         assert (time_after_second - time_after_first) < 0.05
 
         # Third request to same host as first should be delayed
-        await middleware.process_request(request3)
+        await middleware.pre_request(request3)
         time_after_third = asyncio.get_event_loop().time()
 
         # Should have been delayed by ~100ms (1/10 rate_per_sec)
@@ -55,8 +55,8 @@ class TestThrottleMiddleware:
 
         start_time = asyncio.get_event_loop().time()
 
-        await middleware.process_request(request1)
-        await middleware.process_request(request2)
+        await middleware.pre_request(request1)
+        await middleware.pre_request(request2)
 
         end_time = asyncio.get_event_loop().time()
         total_time = end_time - start_time
@@ -72,11 +72,27 @@ class TestThrottleMiddleware:
         request = Request(url=URL("https://example.com/page1"))
 
         start_time = asyncio.get_event_loop().time()
-        await middleware.process_request(request)
+        await middleware.pre_request(request)
         end_time = asyncio.get_event_loop().time()
 
         # First request should be immediate
         assert (end_time - start_time) < 0.05
+
+    @pytest.mark.asyncio
+    async def test_zero_rate_disables_throttling(self):
+        """Test that a rate of 0 (or less) disables throttling entirely."""
+        middleware = ThrottleMiddleware(rate_per_sec=0)
+
+        start_time = asyncio.get_event_loop().time()
+        for i in range(3):
+            await middleware.pre_request(
+                Request(url=URL(f"https://example.com/page{i}"))
+            )
+        end_time = asyncio.get_event_loop().time()
+
+        # No sleeps and no timer writes
+        assert (end_time - start_time) < 0.05
+        assert middleware.host_timers == {}
 
     @pytest.mark.asyncio
     async def test_host_timer_tracking(self):
@@ -86,12 +102,12 @@ class TestThrottleMiddleware:
         request1 = Request(url=URL("https://example.com/page1"))
         request2 = Request(url=URL("https://test.com/page1"))
 
-        await middleware.process_request(request1)
-        await middleware.process_request(request2)
+        await middleware.pre_request(request1)
+        await middleware.pre_request(request2)
 
         # Both hosts should be tracked
-        assert middleware.host_timers.__contains__("example.com")
-        assert middleware.host_timers.__contains__("test.com")
+        assert "example.com" in middleware.host_timers
+        assert "test.com" in middleware.host_timers
         assert len(middleware.host_timers) == 2
 
     @pytest.mark.asyncio
@@ -103,8 +119,8 @@ class TestThrottleMiddleware:
         request = Request(url=URL("file:///local/path"))
 
         # Should not crash
-        await middleware.process_request(request)
-        assert "unknown" in middleware.host_timers or None in middleware.host_timers
+        await middleware.pre_request(request)
+        assert "unknown" in middleware.host_timers
 
     @pytest.mark.asyncio
     async def test_multiple_requests_same_host_sequential(self):
@@ -117,7 +133,7 @@ class TestThrottleMiddleware:
         start_time = asyncio.get_event_loop().time()
 
         for request in requests:
-            await middleware.process_request(request)
+            await middleware.pre_request(request)
 
         end_time = asyncio.get_event_loop().time()
         total_time = end_time - start_time
@@ -134,7 +150,7 @@ class TestThrottleMiddleware:
         async def make_request(host, page):
             request = Request(url=URL(f"https://{host}/page{page}"))
             start = asyncio.get_event_loop().time()
-            await middleware.process_request(request)
+            await middleware.pre_request(request)
             end = asyncio.get_event_loop().time()
             return end - start
 
@@ -154,6 +170,26 @@ class TestThrottleMiddleware:
         for duration in durations:
             assert duration < 0.1  # Each individual request should be fast
 
+    @pytest.mark.asyncio
+    async def test_concurrent_requests_same_host_queue(self):
+        """Test that concurrent same-host requests queue behind each other.
+
+        pre_request reserves the host's next slot before sleeping, so
+        concurrent requests to the same host serialize instead of racing.
+        """
+        middleware = ThrottleMiddleware(rate_per_sec=10)  # 100ms delay
+
+        async def make_request(page):
+            request = Request(url=URL(f"https://example.com/page{page}"))
+            await middleware.pre_request(request)
+
+        start_time = asyncio.get_event_loop().time()
+        await asyncio.gather(*(make_request(i) for i in range(3)))
+        total_time = asyncio.get_event_loop().time() - start_time
+
+        # First is immediate, second waits ~100ms, third waits ~200ms
+        assert total_time >= 0.18  # ~2 * 100ms, with tolerance
+
     def test_middleware_initialization(self):
         """Test middleware initialization with different rates."""
         middleware1 = ThrottleMiddleware(rate_per_sec=1)
@@ -165,8 +201,8 @@ class TestThrottleMiddleware:
         assert middleware2.rate_per_sec == 100
 
     @pytest.mark.asyncio
-    async def test_pre_request_and_response_methods(self):
-        """Test that pre_request and process_response methods don't interfere."""
+    async def test_noop_methods_do_not_interfere(self):
+        """Test that process_request/response/exception no-ops don't interfere."""
         middleware = ThrottleMiddleware(rate_per_sec=10)
         request = Request(url=URL("https://example.com/test"))
 
@@ -178,15 +214,22 @@ class TestThrottleMiddleware:
 
         response = MockResponse()
 
-        # These methods should not raise exceptions
-        await middleware.pre_request(request)
-        await middleware.process_response(response)
-        await middleware.process_exception(request, Exception("test"))
-
-        # Main functionality should still work
+        # These methods are no-ops and should not raise or throttle
         start_time = asyncio.get_event_loop().time()
         await middleware.process_request(request)
+        await middleware.process_response(response)
+        await middleware.process_exception(request, Exception("test"))
+        end_time = asyncio.get_event_loop().time()
+
+        assert (end_time - start_time) < 0.05
+        # The no-op methods must not touch host timers
+        assert middleware.host_timers == {}
+
+        # Main functionality (throttling in pre_request) should still work
+        start_time = asyncio.get_event_loop().time()
+        await middleware.pre_request(request)
         end_time = asyncio.get_event_loop().time()
 
         # First request should be immediate
         assert (end_time - start_time) < 0.05
+        assert "example.com" in middleware.host_timers

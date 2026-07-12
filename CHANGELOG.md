@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-11
+
+### Fixed
+- **Critical: the crawl worker loop was completely broken in all 2.x
+  releases.** Workers crashed on their first queue item (an uninitialized
+  legacy statistics attribute removed in the 2.0 stats refactor), died
+  silently, and every crawl processed zero requests while idling until
+  `total_timeout`. Queue metrics are now recorded through `StatsCollector`,
+  and the worker loop is hardened so no exception can kill a worker or skip
+  queue accounting. An end-to-end crawl test against a local HTTP server now
+  guards this path (the previous integration test file was disabled, which
+  is how the breakage went unnoticed)
+- robots.txt disallow rules are now enforced *before* a request is sent
+  (previously the check ran after the response had already been fetched),
+  and the rules are parsed from the crawler's own async robots.txt fetch.
+  Previously the middleware fetched robots.txt a second time with a
+  **blocking urllib call on the event loop, with no timeout**
+- Per-host throttling now delays requests *before* they are sent
+  (previously it slept after the response arrived, adding latency without
+  limiting the actual request rate)
+- robots.txt and sitemap.xml URLs no longer drop the port from non-standard
+  origins
+
+### Changed
+- New `requests_per_host_per_sec` crawler parameter (default 5, 0 disables)
+  replaces the previously hardcoded per-host rate of 2
+- BeautifulSoup uses the ~1.6x faster lxml parser when lxml is installed
+  (`pip install feedsearch-crawler[lxml]`); falls back to html.parser
+
+### Performance
+- Response history copies use shallow list copies instead of `deepcopy`
+  (~290x faster per request)
+- JSON parsing of response bodies is skipped for non-JSON content
+
 ## [2.1.0] - 2026-07-10
 
 ### Added

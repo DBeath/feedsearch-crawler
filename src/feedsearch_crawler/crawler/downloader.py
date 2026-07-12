@@ -14,7 +14,7 @@ from .lib import ContentLengthError, ContentReadError
 from feedsearch_crawler.crawler.request import Request
 from feedsearch_crawler.crawler.response import Response
 from feedsearch_crawler.crawler.middleware import BaseDownloaderMiddleware
-from feedsearch_crawler.exceptions import ErrorType
+from feedsearch_crawler.exceptions import ErrorType, RobotsBlockedError
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +38,19 @@ class Downloader:
         await self._delay_request(request.delay)
 
         # Copy the Request history so that it isn't a pointer.
-        history: List[URL] = copy.deepcopy(request.history)
+        # URLs are immutable, so a shallow copy of the list is sufficient.
+        history: List[URL] = list(request.history)
 
         response = None
         response_status_code: int = 0
 
         # Pass the request to the middleware before the request is sent
-        for middleware in self.middlewares:
-            await middleware.pre_request(request)
+        try:
+            for middleware in self.middlewares:
+                await middleware.pre_request(request)
+        except RobotsBlockedError as e:
+            logger.debug("%s", e)
+            return self._failed_response(request, 403, history)
 
         error_type_hint: Optional[ErrorType] = None
         try:
@@ -306,6 +311,11 @@ class Downloader:
 
         stripped = resp_text.strip()
         if not stripped:
+            return {}
+
+        # JSON documents of interest are objects or arrays; skip the parse
+        # attempt for HTML/XML/plain-text responses.
+        if stripped[0] not in "{[":
             return {}
 
         try:

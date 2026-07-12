@@ -195,5 +195,9 @@ class TestFeedsearchSpiderBasics:
 
     async def test_spider_htmlparser_setting(self):
         """Test spider HTML parser setting."""
+        from feedsearch_crawler.feed_spider.spider import DEFAULT_HTML_PARSER
+
         spider = FeedsearchSpider(concurrency=1, total_timeout=1.0)
-        assert spider.htmlparser == "html.parser"
+        # lxml is installed in the dev environment, so it is the default parser
+        assert DEFAULT_HTML_PARSER == "lxml"
+        assert spider.htmlparser == DEFAULT_HTML_PARSER

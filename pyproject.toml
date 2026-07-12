@@ -1,6 +1,6 @@
 [project]
 name = "feedsearch-crawler"
-version = "2.1.0"
+version = "2.1.1"
 description = "Search sites for RSS, Atom, and JSON feeds"
 authors = [
     {name = "David Beath", email = "davidgbeath@gmail.com"}
@@ -46,11 +46,17 @@ dependencies = [
     "asyncio>=3.4.3",
 ]
 
+[project.optional-dependencies]
+lxml = [
+    "lxml>=5.0.0",
+]
+
 [project.scripts]
 feedsearch-crawler = "feedsearch_crawler:main"
 
 [dependency-groups]
 dev = [
+    "lxml>=5.0.0",
     "jsonschema>=4.25.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=1.1.0",

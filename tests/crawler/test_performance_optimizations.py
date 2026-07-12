@@ -339,8 +339,7 @@ class TestPerHostThrottlingOptimizations:
         start_time = asyncio.get_event_loop().time()
 
         tasks = [
-            asyncio.create_task(middleware.process_request(request))
-            for request in requests
+            asyncio.create_task(middleware.pre_request(request)) for request in requests
         ]
         await asyncio.gather(*tasks)
 
@@ -367,7 +366,7 @@ class TestPerHostThrottlingOptimizations:
 
         # Process requests to same host sequentially
         for request in requests:
-            await middleware.process_request(request)
+            await middleware.pre_request(request)
 
         total_time = asyncio.get_event_loop().time() - start_time
 
@@ -426,4 +425,14 @@ class TestPerformanceIntegration:
             m for m in crawler.middlewares if type(m).__name__ == "ThrottleMiddleware"
         )
         assert hasattr(throttle_middleware, "host_timers")  # Per-host tracking
-        assert throttle_middleware.rate_per_sec == 2  # Reasonable rate
+        # Default requests_per_host_per_sec is passed through to the middleware
+        assert throttle_middleware.rate_per_sec == 5.0
+
+    def test_configured_throttle_rate_passed_to_middleware(self):
+        """Test that a custom requests_per_host_per_sec reaches the middleware."""
+        crawler = MockCrawler(concurrency=8, requests_per_host_per_sec=3.0)
+
+        throttle_middleware = next(
+            m for m in crawler.middlewares if type(m).__name__ == "ThrottleMiddleware"
+        )
+        assert throttle_middleware.rate_per_sec == 3.0

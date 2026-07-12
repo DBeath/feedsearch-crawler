@@ -419,3 +419,63 @@ class TestCrawlerCallbackHandling:
 
         # Item should not be processed due to recursion limit
         assert len(crawler.processed_items) == 0
+
+
+@pytest.mark.asyncio
+class TestHistoryIndependence:
+    """Each Request/Response must own an independent history list.
+
+    Guards the shallow-copy semantics: URL elements may be shared (yarl URLs
+    are immutable), but the list objects must never be, so appending to one
+    item's history can never leak into another's.
+    """
+
+    async def test_followed_requests_get_independent_histories(self):
+        crawler = MockCrawler()
+
+        async def dummy_callback(request, response):
+            pass
+
+        shared_history = [
+            URL("https://example.com/"),
+            URL("https://example.com/blog"),
+        ]
+        response = Response(
+            url=URL("https://example.com/blog"),
+            method="GET",
+            headers={},
+            status_code=200,
+            history=shared_history,
+        )
+
+        req_a = await crawler.follow(
+            URL("https://example.com/a"), dummy_callback, response=response
+        )
+        req_b = await crawler.follow(
+            URL("https://example.com/b"), dummy_callback, response=response
+        )
+
+        # Same contents, but three distinct list objects
+        assert req_a.history == response.history == req_b.history
+        assert req_a.history is not response.history
+        assert req_b.history is not response.history
+        assert req_a.history is not req_b.history
+
+        # Mutating one history must not leak into the others
+        req_a.history.append(URL("https://example.com/a"))
+        assert len(response.history) == 2
+        assert len(req_b.history) == 2
+
+    async def test_follow_without_response_gets_fresh_history(self):
+        crawler = MockCrawler()
+
+        async def dummy_callback(request, response):
+            pass
+
+        req_a = await crawler.follow(URL("https://one.example.com"), dummy_callback)
+        req_b = await crawler.follow(URL("https://two.example.com"), dummy_callback)
+
+        assert req_a.history == []
+        assert req_a.history is not req_b.history
+        req_a.history.append(URL("https://one.example.com"))
+        assert req_b.history == []
