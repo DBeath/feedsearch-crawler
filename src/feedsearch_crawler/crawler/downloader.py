@@ -90,7 +90,17 @@ class Downloader:
                     )
 
                 # Set encoding automatically from response if not specified.
-                encoding = request.encoding or resp.get_encoding()
+                # The body was streamed via resp.content, so aiohttp's own
+                # body buffer is unset and get_encoding() raises RuntimeError
+                # when the Content-Type header carries no charset (it would
+                # need the body for fallback detection). Default to UTF-8 in
+                # that case; undecodable bytes are handled below.
+                encoding = request.encoding
+                if not encoding:
+                    try:
+                        encoding = resp.get_encoding()
+                    except RuntimeError:
+                        encoding = "utf-8"
 
                 # Read response content
                 try:

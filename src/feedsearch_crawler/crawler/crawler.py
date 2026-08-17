@@ -657,7 +657,7 @@ class Crawler(ABC):
         for url in feed_urls:
             req = await self.follow(
                 url,
-                self.parse_response_content,  # Use normal spider callback
+                self.parse_response,  # Use normal spider callback
                 response=response,
                 priority=10,
                 allow_domain=True,

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-08-17
+
+### Fixed
+- **Responses without a `charset` in Content-Type failed entirely.** The
+  downloader streams the body itself, so aiohttp's `get_encoding()` had no
+  body buffer for fallback charset detection and raised `RuntimeError`
+  ("Cannot compute fallback encoding of a not yet read body"), failing
+  every request to such sites. Now falls back to UTF-8 when no charset is
+  declared; undecodable content is handled as before.
+- **Sitemap-discovered URLs always failed to parse.** The sitemap handler
+  queued follow-up requests with `parse_response_content` (a text-parsing
+  helper) as the request callback instead of `parse_response`, so every
+  URL found via sitemap.xml raised "unexpected keyword argument 'request'"
+  and contributed nothing to feed discovery.
+
 ## [2.1.2] - 2026-07-12
 
 ### Fixed
