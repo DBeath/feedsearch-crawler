@@ -33,7 +33,6 @@ from feedsearch_crawler.crawler.lib import (
     ignore_aiohttp_ssl_error,
     parse_href_to_url,
 )
-from feedsearch_crawler.crawler.middleware.content_type import ContentTypeMiddleware
 from feedsearch_crawler.crawler.middleware.cookie import CookieMiddleware
 from feedsearch_crawler.crawler.middleware.monitoring import MonitoringMiddleware
 from feedsearch_crawler.crawler.middleware.retry import RetryMiddleware
@@ -248,7 +247,6 @@ class Crawler(ABC):
                 ThrottleMiddleware(rate_per_sec=requests_per_host_per_sec),
                 RetryMiddleware(max_retries=3),
                 CookieMiddleware(),
-                ContentTypeMiddleware(),
                 MonitoringMiddleware(),
             ]
         )
@@ -537,6 +535,9 @@ class Crawler(ABC):
             url=request_url,
             history=history,
             callback=callback,
+            # Response.xml needs this; without it the site-meta parser gets
+            # None and never yields site name, URL or icons.
+            xml_parser=self.parse_response_content,
             max_content_length=max_content_length or self.max_content_length,
             timeout=timeout or self.request_timeout,
             method=method,

@@ -22,12 +22,29 @@ RSS = (
 HOME = (
     "<html><head><title>E2E Site</title>"
     '<link rel="alternate" type="application/rss+xml" href="/feed.xml">'
+    '<link rel="icon" href="/favicon.png">'
     "</head><body>"
     + "".join(f'<a href="/page{i}">page {i}</a>' for i in range(5))
     + "</body></html>"
 )
 
 PAGE = "<html><head><title>Page</title></head><body>nothing here</body></html>"
+
+JSON_FEED = (
+    '{"version": "https://jsonfeed.org/version/1.1", "title": "E2E JSON Feed", '
+    '"home_page_url": "/", "feed_url": "/feed.json", '
+    '"items": [{"id": "1", "title": "Item 1", "content_text": "hi"}]}'
+)
+
+# A home page that declares a JSON Feed and a site icon.
+JSON_HOME = (
+    "<html><head><title>E2E JSON Site</title>"
+    '<link rel="alternate" type="application/feed+json" href="/feed.json">'
+    "</head><body></body></html>"
+)
+
+# Smallest valid PNG header; the spider only checks the magic bytes.
+PNG = bytes.fromhex("89504E470D0A1A0A") + b"\x00" * 16
 
 
 def _build_app(robots_txt: str) -> web.Application:
@@ -58,6 +75,13 @@ def _build_app(robots_txt: str) -> web.Application:
     app.router.add_get("/feed.xml", text_handler(RSS, "application/rss+xml"))
     app.router.add_get("/br/feed.xml", brotli_handler(RSS, "application/rss+xml"))
     app.router.add_get("/blocked.xml", text_handler(RSS, "application/rss+xml"))
+    app.router.add_get("/json/", text_handler(JSON_HOME, "text/html"))
+    app.router.add_get("/feed.json", text_handler(JSON_FEED, "application/json"))
+
+    async def png_handler(request):
+        return web.Response(body=PNG, content_type="image/png")
+
+    app.router.add_get("/favicon.png", png_handler)
     for i in range(5):
         app.router.add_get(f"/page{i}", text_handler(PAGE, "text/html"))
     return app
@@ -154,6 +178,41 @@ class TestCrawlEndToEnd:
         )
         feeds = list(spider.items)
         assert any(f.title == "E2E Feed" for f in feeds), feeds
+
+    def test_json_feed_is_parsed(self):
+        """A JSON Feed served as application/json must be discovered.
+
+        Regression test: ContentTypeMiddleware called `response.json()` on
+        JSON responses, but the downloader had already parsed the body into
+        the `json` dict attribute, so every JSON fetch failed with
+        "'dict' object is not callable" and no JSON Feed was ever parsed.
+        """
+        spider = asyncio.run(
+            _run_crawl(start_path="/json/", requests_per_host_per_sec=0)
+        )
+        feeds = list(spider.items)
+        assert any(
+            f.url.path == "/feed.json" and f.title == "E2E JSON Feed" for f in feeds
+        ), feeds
+
+    def test_favicon_data_uri_is_built(self):
+        """With favicon_data_uri enabled the site icon becomes a data URI.
+
+        Regression test for two bugs: requests were built without an
+        xml_parser, so the site-meta parser got None from response.xml and
+        never yielded site name, URL or icons; and the downloader's early
+        content-type filter rejected image responses with 415 before
+        parse_favicon_data_uri ran.
+        """
+        spider = asyncio.run(
+            _run_crawl(favicon_data_uri=True, requests_per_host_per_sec=0)
+        )
+        feeds = [f for f in spider.items if f.url.path == "/feed.xml"]
+        assert feeds, list(spider.items)
+        # Site metadata comes from the same site-meta parse as the icon.
+        assert feeds[0].site_name == "E2E Site"
+        assert str(feeds[0].favicon).endswith("/favicon.png")
+        assert feeds[0].favicon_data_uri.startswith("data:image/png;base64,")
 
     def test_throttle_disabled_is_fast(self):
         """With throttling disabled the crawl should complete near-instantly."""

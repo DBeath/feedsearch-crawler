@@ -61,11 +61,13 @@ class Downloader:
                 for middleware in self.middlewares:
                     await middleware.process_request(request)
 
-                # Check content type early to avoid downloading irrelevant content
+                # Check content type early to avoid downloading irrelevant
+                # content. Images are allowed because favicons are fetched to
+                # build data URIs (the spider caps those at 50 KB).
                 content_type = resp.headers.get(hdrs.CONTENT_TYPE, "").lower()
                 if not any(
                     ct in content_type
-                    for ct in ["xml", "rss", "atom", "json", "html", "text"]
+                    for ct in ["xml", "rss", "atom", "json", "html", "text", "image"]
                 ):
                     # Skip downloading body for irrelevant content types
                     resp.close()

@@ -80,6 +80,7 @@ class FeedInfoParser(ItemParser):
                 item.favicon,
                 self.crawler.parse_favicon_data_uri,
                 cb_kwargs=dict(favicon=favicon),
+                max_content_length=51200,
             )
 
         self.validate_self_url(item)

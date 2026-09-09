@@ -26,7 +26,7 @@ class TestCrawlerInitialization:
         assert crawler.max_depth == 10
         assert crawler.delay == 0.5
         assert crawler.max_content_length == 1024 * 1024 * 10
-        assert len(crawler.middlewares) == 6  # Default middleware count
+        assert len(crawler.middlewares) == 5  # Default middleware count
 
     def test_custom_initialization(self):
         crawler = MockCrawler(
@@ -60,7 +60,6 @@ class TestCrawlerInitialization:
             "ThrottleMiddleware",
             "RetryMiddleware",
             "CookieMiddleware",
-            "ContentTypeMiddleware",
             "MonitoringMiddleware",
         ]
 

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-09-09
+
+### Fixed
+- **Every JSON response was logged as a failed fetch.** `ContentTypeMiddleware`
+  called `response.json()` on `application/json` responses, but the
+  downloader had already parsed the body into the `json` attribute (a
+  dict), so the call raised `TypeError: 'dict' object is not callable`.
+  The already-built response was still returned, so JSON Feeds were found,
+  but each one produced a spurious "Failed fetch" log line and ran the
+  exception middleware hooks. The middleware duplicated work the downloader
+  already does and is removed.
+- **Site metadata was never parsed.** The October 2025 parsing refactor
+  renamed the crawler's parser hook to `parse_response_content` but
+  dropped it from the `Request` constructor, so `Response.xml` had no
+  parser and the site-meta parser returned before yielding anything: feeds
+  lost `site_url`, `site_name` and the site icon. The hook is wired back
+  in.
+- **Favicons never produced data URIs.** The downloader's early
+  content-type filter rejected `image/*` responses with 415 before the
+  spider's `parse_favicon_data_uri` callback could run, so
+  `favicon_data_uri` was always empty and site-meta icons were dropped
+  entirely (with `favicon_data_uri=True` they are only surfaced through
+  that callback). Images are now allowed through the filter; favicon
+  requests from feed metadata are capped at 50 KB like site-meta icons
+  already were.
+
 ## [2.1.3] - 2026-08-17
 
 ### Fixed
