@@ -48,14 +48,6 @@ from feedsearch_crawler.crawler.statistics import (
 )
 from feedsearch_crawler.crawler.trace import add_trace_config
 
-try:
-    import uvloop
-
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-except ImportError:
-    uvloop = None
-    pass
-
 
 logger = logging.getLogger(__name__)
 
@@ -905,7 +897,12 @@ class Crawler(ABC):
             if self.total_timeout.total is not None
             else DEFAULT_TOTAL_TIMEOUT
         )
+        # Resolve with getaddrinfo in threads. aiohttp switches to c-ares
+        # (aiodns/pycares) whenever aiodns is importable, and pycares has
+        # segfaulted the host process under concurrent lookups; the explicit
+        # resolver keeps DNS out of native code even if aiodns is installed.
         conn = aiohttp.TCPConnector(
+            resolver=aiohttp.ThreadedResolver(),
             limit=100,  # Total connection pool size
             limit_per_host=self.concurrency,  # Per-host limit matches concurrency
             ssl=self._ssl,
@@ -1009,7 +1006,9 @@ class Crawler(ABC):
 
         self.record_statistics()
 
-        logger.info(
+        # DEBUG: one line per crawl is ~1M journal lines/day on feedsearch.dev;
+        # the embedding app logs its own per-search summary.
+        logger.debug(
             "Crawl finished: requests=%s time=%.2fs",
             self.stats[Stats.REQUESTS_QUEUED],
             self.stats[Stats.TOTAL_DURATION] / 1000,

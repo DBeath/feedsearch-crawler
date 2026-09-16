@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-09-16
+
+### Changed
+
+- The library no longer installs the uvloop event loop policy at import
+  time. Choosing the event loop is the embedding application's decision;
+  the gateway runs uvicorn on the stock asyncio loop after a uvloop and
+  aiohttp file-descriptor bug (uvloop#653) caused server errors.
+- DNS resolution uses aiohttp's thread-based resolver explicitly and
+  `aiodns` is no longer a dependency: pycares (c-ares) segfaulted the host
+  process under concurrent lookups, killing uvicorn workers.
+- "Crawl finished" is logged at DEBUG instead of INFO (about one million
+  lines a day on feedsearch.dev).
+
 ## [2.1.4] - 2026-09-09
 
 ### Fixed
