@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-09-21
+
+### Changed
+
+- Per-feed parse failures that the spider recovers from (unparseable feed
+  data, an unusable published date, a title that cannot be cleaned) are
+  logged at WARNING instead of ERROR. They are properties of the crawled
+  feed, not faults in the embedding application, and at ERROR every one
+  became a Sentry event on feedsearch.dev.
+
 ## [2.1.5] - 2026-09-16
 
 ### Changed

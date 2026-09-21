@@ -68,7 +68,7 @@ class FeedInfoParser(ItemParser):
                 logger.debug("Invalid Feed: %s", item)
                 return
         except Exception as e:
-            logger.exception("Failed to parse feed %s, Error: %s", item, e)
+            logger.warning("Failed to parse feed %s, Error: %s", item, e)
             return
 
         if item.favicon and self.crawler.favicon_data_uri:
@@ -102,7 +102,7 @@ class FeedInfoParser(ItemParser):
                 data, encoding, headers, base_url=str(item.url) if item.url else None
             )
         except Exception as e:
-            logger.exception("Unable to parse feed %s: %s", item, e)
+            logger.warning("Unable to parse feed %s: %s", item, e)
             return False
 
         if not parsed:
@@ -191,7 +191,7 @@ class FeedInfoParser(ItemParser):
                     else datestring_to_utc_datetime(feed.get("updated"))
                 )
         except Exception as e:
-            logger.exception("Unable to get feed published date: %s", e)
+            logger.warning("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -267,7 +267,7 @@ class FeedInfoParser(ItemParser):
                 item.last_updated = sorted(dates, reverse=True)[0]
                 item.velocity = self.entry_velocity(dates)
         except Exception as e:
-            logger.exception("Unable to get feed published date: %s", e)
+            logger.warning("Unable to get feed published date: %s", e)
             pass
 
         return True
@@ -334,7 +334,7 @@ class FeedInfoParser(ItemParser):
 
             return data
         except Exception as e:
-            logger.exception("Could not parse RSS data: %s", e)
+            logger.warning("Could not parse RSS data: %s", e)
 
     def feed_title(self, feed: dict) -> str:
         """
@@ -362,7 +362,7 @@ class FeedInfoParser(ItemParser):
                 title = title[:1020] + "..."
             return title
         except Exception as ex:
-            logger.exception("Failed to clean title: %s", ex)
+            logger.warning("Failed to clean title: %s", ex)
             return ""
 
     @staticmethod
