@@ -8,6 +8,7 @@
 ## Executive Summary
 
 The feedsearch-crawler handles three types of content:
+
 1. **HTML pages** - to extract links and metadata
 2. **XML feeds** (RSS/Atom) - to parse feed information
 3. **JSON feeds** - to parse JSON Feed format
@@ -33,7 +34,8 @@ if not any(
     return self._failed_response(request, 415, history)
 ```
 
-**Issues:**
+#### Issues
+
 - ⚠️ **Too permissive**: Accepts "text" which matches "text/plain", "text/csv", etc.
 - ⚠️ **Content downloaded before type check**: Headers are checked AFTER starting the request
 - ✅ **Good**: Rejects binary content early (images, PDFs, etc.)
@@ -56,13 +58,15 @@ async def parse_response_content(self, response_text: str) -> Any:
 
 **Called from:** `spider.py:90` - Main response parsing workflow
 
-**Purpose:**
+#### Purpose
+
 - Extract `<a>` tags with feed-like URLs
 - Extract `<link>` tags for site metadata
 - Find favicon URLs
 - Extract site name from `<title>`, `<meta>` tags
 
-**Issues:**
+#### Issues
+
 - ❌ **Misleading method name**: `parse_response_content` doesn't indicate it's HTML-specific
 - ⚠️ **No error handling**: Parser failures not caught
 - ⚠️ **Inefficient for large pages**: Parses entire DOM even when only looking for links
@@ -94,7 +98,8 @@ if rss_regex.search(response.text, endpos=1000):
     )
 ```
 
-**Issues:**
+#### Issues
+
 - ✅ **Efficient**: Only checks first 1000 chars
 - ✅ **Robust**: feedparser handles malformed XML well
 - ✅ **Comprehensive**: Extracts all feed metadata
@@ -127,7 +132,8 @@ if response.json:
         )
 ```
 
-**Issues:**
+#### Issues
+
 - ❌ **Incorrect detection logic**: Line 65 uses `and` instead of checking dict keys
   - `"version" and "jsonfeed"` evaluates to `"jsonfeed"` (truthy)
   - Should be: `"version" in response.json and "jsonfeed" in response.json`
@@ -151,7 +157,8 @@ async def xml(self) -> Any:
     # Handle both sync and async parsers
 ```
 
-**Issues:**
+#### Issues
+
 - ❌ **Confusing architecture**: Provides generic XML parsing but only used by SiteMetaParser
 - ❌ **Never actually used for feeds**: Feeds use feedparser directly
 - ⚠️ **xml_parser no longer passed**: After refactoring, `request.xml_parser` doesn't exist
@@ -163,7 +170,7 @@ async def xml(self) -> Any:
 
 ### HTML Page Flow
 
-```
+```text
 1. Downloader checks Content-Type header → accepts "text/html"
 2. Downloads full response body
 3. spider.parse_response() checks if RSS (regex on first 1000 chars)
@@ -175,7 +182,7 @@ async def xml(self) -> Any:
 
 ### XML Feed Flow
 
-```
+```text
 1. Downloader checks Content-Type header → accepts "xml", "rss", "atom"
 2. Downloads full response body
 3. spider.parse_response() checks if RSS (regex match)
@@ -187,7 +194,7 @@ async def xml(self) -> Any:
 
 ### JSON Feed Flow
 
-```
+```text
 1. Downloader checks Content-Type header → accepts "json"
 2. Downloads full response body
 3. Downloader parses JSON → response.json
@@ -247,6 +254,7 @@ if all(key in response.json for key in ["version", "feed_url"]) \
 ### 5. No Parser Configuration
 
 Users can't:
+
 - Choose a faster XML parser (lxml vs html.parser)
 - Configure parsing limits
 - Use custom parsers
@@ -257,7 +265,7 @@ Users can't:
 
 ### Priority 1: Fix Critical Bugs
 
-**1. Fix JSON Feed Detection**
+#### 1. Fix JSON Feed Detection
 
 ```python
 # spider.py:64-68
@@ -274,7 +282,7 @@ if response.json:
         return
 ```
 
-**2. Tighten Content-Type Filtering**
+#### 2. Tighten Content-Type Filtering
 
 ```python
 # downloader.py:57-65
@@ -302,7 +310,7 @@ if content_type_base not in ACCEPTED_CONTENT_TYPES:
 
 ### Priority 2: Improve Architecture
 
-**1. Clarify Method Names**
+#### 1. Clarify Method Names
 
 ```python
 # spider.py - RENAME
@@ -312,17 +320,19 @@ parse_response_content() → parse_html_content()
 parse_response_content(content, content_type) → Returns appropriate parser
 ```
 
-**2. Remove Unused XML Property**
+#### 2. Remove Unused XML Property
 
 The `Response.xml` property adds complexity but is only used by SiteMetaParser. Options:
 
-**Option A: Keep it but simplify**
+#### Option A: Keep it but simplify
+
 ```python
 # Just call parse_html_content directly
 xml = await self.crawler.parse_html_content(response.text)
 ```
 
-**Option B: Make it non-async**
+#### Option B: Make it non-async
+
 ```python
 @property
 def xml(self) -> Any:
@@ -332,7 +342,7 @@ def xml(self) -> Any:
     return self._xml
 ```
 
-**3. Add Parser Configuration**
+#### 3. Add Parser Configuration
 
 ```python
 class FeedsearchSpider(Crawler):
@@ -347,7 +357,7 @@ class FeedsearchSpider(Crawler):
 
 ### Priority 3: Performance Optimizations
 
-**1. Early Content Detection**
+#### 1. Early Content Detection
 
 Add HEAD request support for unknown URLs:
 
@@ -359,7 +369,7 @@ if not request.force_get:
         return  # Skip this URL
 ```
 
-**2. Stream Parsing for HTML**
+#### 2. Stream Parsing for HTML
 
 For large pages, only parse until links are found:
 
@@ -372,7 +382,7 @@ for chunk in response_chunks:
         break
 ```
 
-**3. Limit HTML Parsing Depth**
+#### 3. Limit HTML Parsing Depth
 
 ```python
 soup = bs4.BeautifulSoup(response_text[:50000], self.html_parser)
@@ -383,7 +393,7 @@ soup = bs4.BeautifulSoup(response_text[:50000], self.html_parser)
 
 ### Priority 4: Better Error Handling
 
-**1. Handle Parser Failures Gracefully**
+#### 1. Handle Parser Failures Gracefully
 
 ```python
 async def parse_html_content(self, response_text: str) -> Any:
@@ -399,7 +409,7 @@ async def parse_html_content(self, response_text: str) -> Any:
             return None  # Give up gracefully
 ```
 
-**2. Add Parsing Timeouts**
+#### 2. Add Parsing Timeouts
 
 ```python
 import signal
@@ -423,7 +433,7 @@ finally:
 ### HTML Parsing
 
 | Parser | Speed | Robustness | Deps | Use Case |
-|--------|-------|------------|------|----------|
+| -------- | ------- | ------------ | ------ | ---------- |
 | **html.parser** (current) | Medium | High | None (stdlib) | ✅ Current - Good default |
 | **lxml** | Fast | High | C library | Large pages, performance critical |
 | **html5lib** | Slow | Highest | Pure Python | Most broken HTML |
@@ -434,7 +444,7 @@ finally:
 ### XML Parsing
 
 | Parser | Speed | Use Case |
-|--------|-------|----------|
+| -------- | ------- | ---------- |
 | **feedparser** (current) | Medium | ✅ Best for feeds - handles RSS/Atom/malformed |
 | **lxml** | Fast | Well-formed XML only |
 | **defusedxml** | Medium | Security-critical (prevents XML bombs) |
@@ -444,7 +454,7 @@ finally:
 ### JSON Parsing
 
 | Parser | Speed | Use Case |
-|--------|-------|----------|
+| -------- | ------- | ---------- |
 | **json** (current) | Fast | ✅ Good default |
 | **orjson** | Fastest | Performance critical |
 | **ujson** | Fast | Alternative |
@@ -464,17 +474,17 @@ finally:
 
 ### Short Term (Medium Priority)
 
-5. ⚠️ **Simplify Response.xml property** - Make it non-async or remove
-6. ⚠️ **Add error handling to HTML parsing** - Graceful degradation
-7. ⚠️ **Limit HTML parsing size** - Only parse first 50KB
-8. ⚠️ **Document parser configuration** - Allow users to choose lxml if available
+1. ⚠️ **Simplify Response.xml property** - Make it non-async or remove
+2. ⚠️ **Add error handling to HTML parsing** - Graceful degradation
+3. ⚠️ **Limit HTML parsing size** - Only parse first 50KB
+4. ⚠️ **Document parser configuration** - Allow users to choose lxml if available
 
 ### Long Term (Nice to Have)
 
-9. 💡 **Add HEAD request support** - Check Content-Type before downloading
-10. 💡 **Stream parsing** - For very large pages
-11. 💡 **Parser timeouts** - Prevent hung parsing
-12. 💡 **Alternative parser support** - selectolax, lxml as options
+1. 💡 **Add HEAD request support** - Check Content-Type before downloading
+2. 💡 **Stream parsing** - For very large pages
+3. 💡 **Parser timeouts** - Prevent hung parsing
+4. 💡 **Alternative parser support** - selectolax, lxml as options
 
 ---
 
@@ -527,21 +537,24 @@ Add tests for:
 The current HTML/XML parsing architecture is **functional but has issues**:
 
 ✅ **Strengths:**
+
 - feedparser is excellent for RSS/Atom
 - BeautifulSoup handles broken HTML well
 - Separates concerns (HTML vs Feed parsing)
 
 ❌ **Weaknesses:**
+
 - JSON Feed detection is broken
 - Content-Type filtering too broad
 - Confusing method names
 - No parser configuration
 - Inefficient for large pages
 
-**Priority Fixes:**
+### Priority Fixes
+
 1. Fix JSON Feed detection (critical bug)
 2. Tighten Content-Type whitelist (security/performance)
 3. Rename methods for clarity
 4. Add basic error handling
 
-**These fixes will make the codebase more robust and maintainable with minimal breaking changes.**
+### These fixes will make the codebase more robust and maintainable with minimal breaking changes

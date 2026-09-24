@@ -7,8 +7,9 @@
 
 ## Current State
 
-**Completed:**
-- ✅ `respect_robots` parameter added to Crawler.__init__
+### Completed
+
+- ✅ `respect_robots` parameter added to Crawler.**init**
 - ✅ RobotsMiddleware is conditionally added based on `respect_robots`
 - ✅ RobotsMiddleware extracts sitemap URLs from robots.txt
 - ✅ `sitemap_urls` storage and `get_sitemaps_for_host()` method added
@@ -26,11 +27,13 @@
 ## Priority System
 
 Current priority (lower number = higher priority):
+
 - Default request priority: 100
 - Priority 0 is specified in code for certain requests
 
-**Proposed priority levels:**
-```
+### Proposed priority levels
+
+```text
 Priority 1:  robots.txt requests (highest)
 Priority 5:  sitemap.xml requests
 Priority 10: URLs discovered from sitemaps
@@ -43,7 +46,8 @@ Priority 100: Regular discovered URLs (default)
 
 **Approach:** Use existing priority queue system without blocking
 
-**How it works:**
+#### How it works
+
 1. When `crawl()` starts, for each domain in `start_urls`:
    - Create robots.txt request with priority=1
    - Add to queue immediately
@@ -56,18 +60,21 @@ Priority 100: Regular discovered URLs (default)
    - Create requests with priority=10
 4. Regular page crawling continues with priority=100
 
-**Pros:**
+#### Pros
+
 - ✅ Fully backward compatible
 - ✅ Non-blocking - doesn't delay crawl start
 - ✅ Uses existing priority queue infrastructure
 - ✅ Natural async flow
 - ✅ Handles multiple domains elegantly
 
-**Cons:**
+#### Cons
+
 - ⚠️ Small race condition: first few requests might process before robots.txt (mitigated by priority)
 - ⚠️ Requires callback coordination
 
-**Implementation changes needed:**
+#### Implementation changes needed
+
 1. Add `parse_robots_txt()` callback to Crawler
 2. Add `parse_sitemap()` callback to Crawler
 3. Modify `create_start_urls()` or `crawl()` to inject robots.txt requests
@@ -79,26 +86,30 @@ Priority 100: Regular discovered URLs (default)
 
 **Approach:** Fetch robots.txt synchronously before starting workers
 
-**How it works:**
+#### How it works
+
 1. In `crawl()`, before creating workers:
    - For each domain, synchronously fetch robots.txt
    - Wait for all robots.txt to complete
    - Extract sitemaps and add them to initial queue
 2. Then start workers as normal
 
-**Pros:**
+#### Pros
+
 - ✅ Guarantees robots.txt is fetched first
 - ✅ No race conditions
 - ✅ Sitemaps can be added to initial queue
 
-**Cons:**
+#### Cons
+
 - ❌ Blocks crawl start (delays by 1-3 seconds per domain)
 - ❌ Breaks async pattern
 - ❌ More complex error handling
 - ❌ Harder to test
 - ⚠️ Backward compatibility concern if users expect immediate crawl
 
-**Implementation changes needed:**
+#### Implementation changes needed
+
 1. Add `_fetch_robots_txt_sync()` method to Crawler
 2. Modify `crawl()` to call it before worker creation
 3. Add synchronous HTTP fetch logic
@@ -110,23 +121,27 @@ Priority 100: Regular discovered URLs (default)
 
 **Approach:** Priority-based but with explicit coordination
 
-**How it works:**
+#### How it works
+
 1. Add robots.txt requests with priority=1 to queue
 2. Use an asyncio.Event per domain to signal "robots.txt done"
 3. Other requests for that domain wait on the event before processing
 4. RobotsMiddleware sets the event when robots.txt completes
 
-**Pros:**
+#### Pros
+
 - ✅ Guarantees robots.txt first per domain
 - ✅ Mostly non-blocking
 - ✅ Clear coordination
 
-**Cons:**
+#### Cons
+
 - ⚠️ Adds complexity with events
 - ⚠️ Requires request-level domain tracking
 - ⚠️ Could create deadlocks if not careful
 
-**Implementation changes needed:**
+#### Implementation changes needed
+
 1. Add `_robots_ready_events: Dict[str, asyncio.Event]`
 2. Modify `_handle_request()` to wait on event
 3. Modify RobotsMiddleware to set events
@@ -136,14 +151,16 @@ Priority 100: Regular discovered URLs (default)
 
 ## Recommendation: Option 1 (Asynchronous Priority-Based)
 
-**Why:**
+### Why
+
 - Best balance of simplicity and effectiveness
 - Maintains async patterns throughout
 - Backward compatible
 - Priority queue already handles ordering
 - Small race condition is acceptable (worst case: 1-2 requests before robots.txt)
 
-**The race condition is minimal because:**
+### The race condition is minimal because
+
 - Priority 1 vs 100 means robots.txt will be processed first in almost all cases
 - Workers pull from queue in priority order
 - Even if 1-2 requests slip through, RobotsMiddleware caches robots.txt for subsequent requests
@@ -217,7 +234,7 @@ def _get_robots_txt_url(self, url: URL) -> str:
     return f"{url.scheme}://{url.host}/robots.txt"
 ```
 
-2. **Modify `crawl()` method to inject robots.txt requests:**
+1. **Modify `crawl()` method to inject robots.txt requests:**
 
 Add this section after initial URLs are created, before adding them to queue:
 
@@ -257,12 +274,13 @@ Spider's `parse_response` method will handle URLs discovered from sitemaps just 
 
 **File:** `src/feedsearch_crawler/crawler/lib.py`
 
-**Current `parse_sitemap()` function (lines 348-375):**
+#### Current `parse_sitemap()` function (lines 348-375)
+
 - ✅ Extracts `<loc>` elements
 - ⚠️ Only matches URLs ending in .rss, .xml, .atom
 - ⚠️ Misses URLs like `/feed` or `/rss`
 
-**Enhancement needed:**
+#### Enhancement needed
 
 ```python
 def parse_sitemap(sitemap_xml: str) -> List[str]:
@@ -316,7 +334,7 @@ def search(
 
 ### Phase 5: Testing Strategy
 
-**Test files to create/update:**
+#### Test files to create/update
 
 1. **Unit tests for RobotsMiddleware:**
    - `test_extract_sitemaps_from_robots()`
@@ -343,7 +361,8 @@ def search(
 
 ## Migration Path
 
-### For existing users:
+### For existing users
+
 ```python
 # Old code (still works, now respects robots.txt by default)
 feeds = search("example.com")
@@ -352,7 +371,8 @@ feeds = search("example.com")
 feeds = search("example.com", respect_robots=False)
 ```
 
-### Benefits users get automatically:
+### Benefits users get automatically
+
 1. Robots.txt compliance (can opt out)
 2. Sitemap-based feed discovery
 3. Better feed URL coverage
@@ -362,17 +382,20 @@ feeds = search("example.com", respect_robots=False)
 
 ## Performance Considerations
 
-**Additional requests per domain:**
+### Additional requests per domain
+
 - +1 request for robots.txt
 - +N requests for sitemaps (typically 1-3)
 - Total overhead: ~2-4 extra requests per domain
 
-**Time impact:**
+### Time impact
+
 - Robots.txt: ~100-300ms per domain
 - Sitemap: ~100-500ms per sitemap
 - Total: ~200-800ms additional crawl time
 
-**Benefits:**
+### Benefits
+
 - Discovers feeds that aren't linked from pages
 - More comprehensive feed discovery
 - Respects website crawling preferences
@@ -392,6 +415,7 @@ def search(
 ```
 
 This allows:
+
 - `respect_robots=True, use_sitemaps=True` - Full robots + sitemap (default)
 - `respect_robots=True, use_sitemaps=False` - Robots.txt blocking only
 - `respect_robots=False, use_sitemaps=True` - Sitemap discovery only
@@ -403,21 +427,23 @@ This allows:
 
 **Recommended approach:** Option 1 (Asynchronous Priority-Based)
 
-**Key changes:**
+### Key changes
+
 1. Add robots.txt request with priority=1 in `crawl()`
 2. Add `parse_robots_txt()` callback to queue sitemaps
 3. Add `parse_sitemap()` callback to extract feed URLs
 4. Enhance `parse_sitemap()` to filter better
 5. All changes are backward compatible
 
-**Timeline:**
+### Timeline
+
 - Phase 1 (Crawler): 1-2 hours
 - Phase 2 (Spider): Minimal (inheritance)
 - Phase 3 (Parsing): 30 minutes
 - Phase 4 (API): 15 minutes
 - Phase 5 (Tests): 2-3 hours
 
-**Total: ~4-6 hours of implementation**
+### Total: ~4-6 hours of implementation
 
 ---
 
@@ -433,12 +459,14 @@ This allows:
 
 ## Decision Needed
 
-**Please choose:**
+### Please choose
+
 - ✅ **Option 1: Asynchronous Priority-Based** (recommended)
 - ⬜ Option 2: Synchronous Robots Fetch
 - ⬜ Option 3: Hybrid Approach
 - ⬜ Alternative suggestion
 
-**Also decide:**
+### Also decide
+
 - Single `respect_robots` parameter (includes sitemaps)?
 - Or separate `respect_robots` and `use_sitemaps` parameters?

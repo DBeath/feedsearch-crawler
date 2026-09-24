@@ -8,12 +8,14 @@
 
 The current API returns `List[FeedInfo]`, which cannot easily accommodate additional return values (errors, statistics). We need to add error information without breaking existing code.
 
-**Current API:**
+### Current API
+
 ```python
 feeds = search("https://example.com")  # Returns List[FeedInfo]
 ```
 
-**Desired capability:**
+### Desired capability
+
 - Return error information when root URL fails
 - Optionally return statistics
 - Maintain backward compatibility
@@ -22,7 +24,8 @@ feeds = search("https://example.com")  # Returns List[FeedInfo]
 
 ## Option 1: Conditional Return Type (Current Implementation) ❌
 
-**Implementation:**
+### Implementation
+
 ```python
 def search(url, include_errors=False) -> Union[List[FeedInfo], SearchResult]:
     if include_errors:
@@ -30,7 +33,8 @@ def search(url, include_errors=False) -> Union[List[FeedInfo], SearchResult]:
     return [...]  # List[FeedInfo]
 ```
 
-**Usage:**
+### Usage
+
 ```python
 # Default
 feeds = search("https://example.com")  # List[FeedInfo]
@@ -41,11 +45,13 @@ if isinstance(result, SearchResult):
     ...
 ```
 
-**Pros:**
+### Pros
+
 - Backward compatible (default returns list)
 - No code changes required for existing users
 
-**Cons:**
+### Cons
+
 - ❌ **Type ambiguity**: Return type depends on parameter
 - ❌ **Runtime type checking**: Must use `isinstance()` or type guards
 - ❌ **Poor type safety**: Static type checkers struggle with this pattern
@@ -58,25 +64,29 @@ if isinstance(result, SearchResult):
 
 ## Option 2: Always Return SearchResult (Breaking Change) ❌
 
-**Implementation:**
+### Implementation
+
 ```python
 def search(url) -> SearchResult:
     return SearchResult(feeds=[...], root_error=None)
 ```
 
-**Usage:**
+### Usage
+
 ```python
 result = search("https://example.com")
 for feed in result.feeds:  # Must use .feeds attribute
     print(feed.url)
 ```
 
-**Pros:**
+### Pros
+
 - Clean, single return type
 - Type-safe
 - Extensible (can add more fields)
 
-**Cons:**
+### Cons
+
 - ❌ **BREAKING CHANGE**: Requires major version bump (2.0.0)
 - ❌ **Code changes required**: All users must update `.feeds`
 - ❌ **Not backward compatible**: Existing code breaks
@@ -87,7 +97,8 @@ for feed in result.feeds:  # Must use .feeds attribute
 
 ## Option 3: New Function Name (Recommended) ✅
 
-**Implementation:**
+### Implementation
+
 ```python
 def search(url) -> List[FeedInfo]:
     """Original function, unchanged."""
@@ -98,7 +109,8 @@ def search_with_info(url) -> SearchResult:
     return SearchResult(feeds=[...], root_error=None, stats=None)
 ```
 
-**Usage:**
+### Usage
+
 ```python
 # Existing code unchanged
 feeds = search("https://example.com")
@@ -111,7 +123,8 @@ for feed in result.feeds:
     print(feed.url)
 ```
 
-**Pros:**
+### Pros
+
 - ✅ **100% backward compatible**: Original function unchanged
 - ✅ **Type-safe**: Each function has single, clear return type
 - ✅ **No confusion**: Different functions for different use cases
@@ -119,7 +132,8 @@ for feed in result.feeds:
 - ✅ **Gradual migration**: Users can migrate at their own pace
 - ✅ **Easy to deprecate**: Can deprecate `search()` in future
 
-**Cons:**
+### Cons
+
 - Two functions with similar purposes (minor API duplication)
 - Existing function name doesn't hint at limited functionality
 
@@ -129,7 +143,8 @@ for feed in result.feeds:
 
 ## Option 4: SearchResult with List Subclassing ⚠️
 
-**Implementation:**
+### Implementation
+
 ```python
 class SearchResult(list):
     """List subclass that adds error information."""
@@ -143,7 +158,8 @@ def search(url) -> SearchResult:
     return SearchResult([...], root_error=None)
 ```
 
-**Usage:**
+### Usage
+
 ```python
 # Works as list (backward compatible)
 feeds = search("https://example.com")
@@ -155,13 +171,15 @@ if feeds.root_error:
     print(f"Error: {feeds.root_error.message}")
 ```
 
-**Pros:**
+### Pros
+
 - ✅ **Mostly backward compatible**: Works as list
 - ✅ **Single return type**: Always `SearchResult`
 - ✅ **`isinstance(result, list)` works**: True list subclass
 - ✅ **Extensible**: Can add more attributes
 
-**Cons:**
+### Cons
+
 - ⚠️ **Conceptual confusion**: "A list that has errors" is semantically odd
 - ⚠️ **Mutation issues**: Users can `.append()`, `.remove()` etc.
 - ⚠️ **Type annotation changes**: Still breaks strict type checking
@@ -174,7 +192,8 @@ if feeds.root_error:
 
 ## Option 5: Context Manager / Wrapper ⚠️
 
-**Implementation:**
+### Implementation
+
 ```python
 class SearchContext:
     def __init__(self, url):
@@ -200,7 +219,8 @@ def search_context(url) -> SearchContext:
     return ctx
 ```
 
-**Usage:**
+### Usage
+
 ```python
 # Original API
 feeds = search("https://example.com")
@@ -213,11 +233,13 @@ with search_context("https://example.com") as ctx:
         print(feed.url)
 ```
 
-**Pros:**
+### Pros
+
 - Backward compatible
 - Explicit different API
 
-**Cons:**
+### Cons
+
 - Context manager doesn't add value here (no cleanup needed)
 - Overcomplicated for simple data return
 - Unusual pattern for data retrieval
@@ -228,7 +250,8 @@ with search_context("https://example.com") as ctx:
 
 ## Option 6: Exception for Errors (Pythonic) ⚠️
 
-**Implementation:**
+### Implementation
+
 ```python
 class SearchError(Exception):
     def __init__(self, url, error_type, message, status_code=None):
@@ -246,7 +269,8 @@ def search(url) -> List[FeedInfo]:
     return feeds
 ```
 
-**Usage:**
+### Usage
+
 ```python
 try:
     feeds = search("https://nonexistent.com")
@@ -257,14 +281,16 @@ except SearchError as e:
     print(f"Error type: {e.error_type}")
 ```
 
-**Pros:**
+### Pros
+
 - ✅ **Pythonic**: Errors as exceptions is idiomatic Python
 - ✅ **Backward compatible**: Can be added without breaking changes
 - ✅ **Clear semantics**: Exception = exceptional condition
 - ✅ **Type-safe**: Return type always `List[FeedInfo]`
 - ✅ **Opt-in**: Users can choose to catch or let it propagate
 
-**Cons:**
+### Cons
+
 - ⚠️ **Philosophy change**: Currently returns empty list on failure
 - ⚠️ **Requires try/except**: More boilerplate for error checking
 - ⚠️ **Partial results issue**: What if some feeds found but root failed?
@@ -275,7 +301,8 @@ except SearchError as e:
 
 ## Option 7: Separate Error Query Function ⚠️
 
-**Implementation:**
+### Implementation
+
 ```python
 _last_search_error = None  # Module-level state
 
@@ -293,7 +320,8 @@ def get_last_error() -> Optional[SearchError]:
     return _last_search_error
 ```
 
-**Usage:**
+### Usage
+
 ```python
 feeds = search("https://example.com")
 if not feeds:
@@ -302,11 +330,13 @@ if not feeds:
         print(f"Search failed: {error.message}")
 ```
 
-**Pros:**
+### Pros
+
 - Backward compatible
 - Simple API
 
-**Cons:**
+### Cons
+
 - ❌ **Global state**: Thread-unsafe, error-prone
 - ❌ **Implicit coupling**: Error tied to last call
 - ❌ **Testing difficulty**: Hard to mock and test
@@ -318,7 +348,8 @@ if not feeds:
 
 ## Option 8: Callback Pattern ⚠️
 
-**Implementation:**
+### Implementation
+
 ```python
 def search(url, on_error=None) -> List[FeedInfo]:
     """Original function with optional error callback."""
@@ -328,7 +359,8 @@ def search(url, on_error=None) -> List[FeedInfo]:
     return feeds
 ```
 
-**Usage:**
+### Usage
+
 ```python
 error_info = []
 
@@ -340,10 +372,12 @@ if error_info:
     print(f"Error: {error_info[0].message}")
 ```
 
-**Pros:**
+### Pros
+
 - Backward compatible (callback optional)
 
-**Cons:**
+### Cons
+
 - ❌ **Awkward in Python**: Callbacks more common in async JS
 - ❌ **Requires closure**: Need to capture error externally
 - ❌ **Not intuitive**: Doesn't match Python idioms
@@ -355,7 +389,7 @@ if error_info:
 ## Comparison Matrix
 
 | Option | Backward Compatible | Type Safe | Pythonic | Complexity | Recommended |
-|--------|-------------------|-----------|----------|------------|-------------|
+| -------- | ------------------- | ----------- | ---------- | ------------ | ------------- |
 | 1. Conditional Return | ✅ | ❌ | ❌ | Medium | ❌ |
 | 2. Always SearchResult | ❌ | ✅ | ✅ | Low | ❌ |
 | 3. New Function | ✅ | ✅ | ✅ | Low | ✅ |
@@ -425,20 +459,24 @@ def search_with_info(url, include_stats=False, **kwargs) -> SearchResult:
 
 ### Migration Path
 
-**Phase 1 (v1.1.0):**
+#### Phase 1 (v1.1.0)
+
 - Add `search_with_info()`
 - Keep `search()` unchanged
 - Document both functions
 
-**Phase 2 (v1.x):**
+#### Phase 2 (v1.x)
+
 - Encourage `search_with_info()` in documentation
 - `search()` remains supported
 
-**Phase 3 (v2.0.0 - optional):**
+#### Phase 3 (v2.0.0 - optional)
+
 - Add deprecation warning to `search()`
 - Document migration path
 
-**Phase 4 (v3.0.0 - optional):**
+#### Phase 4 (v3.0.0 - optional)
+
 - Remove `search()` or make it alias to `search_with_info()`
 
 ---
@@ -480,7 +518,8 @@ def search(url, **kwargs) -> List[FeedInfo]:
     return feeds
 ```
 
-**Usage:**
+### Usage
+
 ```python
 try:
     feeds = search("https://nonexistent.com")
@@ -497,12 +536,14 @@ This is more Pythonic but changes the error handling contract.
 
 ## Recommendation
 
-**Primary: Option 3 (New Function Name)**
+### Primary: Option 3 (New Function Name)
+
 - Implement `search_with_info()` that returns `SearchResult`
 - Keep `search()` returning `List[FeedInfo]`
 - Version: 1.1.0 (MINOR bump)
 
-**Secondary: Option 6 (Exceptions)**
+### Secondary: Option 6 (Exceptions)
+
 - Make `search()` raise `SearchError` on root URL failure
 - Version: 2.0.0 (MAJOR bump - breaking change)
 - Consider for next major version

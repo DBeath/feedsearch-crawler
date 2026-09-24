@@ -17,6 +17,7 @@ This project follows a simple code of conduct: be respectful, constructive, and 
 - **Consider optional dependencies**: For features that not all users need
 
 When contributing, please consider:
+
 - Will this change break existing user code?
 - Does this add a necessary dependency, or can we avoid it?
 - Is this a public API change that needs deprecation warnings?

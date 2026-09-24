@@ -14,6 +14,7 @@ This document analyzes the current datetime parsing implementation in feedsearch
 ### Location
 
 The datetime parsing logic is primarily located in:
+
 - `src/feedsearch_crawler/feed_spider/lib.py` - Core parsing functions
 - `src/feedsearch_crawler/feed_spider/feed_info_parser.py` - Feed parsing logic that uses datetime functions
 
@@ -32,7 +33,8 @@ def datestring_to_utc_datetime(date_string: str) -> datetime:
     return force_utc(dt)
 ```
 
-**Key Dependencies:**
+#### Key Dependencies
+
 - `python-dateutil>=2.9.0.post0` - Used via `dateutil.parser.parse()`
 - `feedparser>=6.0.12` - Handles initial feed parsing and provides structured date fields
 
@@ -41,11 +43,13 @@ def datestring_to_utc_datetime(date_string: str) -> datetime:
 The `datestring_to_utc_datetime()` function is called in two main places:
 
 1. **XML/RSS/Atom feeds** (`feed_info_parser.py:454`):
+
    ```python
    entry_date: datetime = datestring_to_utc_datetime(entry[name])
    ```
 
 2. **Feed-level updates** (`feed_info_parser.py:151`):
+
    ```python
    item.last_updated = datestring_to_utc_datetime(feed.get("updated"))
    ```
@@ -55,11 +59,13 @@ The `datestring_to_utc_datetime()` function is called in two main places:
 ### 1. **Locale-Dependent Parsing (CRITICAL)**
 
 **Problem:** `dateutil.parser.parse()` is locale-dependent by default. While it handles many formats, it can fail with:
+
 - Non-English month names (e.g., "13 janvier 2025" in French)
 - Non-English day names (e.g., "Montag, 13. Januar 2025" in German)
 - Locale-specific date formats
 
-**Example Failure Scenarios:**
+#### Example Failure Scenarios
+
 ```python
 # French
 "Lundi 13 janvier 2025 14:30:00 GMT"  # May fail with default parser
@@ -79,12 +85,14 @@ The `datestring_to_utc_datetime()` function is called in two main places:
 ### 2. **Incomplete Error Handling**
 
 **Problem:** Date parsing errors are silently caught without logging:
+
 ```python
 except (KeyError, ValueError):
     pass
 ```
 
-**Impact:**
+#### Impact
+
 - Debugging is difficult when feeds have date issues
 - No visibility into which feeds have problematic dates
 - No metrics on date parsing success rate
@@ -93,14 +101,16 @@ except (KeyError, ValueError):
 
 **Problem:** If `dateutil.parser.parse()` fails, there's no fallback mechanism.
 
-**Impact:**
+#### Impact
+
 - Feeds with non-standard dates lose all temporal metadata
 - No `last_updated` means worse scoring
 - No velocity calculation
 
 ### 4. **RSS/Atom Specification Compliance**
 
-**Standards:**
+#### Standards
+
 - RSS 2.0: Uses RFC-822 format (e.g., "Mon, 13 Jan 2025 14:30:00 GMT")
 - Atom: Uses RFC-3339 format (e.g., "2025-01-13T14:30:00Z")
 - JSON Feed: Uses RFC-3339 format
@@ -113,7 +123,7 @@ except (KeyError, ValueError):
 
 **Approach:** Improve the current implementation with better error handling and locale independence.
 
-**Implementation:**
+#### Implementation
 
 ```python
 import logging
@@ -189,7 +199,8 @@ def force_utc(dt: datetime) -> datetime:
     return dt.astimezone(tz.tzutc())
 ```
 
-**Advantages:**
+#### Advantages
+
 - ✅ Minimal dependencies (uses stdlib where possible)
 - ✅ Locale-independent for standard formats
 - ✅ Better error handling with logging
@@ -197,7 +208,8 @@ def force_utc(dt: datetime) -> datetime:
 - ✅ Complies with RSS/Atom/JSON Feed specs
 - ✅ No breaking changes to API
 
-**Disadvantages:**
+#### Disadvantages
+
 - ⚠️ Still may struggle with truly non-standard dates
 - ⚠️ Slightly more complex code
 
@@ -205,7 +217,7 @@ def force_utc(dt: datetime) -> datetime:
 
 **Approach:** Trust feedparser's date parsing completely.
 
-**Implementation:**
+#### Implementation
 
 ```python
 # In feed_info_parser.py, instead of:
@@ -223,13 +235,15 @@ if name + '_parsed' in entry:
         entry_date = datetime.fromtimestamp(timestamp, tz=timezone.utc)
 ```
 
-**Advantages:**
+#### Advantages
+
 - ✅ Simplest approach
 - ✅ Leverages feedparser's extensive date handling
 - ✅ Already handles locale issues
 - ✅ Feedparser is battle-tested
 
-**Disadvantages:**
+#### Disadvantages
+
 - ⚠️ Only works for feedparser (not JSON feeds)
 - ⚠️ Less control over error handling
 - ⚠️ Requires code changes in multiple places
@@ -238,7 +252,7 @@ if name + '_parsed' in entry:
 
 **Approach:** Add `babel` library for comprehensive locale handling.
 
-**Implementation:**
+#### Implementation
 
 ```python
 from babel.dates import parse_date, parse_datetime
@@ -257,11 +271,13 @@ def datestring_to_utc_datetime(date_string: str, locale: str = 'en') -> Optional
     # Fallback to existing strategies...
 ```
 
-**Advantages:**
+#### Advantages
+
 - ✅ Full locale support
 - ✅ Can handle any language properly
 
-**Disadvantages:**
+#### Disadvantages
+
 - ❌ Adds significant dependency
 - ❌ Need to detect/configure locale per feed
 - ❌ Overkill for most use cases
@@ -271,7 +287,7 @@ def datestring_to_utc_datetime(date_string: str, locale: str = 'en') -> Optional
 
 ### Phase 1: Enhanced Parsing with Better Error Handling (IMMEDIATE)
 
-**Priority: HIGH**
+#### Priority: HIGH
 
 1. **Implement Option 1** (Enhanced dateutil with locale control)
    - Replace `datestring_to_utc_datetime()` in `lib.py`
@@ -292,14 +308,15 @@ def datestring_to_utc_datetime(date_string: str, locale: str = 'en') -> Optional
 
 **Estimated Effort:** 4-6 hours
 
-**Code Changes:**
+#### Code Changes
+
 - `src/feedsearch_crawler/feed_spider/lib.py` - Rewrite `datestring_to_utc_datetime()`
 - `src/feedsearch_crawler/feed_spider/feed_info_parser.py` - Improve error handling
 - `tests/feed_spider/test_feed_info_parser.py` - Add datetime parsing tests
 
 ### Phase 2: Leverage feedparser's Native Dates (ENHANCEMENT)
 
-**Priority: MEDIUM**
+#### Priority: MEDIUM
 
 1. **Use feedparser's `*_parsed` fields** where available
    - Check for `published_parsed`, `updated_parsed` in entries
@@ -312,12 +329,13 @@ def datestring_to_utc_datetime(date_string: str, locale: str = 'en') -> Optional
 
 **Estimated Effort:** 2-3 hours
 
-**Code Changes:**
+#### Code Changes
+
 - `src/feedsearch_crawler/feed_spider/feed_info_parser.py` - Update `entry_dates()` method
 
 ### Phase 3: Monitoring and Metrics (FUTURE)
 
-**Priority: LOW**
+#### Priority: LOW
 
 1. **Add statistics tracking**
    - Count successful vs. failed date parses
@@ -382,12 +400,14 @@ class TestDatetimeParsing:
 
 ## Migration Path
 
-**For Users:**
+### For Users
+
 - ✅ **No breaking changes** - All improvements are backward compatible
 - ✅ **Automatic benefits** - Better date parsing without configuration
 - ✅ **Optional features** - Enhanced logging can be enabled if desired
 
-**For Developers:**
+### For Developers
+
 - Update `lib.py` with new implementation
 - Update tests
 - Update documentation
@@ -395,11 +415,13 @@ class TestDatetimeParsing:
 
 ## Performance Considerations
 
-**Current Performance:**
+### Current Performance
+
 - Single `dateutil.parser.parse()` call per date
 - Approximately 10-50μs per date
 
-**Proposed Performance:**
+### Proposed Performance
+
 - Try ISO format first (fastest, ~5μs)
 - Try RFC 822 format second (~10μs)
 - Fallback to dateutil (~50μs)
@@ -420,6 +442,7 @@ class TestDatetimeParsing:
 **Recommendation:** Implement Phase 1 immediately to address the critical locale-independence and error handling issues. Phase 2 can follow as an optimization.
 
 The proposed solution provides:
+
 - ✅ Robust locale-independent parsing
 - ✅ Better error handling and debugging
 - ✅ Standards compliance

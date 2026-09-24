@@ -19,15 +19,17 @@ uv build
 ls -lh dist/*.whl
 ```
 
-**Expected output:**
-```
+#### Expected output
+
+```text
 feedsearch_crawler-1.0.3-py3-none-any.whl    ~50-60 KB
 feedsearch_crawler-1.0.3.tar.gz             ~70-80 KB
 ```
 
 ### Dependencies (from pyproject.toml)
 
-**Runtime dependencies:**
+#### Runtime dependencies
+
 ```toml
 dependencies = [
     "aiohttp>3.12.0",           # ~1.5 MB
@@ -43,11 +45,11 @@ dependencies = [
 ]
 ```
 
-**Total approximate installed size: ~6.5 MB**
+#### Total approximate installed size: ~6.5 MB
 
 ### Dependency Tree
 
-```
+```text
 feedsearch-crawler (60 KB)
 ├── aiohttp (1.5 MB)
 │   ├── aiosignal
@@ -71,7 +73,7 @@ feedsearch-crawler (60 KB)
     └── multidict
 ```
 
-**Dependency count: 9 direct + ~15 transitive = ~24 total packages**
+#### Dependency count: 9 direct + ~15 transitive = ~24 total packages
 
 ---
 
@@ -84,8 +86,9 @@ feedsearch-crawler (60 KB)
 # The package itself would be similar in size
 ```
 
-**Expected output:**
-```
+#### Expected output
+
+```text
 feedsearch_crawler-2.0.0-py3-none-any.whl    ~55-65 KB (+5-10 KB)
 ```
 
@@ -93,7 +96,8 @@ The code itself wouldn't grow much, but dependency installation would be signifi
 
 ### Dependencies (with Pydantic)
 
-**Runtime dependencies:**
+#### Runtime dependencies
+
 ```toml
 dependencies = [
     # All current dependencies remain
@@ -114,11 +118,11 @@ dependencies = [
 ]
 ```
 
-**Total approximate installed size: ~17 MB (+10.5 MB = 162% increase)**
+#### Total approximate installed size: ~17 MB (+10.5 MB = 162% increase)
 
 ### Dependency Tree with Pydantic
 
-```
+```text
 feedsearch-crawler (65 KB)
 ├── [all current dependencies] (~6.5 MB)
 └── pydantic (500 KB)
@@ -127,14 +131,14 @@ feedsearch-crawler (65 KB)
     └── annotated-types (50 KB)
 ```
 
-**Dependency count: 12 direct + ~18 transitive = ~30 total packages (+6 packages)**
+#### Dependency count: 12 direct + ~18 transitive = ~30 total packages (+6 packages)
 
 ---
 
 ## Comparison Table
 
 | Metric | Current | With Pydantic | Difference |
-|--------|---------|---------------|------------|
+| -------- | --------- | --------------- | ------------ |
 | **Package Size (.whl)** | ~60 KB | ~65 KB | +8% |
 | **Installed Dependencies** | ~6.5 MB | ~17 MB | +162% |
 | **Direct Dependencies** | 9 | 12 | +33% |
@@ -147,7 +151,8 @@ feedsearch-crawler (65 KB)
 
 ### For Library Users
 
-**Current implementation:**
+#### Current implementation
+
 ```bash
 pip install feedsearch-crawler
 # Downloads: ~6.5 MB
@@ -155,7 +160,8 @@ pip install feedsearch-crawler
 # Disk space: ~6.5 MB
 ```
 
-**With Pydantic:**
+#### With Pydantic
+
 ```bash
 pip install feedsearch-crawler[pydantic]  # if optional
 # OR
@@ -181,11 +187,13 @@ RUN pip install feedsearch-crawler
 
 ### AWS Lambda Package Size
 
-**Current:**
+#### Current
+
 - Lambda layer: ~6.5 MB (compressed)
 - Well under 50 MB limit ✅
 
-**With Pydantic:**
+#### With Pydantic
+
 - Lambda layer: ~17 MB (compressed)
 - Still under limit but 2.6x larger ⚠️
 
@@ -202,12 +210,12 @@ dependencies = [
 ]
 ```
 
-**Total approximate installed size: ~7 MB (+0.5 MB = 7.7% increase)**
+#### Total approximate installed size: ~7 MB (+0.5 MB = 7.7% increase)
 
 ### Comparison: cattrs vs Pydantic
 
 | Metric | Current | + cattrs | + Pydantic |
-|--------|---------|----------|------------|
+| -------- | --------- | ---------- | ------------ |
 | **Total Size** | 6.5 MB | 7 MB | 17 MB |
 | **Increase** | baseline | +8% | +162% |
 | **Docker Impact** | baseline | minimal | significant |
@@ -221,33 +229,42 @@ dependencies = [
 Given that feedsearch-crawler is a **library consumed by other projects**, dependencies have cascading effects:
 
 #### Option 1: Keep Current (Recommended)
+
 ✅ **Pros:**
+
 - Minimal dependency footprint
 - No breaking changes
 - Fast installation
 - Docker-friendly
 
 ❌ **Cons:**
+
 - Manual serialization maintenance
 - No automatic validation
 
 #### Option 2: Add cattrs (Moderate)
+
 ✅ **Pros:**
+
 - Only +0.5 MB (+8%)
 - Automatic serialization
 - Minimal impact on users
 
 ❌ **Cons:**
+
 - Another dependency to maintain
 - Manual validation still needed
 
 #### Option 3: Add Pydantic (Not Recommended)
+
 ✅ **Pros:**
+
 - Industry standard
 - Excellent validation
 - JSON Schema generation
 
 ❌ **Cons:**
+
 - +10.5 MB (+162%) dependency bloat
 - Impacts ALL downstream users
 - Potential version conflicts
@@ -255,13 +272,15 @@ Given that feedsearch-crawler is a **library consumed by other projects**, depen
 
 ### General Guidelines
 
-**Use Pydantic when:**
+#### Use Pydantic when
+
 - Building an end-user application
 - Validation is critical to business logic
 - Ecosystem integration is important
 - Size doesn't matter (cloud services)
 
-**Avoid Pydantic when:**
+#### Avoid Pydantic when
+
 - Building a library package (like this)
 - Minimizing dependencies is important
 - Used in resource-constrained environments

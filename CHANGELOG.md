@@ -63,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.4] - 2026-09-09
 
 ### Fixed
+
 - **Every JSON response was logged as a failed fetch.** `ContentTypeMiddleware`
   called `response.json()` on `application/json` responses, but the
   downloader had already parsed the body into the `json` attribute (a
@@ -89,6 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.3] - 2026-08-17
 
 ### Fixed
+
 - **Responses without a `charset` in Content-Type failed entirely.** The
   downloader streams the body itself, so aiohttp's `get_encoding()` had no
   body buffer for fallback charset detection and raised `RuntimeError`
@@ -104,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.2] - 2026-07-12
 
 ### Fixed
+
 - **Brotli-encoded responses failed to decode.** The abandoned `brotlipy`
   dependency provides a `brotli` module whose `Decompressor` API is
   incompatible with aiohttp, so aiohttp advertised `br` support in
@@ -115,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.1] - 2026-07-11
 
 ### Fixed
+
 - **Critical: the crawl worker loop was completely broken in all 2.x
   releases.** Workers crashed on their first queue item (an uninitialized
   legacy statistics attribute removed in the 2.0 stats refactor), died
@@ -136,12 +140,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   origins
 
 ### Changed
+
 - New `requests_per_host_per_sec` crawler parameter (default 5, 0 disables)
   replaces the previously hardcoded per-host rate of 2
 - BeautifulSoup uses the ~1.6x faster lxml parser when lxml is installed
   (`pip install feedsearch-crawler[lxml]`); falls back to html.parser
 
 ### Performance
+
 - Response history copies use shallow list copies instead of `deepcopy`
   (~290x faster per request)
 - JSON parsing of response bodies is skipped for non-JSON content
@@ -149,6 +155,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2026-07-10
 
 ### Added
+
 - **Feed-declared metadata fields on `FeedInfo`**, extracted from RSS 2.0 channel,
   Atom (RFC 4287) feed, and JSON Feed 1.0/1.1 top-level elements:
   - `link` (*URL*): website link declared by the feed (RSS `<link>`,
@@ -179,6 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `FEEDINFO_SCHEMA` JSON schema
 
 ### Fixed
+
 - Malformed-but-recoverable feeds are now flagged `bozo=1` (previously only
   character-encoding overrides were flagged, so malformed XML escaped the
   bozo scoring penalty). A missing/non-XML HTTP Content-Type alone does not
@@ -187,17 +195,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `is_push`, matching the XML behavior and the WebSub spec
 
 ### Changed
+
 - feedparser HTML sanitization is disabled (`sanitize_html=False`) for a
   ~2x parse speedup; this crawler discards entry content, but feed-level
   `description` values are no longer HTML-sanitized - treat them as
   untrusted text
 
 ### Notes
+
 - Fully backward compatible: all new fields are additive with empty/None defaults
 
 ## [2.0.0] - 2025-01-17
 
 ### Breaking Changes
+
 - **Python 3.12+ required**: Dropped support for Python 3.7-3.11
 - **`FeedInfo.serialize()` returns `None` instead of `""`**: URL fields (`url`, `site_url`, `favicon`, `self_url`) and `last_updated` now return `None` when not set, instead of empty string
 - **`FeedInfo` validation raises `ValueError`**: Creating `FeedInfo` with invalid values (negative scores, invalid bozo values, etc.) now raises `ValueError`
@@ -206,6 +217,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed `cchardet` dependency**
 
 ### Added
+
 - **New error handling API**: Added `search_with_info()` and `search_async_with_info()` functions that return detailed error information
   - Returns `SearchResult` object with `feeds`, `root_error`, and optional `stats` fields
   - Provides structured error information via `SearchError` dataclass
@@ -248,6 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced CLAUDE.md with comprehensive testing guidelines and workflow instructions
 
 ### Changed
+
 - **100% Backward Compatible**: Original `search()` and `search_async()` functions unchanged
   - Still return `List[FeedInfo]` exactly as before
   - Empty list on error (unchanged behavior)
@@ -260,12 +273,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Total test count increased from 340 to 582 tests (+242 tests)
 
 ### Fixed
+
 - Fixed `datetime.utcnow()` deprecation warnings by using `datetime.now(timezone.utc)`
 - Fixed unawaited coroutine in `SiteMetaParser.parse_item()` by awaiting `self.follow()`
 - Fixed unawaited coroutine in test mocks by using `AsyncMock` properly
 - Removed unused imports and variables flagged by ruff linter
 
 ### Documentation
+
 - Created `docs/API_DESIGN_OPTIONS.md` analyzing 8 API design patterns for error handling
 - Created `docs/OPTION3_IMPLEMENTATION_SUMMARY.md` documenting the implementation approach
 - Updated README.md with error handling examples and usage patterns
@@ -274,11 +289,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2024-08-21
 
 ### Changed
+
 - Migrated package management and build tools to uv
 - Updated dependencies to latest versions
 - Added stricter type hints throughout codebase
 
 ### Fixed
+
 - Improved queue handling in crawler
 - Updated download handling with additional tests
 - Fixed typing errors in lib.py

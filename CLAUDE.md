@@ -24,6 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Public API Surface
 
 The library exposes these public APIs in `__init__.py`:
+
 - `search(url, ...)` - Synchronous feed search
 - `search_async(url, ...)` - Async feed search
 - `output_opml(feeds)` - Convert feeds to OPML format
@@ -62,6 +63,7 @@ The library is available on PyPI: `pip install feedsearch-crawler`
 ### Publishing to PyPI
 
 **Prerequisites:**
+
 - Maintainer access to feedsearch-crawler on PyPI
 - PyPI API token configured
 
@@ -101,11 +103,13 @@ git push origin v1.0.3
 ```
 
 **Semantic versioning guidelines:**
+
 - **MAJOR** (1.0.0 → 2.0.0): Breaking API changes
 - **MINOR** (1.0.0 → 1.1.0): New features, backward compatible
 - **PATCH** (1.0.0 → 1.0.1): Bug fixes, backward compatible
 
 **Before publishing checklist:**
+
 - [ ] All tests pass
 - [ ] CHANGELOG.md updated
 - [ ] Version bumped in pyproject.toml
@@ -175,16 +179,19 @@ The architecture separates concerns between generic web crawling capabilities an
 **ALWAYS do these steps first:**
 
 1. **Run existing tests** to establish baseline:
+
    ```bash
    uv run pytest
    ```
 
 2. **Check git status** to understand current state:
+
    ```bash
    git status
    ```
 
 3. **For test work, check performance**:
+
    ```bash
    uv run pytest --durations=20
    ```
@@ -421,6 +428,7 @@ result = spider.add_favicon(favicon)  # No await
 **Problem:** `RuntimeWarning: coroutine 'foo' was never awaited`
 **Cause:** Async function not awaited, or using wrong pattern
 **Solution:**
+
 - Check if function is async: `async def` → use `await`
 - Check if it's a generator: `yield` → use `async for`
 - Use `AsyncMock` for mock async functions
@@ -430,6 +438,7 @@ result = spider.add_favicon(favicon)  # No await
 **Problem:** `TypeError: Constructor parameter should be str`
 **Cause:** Passing `None` or wrong type to `URL()` constructor
 **Solution:**
+
 - Check FeedInfo/SiteMeta URL fields - they should be URL objects
 - Use `URL("https://example.com")` not `"https://example.com"`
 - Handle None values before passing to URL()
@@ -439,6 +448,7 @@ result = spider.add_favicon(favicon)  # No await
 **Problem:** Created 10 tests, all fail with different errors
 **Cause:** Didn't validate incrementally, guessed at API behavior
 **Solution:**
+
 - DELETE the failing tests
 - Read the actual implementation code
 - Create 2 simple tests that you're confident about

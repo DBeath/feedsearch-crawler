@@ -30,6 +30,7 @@ pip install feedsearch-crawler
 ```
 
 **Requirements:**
+
 - Python 3.12 or higher
 - No additional system dependencies
 

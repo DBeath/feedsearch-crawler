@@ -13,7 +13,7 @@ The datetime test data structure (`tests/feed_spider/datetime_test_data.py`) pro
 
 ### Core Components
 
-```
+```text
 DateTimeTestCase       - Single test case (input → expected output)
     ↓
 DateTimeTestCategory   - Group of related test cases
@@ -293,6 +293,7 @@ add_language_variants(
 ### Test Case Design
 
 1. **Clear Descriptions** - Make descriptions unique and descriptive
+
    ```python
    # Good
    description="RFC 3339 with New Zealand timezone (+12:00)"
@@ -302,17 +303,20 @@ add_language_variants(
    ```
 
 2. **Appropriate Tags** - Use tags for filtering and organization
+
    ```python
    tags=["timezone", "offset", "extreme-tz", "nz"]
    ```
 
 3. **Complete Metadata** - Fill in all relevant fields
+
    ```python
    notes="Tests positive extreme timezone offset"
    language="en"
    ```
 
 4. **Expected Behavior** - Set correct expectation
+
    ```python
    # For current implementation limitations
    expected_behavior=ExpectedBehavior.PARSE_XFAIL
@@ -329,11 +333,13 @@ add_language_variants(
    - By scenario (edge cases, invalid)
 
 2. **Comprehensive Tags** - Add category-level tags
+
    ```python
    tags=["rfc3339", "iso8601", "standard"]
    ```
 
 3. **Clear Documentation** - Describe what the category tests
+
    ```python
    description="RFC 3339 format dates used in Atom and JSON Feed"
    ```
@@ -343,12 +349,14 @@ add_language_variants(
 When implementing a new datetime parser, use the test suite to:
 
 1. **Establish Baseline** - Run all tests to see current support
+
    ```python
    success_cases = get_test_cases_by_behavior(ExpectedBehavior.PARSE_SUCCESS)
    baseline_passes = sum(1 for tc in success_cases if parser(tc.input_string))
    ```
 
 2. **Update Expected Behaviors** - As parser improves
+
    ```python
    # If French support is added
    for tc in get_test_cases_by_language("fr"):
@@ -357,6 +365,7 @@ When implementing a new datetime parser, use the test suite to:
    ```
 
 3. **Add New Test Cases** - For newly supported features
+
    ```python
    # Parser now supports Hebrew
    hebrew_tests = create_hebrew_test_cases()

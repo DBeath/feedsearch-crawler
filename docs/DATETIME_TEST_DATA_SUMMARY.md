@@ -12,7 +12,7 @@ A comprehensive, extensible test data structure for datetime parsing across 15+ 
 ## Files Created
 
 | File | Purpose | Lines |
-|------|---------|-------|
+| ------ | --------- | ------- |
 | `tests/feed_spider/datetime_test_data.py` | Core data structure with 53 test cases | ~700 |
 | `tests/feed_spider/test_datetime_with_fixtures.py` | Example usage and integration tests | ~300 |
 | `docs/DATETIME_TEST_DATA_GUIDE.md` | Complete documentation | ~600 |
@@ -20,7 +20,7 @@ A comprehensive, extensible test data structure for datetime parsing across 15+ 
 
 ## Test Coverage
 
-```
+```text
 Total Test Cases: 53
 Categories: 6
 Languages: 15
@@ -43,6 +43,7 @@ By Format:
 ## Languages Covered
 
 ### Western European (7)
+
 - 🇫🇷 French (fr)
 - 🇩🇪 German (de)
 - 🇪🇸 Spanish (es)
@@ -52,24 +53,28 @@ By Format:
 - 🇸🇪 Swedish (sv)
 
 ### Eastern European (2)
+
 - 🇷🇺 Russian (ru) - Cyrillic
 - 🇵🇱 Polish (pl)
 
 ### Asian (3)
+
 - 🇯🇵 Japanese (ja) - Kanji
 - 🇨🇳 Chinese (zh) - Simplified
 - 🇰🇷 Korean (ko) - Hangul
 
 ### Middle Eastern (1)
+
 - 🇸🇦 Arabic (ar) - Eastern Arabic numerals
 
 ### Other (2)
+
 - 🇹🇷 Turkish (tr)
 - 🇬🇧 English (en) - default
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────┐
 │     DATETIME_TEST_SUITE (dict)      │
 │  Top-level collection of categories │
@@ -108,6 +113,7 @@ Each DateTimeTestCase contains:
 ## Example Test Cases
 
 ### RFC 3339 (Atom/JSON Feed)
+
 ```python
 "2025-01-13T14:30:00Z"              ✅ Basic UTC
 "2025-01-13T14:30:00+05:30"         ✅ Positive offset (IST)
@@ -116,6 +122,7 @@ Each DateTimeTestCase contains:
 ```
 
 ### RFC 822 (RSS 2.0)
+
 ```python
 "Mon, 13 Jan 2025 14:30:00 GMT"     ✅ Basic GMT
 "13 Jan 2025 14:30:00 +0000"        ✅ Numeric offset
@@ -123,6 +130,7 @@ Each DateTimeTestCase contains:
 ```
 
 ### Language-Specific
+
 ```python
 "Lundi 13 janvier 2025 14:30:00"    ⏭️  French
 "Montag, 13. Januar 2025 14:30"     ⏭️  German
@@ -131,6 +139,7 @@ Each DateTimeTestCase contains:
 ```
 
 ### Invalid Dates
+
 ```python
 ""                                   ❌ Empty string
 "2025-13-01T12:00:00Z"              ❌ Invalid month
@@ -193,6 +202,7 @@ def test_rfc3339_dates(test_case):
 ### 4. Comprehensive Metadata
 
 Each test case includes:
+
 - Input string
 - Expected datetime (if should succeed)
 - Expected behavior (success/fail/xfail/warn)
@@ -327,7 +337,7 @@ When implementing improved datetime parsing:
 
 ## Statistics
 
-```
+```text
 📊 Coverage Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Categories:        6

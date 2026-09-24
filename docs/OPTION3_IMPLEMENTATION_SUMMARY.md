@@ -17,7 +17,8 @@ This provides **100% backward compatibility** while enabling error handling for 
 
 ### API Design
 
-**Original API (Unchanged):**
+#### Original API (Unchanged)
+
 ```python
 def search(url, try_urls=False, **kwargs) -> List[FeedInfo]:
     """Returns list of feeds. Empty list on error."""
@@ -28,7 +29,8 @@ async def search_async(url, try_urls=False, **kwargs) -> List[FeedInfo]:
     ...
 ```
 
-**New API (Error Handling):**
+#### New API (Error Handling)
+
 ```python
 def search_with_info(url, try_urls=False, include_stats=False, **kwargs) -> SearchResult:
     """Returns SearchResult with feeds, error info, and optional stats."""
@@ -132,7 +134,8 @@ for feed in result.feeds:
 
 Error type information is now properly stored as a `Response` class attribute rather than dynamically attached:
 
-**Response Class (src/feedsearch_crawler/crawler/response.py)**
+#### Response Class (src/feedsearch_crawler/crawler/response.py)
+
 ```python
 class Response:
     def __init__(
@@ -146,7 +149,8 @@ class Response:
         self.error_type = error_type  # Proper attribute
 ```
 
-**Downloader (src/feedsearch_crawler/crawler/downloader.py)**
+#### Downloader (src/feedsearch_crawler/crawler/downloader.py)
+
 ```python
 # Downloader passes error_type as constructor parameter
 except aiohttp.ClientConnectorDNSError:
@@ -157,7 +161,8 @@ except aiohttp.ClientConnectorDNSError:
     )
 ```
 
-**Spider (src/feedsearch_crawler/feed_spider/spider.py)**
+#### Spider (src/feedsearch_crawler/feed_spider/spider.py)
+
 ```python
 # Spider reads from proper attribute
 if response.error_type == "dns_failure":
@@ -172,7 +177,8 @@ This clean architecture ensures error type information flows properly through th
 
 ### Modified Files
 
-**src/feedsearch_crawler/__init__.py** (+170 lines, -65 lines)
+**src/feedsearch_crawler/**init**.py** (+170 lines, -65 lines)
+
 - Removed `include_errors` parameter from `search()` and `search_async()`
 - Restored clean `List[FeedInfo]` return type for original functions
 - Added `search_with_info()` function (synchronous)
@@ -181,12 +187,14 @@ This clean architecture ensures error type information flows properly through th
 - Added comprehensive docstrings with examples
 
 **tests/test_public_api.py** (+50 lines)
+
 - Removed `test_search_async_with_include_errors`
 - Added `TestSearchWithInfoFunction` class (2 tests)
 - Added `TestSearchAsyncWithInfoFunction` class (2 tests)
 - Updated imports
 
 **tests/test_error_handling.py** (+20 lines, -70 lines)
+
 - Updated imports to include new functions
 - Replaced conditional return type tests with separate function tests
 - Updated `TestPublicAPIErrorHandling` to test both APIs
@@ -194,6 +202,7 @@ This clean architecture ensures error type information flows properly through th
 ### New Files
 
 **tests/test_api_contract.py** (270 lines)
+
 - Contract tests for `search()` return type (4 tests)
 - Contract tests for `search_async()` return type (3 tests)
 - Contract tests for `search_with_info()` return type (2 tests)
@@ -203,6 +212,7 @@ This clean architecture ensures error type information flows properly through th
 - Total: 15 contract tests
 
 **docs/API_DESIGN_OPTIONS.md** (650 lines)
+
 - Detailed analysis of 8 API design options
 - Comparison matrix
 - Recommended approach (Option 3)
@@ -215,6 +225,7 @@ This clean architecture ensures error type information flows properly through th
 ## Test Results
 
 ### Test Summary
+
 - **Total Tests**: 567 passed, 6 skipped, 28 xfailed
 - **Contract Tests**: 15 new tests (all passing)
 - **New API Tests**: 4 tests for new functions
@@ -224,29 +235,35 @@ This clean architecture ensures error type information flows properly through th
 ### Contract Test Categories
 
 **TestSearchReturnTypeContract** (4 tests)
+
 - ✅ `search()` returns `list` type (not subclass)
 - ✅ `search()` returns `List[FeedInfo]`
 - ✅ `search()` returns empty list (not None)
 - ✅ `search()` never returns `SearchResult`
 
 **TestSearchAsyncReturnTypeContract** (3 tests)
+
 - ✅ `search_async()` returns `list` type
 - ✅ `search_async()` returns `List[FeedInfo]`
 - ✅ `search_async()` never returns `SearchResult`
 
 **TestSearchWithInfoReturnTypeContract** (2 tests)
+
 - ✅ `search_with_info()` returns `SearchResult` type
 - ✅ `search_with_info()` never returns plain list
 
 **TestSearchAsyncWithInfoReturnTypeContract** (2 tests)
+
 - ✅ `search_async_with_info()` returns `SearchResult` type
 - ✅ `search_async_with_info()` never returns plain list
 
 **TestBehaviorContract** (2 tests)
+
 - ✅ `search()` and `search_with_info()` return same feeds
 - ✅ `search()` respects list protocol (supports all list operations)
 
 **TestTypeAnnotationContract** (2 tests)
+
 - ✅ `search()` annotated as returning `List[FeedInfo]`
 - ✅ `search_with_info()` annotated as returning `SearchResult`
 
@@ -255,18 +272,21 @@ This clean architecture ensures error type information flows properly through th
 ## Benefits
 
 ### 1. **Perfect Backward Compatibility**
+
 - Original `search()` and `search_async()` unchanged
 - No code changes required for existing users
 - Return type remains `List[FeedInfo]`
 - Version: MINOR bump (1.0.3 → 1.1.0)
 
 ### 2. **Type Safety**
+
 - Each function has single, predictable return type
 - No conditional returns based on parameters
 - Type checkers (mypy, pyright) work correctly
 - No need for `isinstance()` runtime checks
 
 ### 3. **Clear API Design**
+
 - Function names indicate capabilities
   - `search()`: Simple, returns list
   - `search_with_info()`: Rich, returns detailed result
@@ -274,16 +294,19 @@ This clean architecture ensures error type information flows properly through th
 - No surprise return types
 
 ### 4. **Progressive Disclosure**
+
 - Simple use cases use simple API
 - Complex needs use rich API
 - Users choose based on requirements
 
 ### 5. **Future-Proof**
+
 - Can deprecate `search()` in future major version
 - Can add more fields to `SearchResult` without breaking changes
 - Extensible design
 
 ### 6. **Contract Enforcement**
+
 - 15 contract tests enforce API guarantees
 - Breaking contracts requires major version bump
 - Tests document the API contract explicitly
@@ -292,7 +315,7 @@ This clean architecture ensures error type information flows properly through th
 
 ## API Contract Guarantees (v1.x)
 
-**These contracts MUST NOT be broken in v1.x releases:**
+### These contracts MUST NOT be broken in v1.x releases
 
 1. **`search()` always returns `list` type** (exact type, not subclass)
 2. **`search()` never returns `SearchResult`**
@@ -312,17 +335,20 @@ Breaking any of these contracts requires a **MAJOR** version bump (v2.0.0).
 ## Migration Path
 
 ### Phase 1: v1.1.0 (Current)
+
 - Add `search_with_info()` and `search_async_with_info()`
 - Keep `search()` and `search_async()` unchanged
 - Document both APIs
 - Encourage new code to use `search_with_info()`
 
 ### Phase 2: v1.x (Ongoing)
+
 - `search()` remains supported and maintained
 - Both APIs co-exist
 - Users migrate at their own pace
 
 ### Phase 3: v2.0.0 (Optional Future)
+
 - Option A: Remove `search()` entirely
 - Option B: Make `search()` raise exceptions on error (Pythonic approach)
 - Option C: Keep both APIs indefinitely
@@ -332,6 +358,7 @@ Breaking any of these contracts requires a **MAJOR** version bump (v2.0.0).
 ## Comparison to Previous Approaches
 
 ### Rejected: Conditional Return Type
+
 ```python
 def search(url, include_errors=False) -> Union[List[FeedInfo], SearchResult]:
     if include_errors:
@@ -339,24 +366,28 @@ def search(url, include_errors=False) -> Union[List[FeedInfo], SearchResult]:
     return [...]
 ```
 
-**Problems:**
+#### Problems
+
 - ❌ Return type depends on parameter
 - ❌ Requires runtime type checking
 - ❌ Poor type safety
 - ❌ Confusing API
 
 ### Rejected: Always Return SearchResult
+
 ```python
 def search(url) -> SearchResult:
     return SearchResult(...)
 ```
 
-**Problems:**
+#### Problems
+
 - ❌ Breaking change (requires v2.0.0)
 - ❌ All users must update code
 - ❌ Not backward compatible
 
 ### Chosen: New Function Name ✅
+
 ```python
 def search(url) -> List[FeedInfo]:
     ...
@@ -365,7 +396,8 @@ def search_with_info(url) -> SearchResult:
     ...
 ```
 
-**Advantages:**
+#### Advantages
+
 - ✅ 100% backward compatible
 - ✅ Type-safe
 - ✅ Clear, self-documenting

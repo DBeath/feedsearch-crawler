@@ -105,7 +105,7 @@ LANGUAGE_SPECIFIC_DATES.add_test(norwegian)
 
 ## File Structure
 
-```
+```text
 tests/feed_spider/
 ├── datetime_test_data.py          # Core data structure (53 tests)
 ├── test_datetime_with_fixtures.py # Example usage in tests
@@ -119,7 +119,7 @@ docs/
 ## Test Coverage Summary
 
 | Category | Tests | Status |
-|----------|-------|--------|
+| ---------- | ------- | -------- |
 | RFC 3339 | 7 | ✅ All pass |
 | RFC 822 | 7 | ✅ All pass (2 warnings) |
 | Languages | 18 | ⏭️ Expected to fail |
@@ -287,6 +287,7 @@ for name, category in DATETIME_TEST_SUITE.items():
 ## Support
 
 The test data is designed to be:
+
 - ✅ Easy to extend
 - ✅ Well-documented
 - ✅ Flexible for filtering

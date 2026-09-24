@@ -17,7 +17,8 @@ This document summarizes how RSS, Atom, and JSON Feed specifications define date
 
 **Format:** RFC 822 date/time format
 
-**Key Requirements:**
+#### Key Requirements
+
 - Must conform to RFC 822 Date and Time Specification
 - Year may be expressed with 2 or 4 characters (4 preferred)
 - Example: `<pubDate>Sun, 19 May 2002 15:21:36 GMT</pubDate>`
@@ -27,6 +28,7 @@ This document summarizes how RSS, Atom, and JSON Feed specifications define date
 **Specification Guidance:** Minimal
 
 The RSS 2.0 specification provides limited guidance on invalid dates:
+
 - **Future dates:** "If it's a date in the future, aggregators may choose to not display the item until that date."
 - **Malformed dates:** No explicit guidance provided
 
@@ -44,7 +46,8 @@ The RSS 2.0 specification provides limited guidance on invalid dates:
 
 **Format:** RFC 3339 date-time format (strict)
 
-**Key Requirements:**
+#### Key Requirements
+
 - Content MUST conform to RFC 3339 `date-time` production
 - Uppercase 'T' MUST separate date and time
 - Uppercase 'Z' MUST be present if no numeric timezone offset
@@ -52,7 +55,8 @@ The RSS 2.0 specification provides limited guidance on invalid dates:
   - `2003-12-13T18:30:02Z`
   - `2003-12-13T18:30:02+01:00`
 
-**Semantics:**
+#### Semantics
+
 - `atom:updated`: Most recent instant when entry/feed was significantly modified
 - `atom:published`: Instant associated with early life cycle event (creation/first availability)
 
@@ -61,6 +65,7 @@ The RSS 2.0 specification provides limited guidance on invalid dates:
 **Specification Guidance:** None provided
 
 The RFC 4287 specification:
+
 - Defines strict producer requirements
 - Does not address consumer error-handling procedures
 - Leaves implementation decisions to individual processors
@@ -79,7 +84,8 @@ The RFC 4287 specification:
 
 **Format:** RFC 3339 format
 
-**Key Requirements:**
+#### Key Requirements
+
 - Must use RFC 3339 format when present
 - Timezone information included in timestamp
 - Example: `2010-02-07T14:04:00-05:00`
@@ -94,10 +100,12 @@ The JSON Feed specification explicitly addresses invalid dates:
 
 > "you might substitute the date the reader parsed it" when encountering unparseable timestamps.
 
-**Philosophy:**
+#### Philosophy
+>
 > "if an error can be recovered from without significantly harming that experience, then it's better than just refusing to use the feed."
 
-**Key Points:**
+#### Key Points
+
 - Feed readers should employ pragmatic recovery strategies
 - User experience takes priority over strict validation
 - Unparseable dates can be substituted with current time/date
@@ -110,7 +118,7 @@ The JSON Feed specification explicitly addresses invalid dates:
 ## Comparison Summary
 
 | Aspect | RSS 2.0 | Atom (RFC 4287) | JSON Feed |
-|--------|---------|-----------------|-----------|
+| -------- | --------- | ----------------- | ----------- |
 | **Date Format** | RFC 822 | RFC 3339 (strict) | RFC 3339 |
 | **Required?** | Optional | `updated` required | Optional |
 | **Invalid Date Guidance** | Minimal | None | Pragmatic recovery |
@@ -135,7 +143,8 @@ Our implementation in `parse_date_with_comparison()` aligns well with all specif
 
 Based on specifications and `parse_date_with_comparison()` implementation:
 
-**✅ DO:**
+#### ✅ DO
+
 - Accept multiple date formats (RSS, Atom, JSON feeds use different standards)
 - Return `None` for unparseable dates (allows feed processing to continue)
 - Log invalid dates for debugging (`logger.debug()`)
@@ -143,7 +152,8 @@ Based on specifications and `parse_date_with_comparison()` implementation:
 - Prefer stricter parsers (ISO 8601/RFC 3339) before flexible parsers (dateutil)
 - Compare multiple parsing results when available
 
-**❌ DON'T:**
+#### ❌ DON'T
+
 - Reject entire feed due to invalid date in one entry
 - Throw exceptions for unparseable dates (breaks feed processing)
 - Use unparseable dates as "now" (can skew velocity calculations)
@@ -167,6 +177,7 @@ except (KeyError, ValueError, AttributeError):
 ```
 
 This approach:
+
 - Continues processing remaining entries if one fails
 - Filters out unparseable and future dates
 - Maintains feed velocity and last_updated accuracy
@@ -176,11 +187,11 @@ This approach:
 
 ## References
 
-1. **RSS 2.0:** https://www.rssboard.org/rss-specification
-2. **Atom (RFC 4287):** https://datatracker.ietf.org/doc/html/rfc4287
-3. **JSON Feed v1.1:** https://jsonfeed.org/version/1.1
-4. **RFC 822 (Date/Time):** https://www.rfc-editor.org/rfc/rfc822
-5. **RFC 3339 (Date/Time):** https://www.rfc-editor.org/rfc/rfc3339
+1. **RSS 2.0:** <https://www.rssboard.org/rss-specification>
+2. **Atom (RFC 4287):** <https://datatracker.ietf.org/doc/html/rfc4287>
+3. **JSON Feed v1.1:** <https://jsonfeed.org/version/1.1>
+4. **RFC 822 (Date/Time):** <https://www.rfc-editor.org/rfc/rfc822>
+5. **RFC 3339 (Date/Time):** <https://www.rfc-editor.org/rfc/rfc3339>
 
 ---
 
