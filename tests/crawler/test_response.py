@@ -613,7 +613,7 @@ class TestResponseAdditionalCoverage:
 
     @pytest.mark.asyncio
     async def test_xml_decode_error_handling(self):
-        """Test xml property handles decode errors gracefully."""
+        """Test xml property decodes with replacement rather than failing."""
 
         async def mock_parser(text):
             return {"parsed": text}
@@ -629,7 +629,8 @@ class TestResponseAdditionalCoverage:
         )
 
         result = await response.xml
-        assert result is None  # Should return None on decode error
+        # Undecodable bytes are replaced, not dropped, so the page still parses.
+        assert result == {"parsed": "\ufffd\ufffd"}
 
     @pytest.mark.asyncio
     async def test_xml_parser_sync(self):

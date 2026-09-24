@@ -380,7 +380,7 @@ class Crawler(ABC):
                 await self.process_item(result)
                 await self.stats_collector.record_item_processed()
         except Exception as e:
-            logger.exception(e)
+            logger.exception("Error processing callback result %r: %s", result, e)
 
     def _process_request(self, request: Request) -> None:
         """
@@ -480,6 +480,13 @@ class Crawler(ABC):
 
         if not request_url:
             logger.warning("Attempted to follow invalid URL: %s", original_url)
+            return
+
+        # A scheme without a host (data:, javascript:, mailto:, tel:) is not a
+        # fetchable resource. Joining it to the Response origin turned
+        # "data:image/png;base64,..." into a host name and yarl raised.
+        if request_url.scheme and not request_url.host:
+            logger.debug("Not a fetchable URL: %s", original_url)
             return
 
         history: List[URL] = []

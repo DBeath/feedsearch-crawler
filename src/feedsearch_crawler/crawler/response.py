@@ -104,14 +104,9 @@ class Response:
         if not self._xml_parser:
             return self._xml
 
-        if not self.text and self.data and self.encoding:
-            try:
-                self.text = self.data.decode(self.encoding)
-            except UnicodeDecodeError as e:
-                logger.exception("Error decoding data to %s: %s", self.encoding, e)
-                return self._xml
-
         try:
+            if not self.text and self.data and self.encoding:
+                self.text = self.data.decode(self.encoding, errors="replace")
             result = self._xml_parser(self.text)
             # Handle both sync and async parsers
             if hasattr(result, "__await__"):
@@ -119,7 +114,8 @@ class Response:
             else:
                 self._xml = result
         except Exception as e:
-            logger.exception("Error parsing response xml: %s", e)
+            # A parser choking on a page is a property of that page.
+            logger.warning("Could not parse %s: %s", self.url, e)
         return self._xml
 
     def is_max_depth_reached(self, max_depth: int) -> bool:

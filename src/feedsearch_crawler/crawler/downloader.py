@@ -8,6 +8,7 @@ from typing import List, Tuple, Optional, Dict
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout, hdrs, ClientResponse, ClientRequest
+from bs4 import UnicodeDammit
 from yarl import URL
 from .lib import ContentLengthError, ContentReadError
 
@@ -104,20 +105,11 @@ class Downloader:
                     except RuntimeError:
                         encoding = "utf-8"
 
-                # Read response content
-                try:
-                    # Read response content as text, using the data we already read
-                    if resp_data:
-                        resp_text = resp_data.decode(encoding)
-                    else:
-                        resp_text = ""
+                # Read response content as text, using the data we already read
+                resp_text, encoding = self._decode(resp_data, encoding, request.url)
 
-                    # Attempt to read response content as JSON
-                    resp_json: dict = await self._read_json(resp_text)
-                # If response content can't be decoded then neither text or JSON can be set.
-                except UnicodeDecodeError:
-                    resp_text: str = ""
-                    resp_json: dict = {}
+                # Attempt to read response content as JSON
+                resp_json: dict = await self._read_json(resp_text)
 
                 # Close the asyncio response
                 if not resp.closed:
@@ -283,6 +275,34 @@ class Downloader:
             request=request,
         )
 
+    @staticmethod
+    def _decode(data: bytes, encoding: str, url: URL) -> Tuple[str, str]:
+        """
+        Decode a response body, sniffing the charset when the declared one fails.
+
+        Legacy pages often send no charset (so UTF-8 is assumed) or a wrong
+        one; the body still says which it is in an XML declaration or a meta
+        tag. Undecodable bytes are replaced rather than dropping the page.
+
+        :return: Tuple (text, encoding actually used)
+        """
+        if not data:
+            return "", encoding
+        try:
+            return data.decode(encoding), encoding
+        except UnicodeDecodeError:
+            pass
+        dammit = UnicodeDammit(data, is_html=True)
+        if dammit.unicode_markup:
+            logger.debug(
+                "Declared charset %s failed for %s, using %s",
+                encoding,
+                url,
+                dammit.original_encoding,
+            )
+            return dammit.unicode_markup, dammit.original_encoding
+        return data.decode(encoding, errors="replace"), encoding
+
     async def _read_response(
         self, resp: ClientResponse, max_content_length: int
     ) -> Tuple[bytes, int]:
@@ -304,7 +324,9 @@ class Downloader:
                 if len(body) > max_content_length:
                     raise ContentLengthError(max_content_length)
         except (IncompleteReadError, LimitOverrunError) as e:
-            logger.exception("Failed to read Response content: %s: %s", self, e)
+            # The server cut the body short: a fetch failure like any other,
+            # logged at DEBUG as fetch() does for timeouts and resets.
+            logger.debug("Failed fetch: url=%s reason=truncated body (%s)", resp.url, e)
             raise ContentReadError
 
         return body, len(body)

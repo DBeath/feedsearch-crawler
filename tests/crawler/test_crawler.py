@@ -171,6 +171,26 @@ class TestCrawlerFollowMethod:
         assert request is not None
         assert request.url == URL("https://example.com/relative/path")
 
+    async def test_follow_ignores_scheme_without_host(self):
+        """data:/javascript: hrefs are not joined to the origin (FEEDSEARCH-7F)."""
+        crawler = MockCrawler()
+        base_response = Response(
+            url=URL("https://example.com/"),
+            method="GET",
+            headers={},
+            status_code=200,
+            history=[URL("https://example.com/")],
+        )
+
+        async def dummy_callback(request, response):
+            pass
+
+        for href in ("data:image/png;base64,iVBORw0KGgo=", "javascript:void(0)"):
+            assert (
+                await crawler.follow(URL(href), dummy_callback, response=base_response)
+                is None
+            )
+
     async def test_follow_blocked_by_domain_filter(self):
         crawler = MockCrawler(allowed_domains=["allowed.com"])
 

@@ -249,6 +249,19 @@ class TestFindSiteIconURLs:
         # Should always include favicon.ico as fallback
         assert any(icon.url.path.endswith("/favicon.ico") for icon in result)
 
+    def test_find_site_icon_unparseable_href_is_skipped(self, site_meta_parser):
+        """An href yarl rejects falls back to favicon.ico instead of raising."""
+        html = """<html><head>
+            <link rel="icon" href="http://example.com:99999/icon.png" />
+        </head></html>"""
+        soup = BeautifulSoup(html, "html.parser")
+
+        result = site_meta_parser.find_site_icon_urls(
+            soup, URL("https://example.com"), "example.com"
+        )
+
+        assert [icon.url.path for icon in result] == ["/favicon.ico"]
+
     def test_find_site_icon_link_rel_icon(self, site_meta_parser):
         """Test finding icon from link rel=icon."""
         html = """<html><head>

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-09-24
+
+### Fixed
+
+- `follow()` drops URLs that have a scheme but no host (`data:`,
+  `javascript:`, `mailto:`, `tel:`) instead of joining them to the page
+  origin, which turned a base64 favicon into a host name and raised
+  `ValueError: Host 'data:image' cannot contain ':'` from the crawl loop.
+- Favicon `href`s are parsed with the same tolerant parser as every other
+  link, so an unparseable icon URL no longer aborts site metadata for the
+  page.
+- A body that does not decode with the declared (or assumed UTF-8)
+  charset is no longer discarded: the charset is sniffed from the XML
+  declaration or `<meta>` tag with BeautifulSoup's `UnicodeDammit`, and as
+  a last resort undecodable bytes are replaced. Before, such pages yielded
+  no links and no site metadata and `Response.xml` then logged a second
+  decode failure with a traceback.
+- Favicon data URIs are built by decoding base64 output as ASCII rather
+  than with the image response's declared charset.
+
+### Changed
+
+- Per-page failures are logged at the level of what they are: a truncated
+  response body is a fetch failure (DEBUG, like timeouts and resets) and a
+  parser choking on a page is a WARNING naming the URL. Exceptions escaping
+  a parse callback stay at ERROR, now with the offending result in the
+  message: they are bugs in the crawler's handling of page content, which
+  is how the `data:` case above was found.
+
 ## [2.1.6] - 2026-09-21
 
 ### Changed

@@ -4,7 +4,7 @@ from typing import List, Any
 from yarl import URL
 
 from feedsearch_crawler.crawler import ItemParser, Request, Response
-from feedsearch_crawler.crawler.lib import remove_www
+from feedsearch_crawler.crawler.lib import parse_href_to_url, remove_www
 from feedsearch_crawler.feed_spider.favicon import Favicon
 from feedsearch_crawler.feed_spider.site_meta import SiteMeta
 
@@ -61,9 +61,9 @@ class SiteMetaParser(ItemParser):
         for icon in search_icons:
             link = soup.find(name="link", rel=icon.rel)
             if link:
-                href = link.get("href", None)
-                if href:
-                    icon.url = url.join(URL(href))
+                parsed = parse_href_to_url(link.get("href", None))
+                if parsed:
+                    icon.url = url.join(parsed)
             if icon.url:
                 possible_icons.append(icon)
 

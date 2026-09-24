@@ -52,6 +52,12 @@ async def _create_test_server() -> TestServer:
     async def server_error_handler(request: web.Request) -> web.Response:
         return web.Response(status=500, text="error")
 
+    async def legacy_charset_handler(request: web.Request) -> web.Response:
+        # windows-1252 body, charset declared only in the meta tag
+        body = b'<html><head><meta charset="windows-1252"></head><body>caf\xe9</body></html>'
+        return web.Response(body=body, content_type="text/html")
+
+    app.router.add_get("/legacy", legacy_charset_handler)
     app.router.add_get("/ok", ok_handler)
     app.router.add_get("/large", large_handler)
     app.router.add_get("/slow", slow_handler)
@@ -160,3 +166,25 @@ async def test_downloader_process_exception_called_on_unexpected_error(
             )
     finally:
         await server.close()
+
+
+@pytest.mark.asyncio
+async def test_downloader_sniffs_charset_when_declared_one_fails() -> None:
+    server = await _create_test_server()
+    try:
+        async with aiohttp.ClientSession() as session:
+            downloader = Downloader(request_session=session, middlewares=[])
+            resp = await downloader.fetch(
+                Request(url=URL(str(server.make_url("/legacy"))))
+            )
+
+            assert resp.ok
+            assert "café" in resp.text
+            assert resp.encoding == "windows-1252"
+    finally:
+        await server.close()
+
+
+def test_decode_replaces_bytes_when_nothing_matches() -> None:
+    text, encoding = Downloader._decode(b"\xff\xfe\x81", "utf-8", URL("http://x"))
+    assert text and "\ufffd" in text
