@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.8] - 2026-10-29
+
+### Fixed
+
+- `follow()` drops URLs whose host cannot be decoded (a malformed `xn--`
+  punycode label, seen in a robots.txt sitemap line with a space) instead of
+  raising `UnicodeDecodeError` from the crawl loop.
+
 ## [2.1.7] - 2026-09-24
 
 ### Fixed

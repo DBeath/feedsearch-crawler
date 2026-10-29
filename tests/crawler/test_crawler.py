@@ -191,6 +191,16 @@ class TestCrawlerFollowMethod:
                 is None
             )
 
+    async def test_follow_ignores_undecodable_host(self):
+        """A malformed punycode host raises UnicodeError from yarl (FEEDSEARCH-7W)."""
+        crawler = MockCrawler()
+
+        async def dummy_callback(request, response):
+            pass
+
+        url = URL("https://xn--abc def.com/robots.txt")
+        assert await crawler.follow(url, dummy_callback) is None
+
     async def test_follow_blocked_by_domain_filter(self):
         crawler = MockCrawler(allowed_domains=["allowed.com"])
 

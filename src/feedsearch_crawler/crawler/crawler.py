@@ -485,7 +485,14 @@ class Crawler(ABC):
         # A scheme without a host (data:, javascript:, mailto:, tel:) is not a
         # fetchable resource. Joining it to the Response origin turned
         # "data:image/png;base64,..." into a host name and yarl raised.
-        if request_url.scheme and not request_url.host:
+        # yarl decodes the host lazily and raises UnicodeError on a malformed
+        # punycode label (e.g. "xn--" plus a space from a robots.txt sitemap line).
+        try:
+            host = request_url.host
+        except UnicodeError:
+            logger.debug("Not a fetchable URL: %s", original_url)
+            return
+        if request_url.scheme and not host:
             logger.debug("Not a fetchable URL: %s", original_url)
             return
 
