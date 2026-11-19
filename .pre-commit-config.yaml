@@ -1,0 +1,20 @@
+# Tool versions come from uv.lock (dev group), so hooks and CI run the same ones.
+# Install once per clone: uv run pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format
+        language: system
+        types: [python]
+      - id: rumdl
+        name: rumdl (markdown)
+        entry: uv run rumdl check --fix
+        language: system
+        types: [markdown]

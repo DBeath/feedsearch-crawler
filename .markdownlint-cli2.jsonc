@@ -1,3 +1,0 @@
-{
-  "ignores": [".venv/**", "node_modules/**", "htmlcov/**", "dist/**"]
-}

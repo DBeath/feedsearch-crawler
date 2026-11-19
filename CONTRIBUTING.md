@@ -51,6 +51,7 @@ Enhancement suggestions are welcome! Please:
 ### Pull Requests
 
 1. **Fork the repository** and create a branch from `master`
+
 2. **Set up development environment**:
 
    ```bash
@@ -118,6 +119,13 @@ uv run ruff check
 
 # Auto-format code
 uv run ruff format
+
+# Lint Markdown
+uv run rumdl check
+
+# Install the git hook once per clone, or run every check by hand
+uv run pre-commit install
+uv run pre-commit run --all-files
 
 # Run all tests
 uv run pytest
@@ -243,7 +251,9 @@ feedsearch-crawler/
 Releases are handled by maintainers:
 
 1. Update version in `pyproject.toml`
+
 2. Update `CHANGELOG.md`
+
 3. Commit, then create and push a matching git tag:
 
    ```shell

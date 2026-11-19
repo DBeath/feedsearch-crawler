@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hrefs that cannot be parsed as a URL (`at://did:plc:...`,
   `https://://fonts.googleapis.com`) are logged at DEBUG instead of WARNING:
   they come from the crawled page, not from a crawler fault.
+- Development: lint hooks are tracked in `.pre-commit-config.yaml` and run
+  through uv; Markdown is linted with `rumdl` instead of `markdownlint`, so no
+  Node tooling is needed.
 
 ## [2.1.8] - 2026-10-29
 

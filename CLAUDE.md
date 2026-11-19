@@ -42,6 +42,8 @@ This project uses [uv](https://docs.astral.sh/uv/) for package management and de
 - `uv sync` - Install dependencies and sync the environment
 - `uv run ruff check` - Run linting checks
 - `uv run ruff format` - Format code
+- `uv run rumdl check` - Lint Markdown (config in `pyproject.toml`)
+- `uv run pre-commit run --all-files` - Run every hook in `.pre-commit-config.yaml`; `uv run pre-commit install` once per clone
 - `uv run pytest` - Run all tests
 - `uv run pytest --durations=20` - Show 20 slowest tests
 - `uv run pytest tests/crawler/test_request.py` - Run a specific test file
