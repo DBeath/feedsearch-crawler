@@ -84,3 +84,15 @@ async def test_crawler_priority_queue() -> None:
     assert queue.qsize() == 2
     assert await queue.get() == CustomItem(8, "data8")
     assert await queue.get() == CustomItem(9, "data9")
+
+
+@pytest.mark.parametrize(
+    "href",
+    ["at://did:plc:abc123/app.bsky.feed.post/3k", "https://://fonts.googleapis.com"],
+)
+def test_parse_href_to_url_malformed_is_quiet(href: str, caplog: Any) -> None:
+    from feedsearch_crawler.crawler.lib import parse_href_to_url
+
+    with caplog.at_level("DEBUG"):
+        assert parse_href_to_url(href) is None
+    assert [r.levelname for r in caplog.records] == ["DEBUG"]

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Hrefs that cannot be parsed as a URL (`at://did:plc:...`,
+  `https://://fonts.googleapis.com`) are logged at DEBUG instead of WARNING:
+  they come from the crawled page, not from a crawler fault.
+
 ## [2.1.8] - 2026-10-29
 
 ### Fixed

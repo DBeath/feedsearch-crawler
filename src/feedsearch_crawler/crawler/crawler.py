@@ -472,7 +472,7 @@ class Crawler(ABC):
         if isinstance(url, str):
             parsed_url: Union[URL, None] = parse_href_to_url(url)
             if not parsed_url:
-                logger.warning("Cannot parse str to URL: %s", original_url)
+                logger.debug("Cannot parse str to URL: %s", original_url)
                 return
             request_url = parsed_url
         else:

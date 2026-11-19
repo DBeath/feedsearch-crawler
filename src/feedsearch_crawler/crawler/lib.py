@@ -275,7 +275,8 @@ def parse_href_to_url(href: str) -> Union[URL, None]:
     try:
         return URL(href)
     except (UnicodeError, ValueError) as e:
-        logger.warning("Failed to encode href: %s : %s", href, e)
+        # Malformed hrefs in crawled pages are routine (at://did:plc:..., https://://host)
+        logger.debug("Not a parseable href: %s : %s", href, e)
         return None
 
 
